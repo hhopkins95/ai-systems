@@ -6,6 +6,7 @@ import type {
   MarketplaceManifest,
   PluginSource,
   KnownMarketplace,
+  PluginEnabledStatus,
 } from "../types.js";
 import { EntityDiscovery } from "./EntityDiscovery.js";
 import { PluginRegistryService } from "../registry/PluginRegistry.js";
@@ -34,6 +35,19 @@ export class PluginDiscovery {
     this.pluginRegistry = new PluginRegistryService(claudeDir);
     this.marketplaceRegistry = new MarketplaceRegistryService(claudeDir);
     this.settingsManager = new SettingsManager(claudeDir, projectDir);
+  }
+
+  /**
+   * Compute the enabled status from the settings value
+   */
+  private computeEnabledStatus(
+    pluginId: string,
+    enabledStates: Record<string, boolean>
+  ): PluginEnabledStatus {
+    const value = enabledStates[pluginId];
+    if (value === false) return "disabled";
+    if (value === true) return "explicit-enabled";
+    return "implicit-enabled";
   }
 
   /**
@@ -171,6 +185,8 @@ export class PluginDiscovery {
         source: this.resolveSource(pluginEntry.source, marketplaceDir),
         path: pluginPath,
         enabled: enabledStates[pluginId] !== false,
+        installationStatus: "installed", // We verified path exists above
+        enabledStatus: this.computeEnabledStatus(pluginId, enabledStates),
         skillCount: counts.skills,
         commandCount: counts.commands,
         agentCount: counts.agents,
@@ -253,6 +269,8 @@ export class PluginDiscovery {
           source: { source: "directory", path: pluginPath },
           path: pluginPath,
           enabled: enabledStates[pluginId] !== false,
+          installationStatus: "installed",
+          enabledStatus: this.computeEnabledStatus(pluginId, enabledStates),
           skillCount: counts.skills,
           commandCount: counts.commands,
           agentCount: counts.agents,
@@ -354,6 +372,8 @@ export class PluginDiscovery {
           source: { source: "directory", path: searchPath },
           path: searchPath,
           enabled: enabledStates[pluginId] !== false,
+          installationStatus: "installed",
+          enabledStatus: this.computeEnabledStatus(pluginId, enabledStates),
           skillCount,
           commandCount: 0,
           agentCount: 0,

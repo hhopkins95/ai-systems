@@ -1,172 +1,66 @@
-// ==================== ENTITY SOURCE ====================
-
 /**
- * Source information for an entity - where it came from
+ * Type definitions for claude-entity-manager
+ *
+ * Core entity types are imported from @ai-systems/shared-types.
+ * This file contains manager-specific types for manifests, registries, and installation.
  */
-export interface EntitySource {
-  /** The type of source: plugin, project, or global */
-  type: "plugin" | "project" | "global";
-  /** Plugin ID if from plugin (e.g., "episodic-memory@superpowers-marketplace") */
-  pluginId?: string;
-  /** Marketplace name if from plugin */
-  marketplace?: string;
-  /** File path to the entity */
-  path: string;
-}
 
-// ==================== SKILL ====================
+// Re-export all shared types
+export type {
+  // Sources
+  EntitySource,
+  EntitySourceType,
 
-/**
- * Skill metadata from frontmatter
- */
-export interface SkillMetadata {
-  name?: string;
-  description?: string;
-  version?: string;
-  tags?: string[];
-  "allowed-tools"?: string[];
-  [key: string]: unknown;
-}
+  // Entities
+  Skill,
+  SkillMetadata,
+  SkillFile,
+  Command,
+  CommandMetadata,
+  Agent,
+  AgentMetadata,
+  Hook,
+  HookEvent,
+  HookConfig,
+  CommandHookConfig,
+  PromptHookConfig,
+  HookMatcher,
+  MemoryFile,
+  MemoryFileScope,
 
-/**
- * Skill entity - SKILL.md files with optional bundled resources
- */
-export interface Skill {
-  /** Skill name (from frontmatter or directory name) */
-  name: string;
-  /** Full absolute path to SKILL.md */
-  path: string;
-  /** Source information */
-  source: EntitySource;
-  /** Skill description from frontmatter */
-  description: string;
-  /** Version from frontmatter (optional) */
-  version?: string;
-  /** Raw markdown content (body after frontmatter) */
-  content: string;
-  /** All frontmatter metadata */
-  metadata: SkillMetadata;
-  /** List of all files in the skill directory (relative paths) */
-  files: string[];
-  /** Optional: loaded file contents (if requested) */
-  fileContents?: Record<string, string>;
-}
+  // Plugin
+  Plugin,
+  PluginInstallationStatus,
+  PluginEnabledStatus,
+  PluginSource,
+  PluginInstallInfo,
+  EntityCounts,
+  Marketplace,
 
-// ==================== COMMAND ====================
+  // MCP
+  McpServerConfig,
+  McpEnvVars,
+  PluginMcpServer,
 
-/**
- * Command metadata from frontmatter
- */
-export interface CommandMetadata {
-  description?: string;
-  agent?: string;
-  model?: string;
-  "allowed-tools"?: string[];
-  [key: string]: unknown;
-}
+  // Agent context
+  AgentContext,
+  AgentContextSources,
+  LoadAgentContextOptions,
+} from "@ai-systems/shared-types";
+
+// Import types we need for local types
+import type {
+  EntitySource,
+  MemoryFile,
+  PluginSource,
+  McpServerConfig,
+} from "@ai-systems/shared-types";
+
+// ==================== CLAUDE.MD (INTERNAL) ====================
 
 /**
- * Command entity - markdown files in commands/ directory
- */
-export interface Command {
-  /** Command name (from filename without .md) */
-  name: string;
-  /** Full absolute path to command file */
-  path: string;
-  /** Source information */
-  source: EntitySource;
-  /** Command description from frontmatter or first line */
-  description?: string;
-  /** Raw markdown content (body after frontmatter) */
-  content: string;
-  /** All frontmatter metadata */
-  metadata: CommandMetadata;
-}
-
-// ==================== AGENT ====================
-
-/**
- * Agent metadata from frontmatter
- */
-export interface AgentMetadata {
-  description?: string;
-  model?: string;
-  tools?: string[];
-  color?: string;
-  [key: string]: unknown;
-}
-
-/**
- * Agent entity - markdown files in agents/ directory
- */
-export interface Agent {
-  /** Agent name (from filename without .md) */
-  name: string;
-  /** Full absolute path to agent file */
-  path: string;
-  /** Source information */
-  source: EntitySource;
-  /** Agent description from frontmatter */
-  description?: string;
-  /** Raw markdown content (system prompt) */
-  content: string;
-  /** All frontmatter metadata */
-  metadata: AgentMetadata;
-}
-
-// ==================== HOOK ====================
-
-/**
- * Hook events supported by Claude Code
- */
-export type HookEvent =
-  | "PreToolUse"
-  | "PostToolUse"
-  | "Stop"
-  | "SubagentStop"
-  | "SessionStart"
-  | "SessionEnd"
-  | "UserPromptSubmit"
-  | "PreCompact"
-  | "Notification";
-
-/**
- * Single hook configuration
- */
-export interface HookConfig {
-  type: "command" | "prompt";
-  command?: string;
-  prompt?: string;
-  timeout?: number;
-  async?: boolean;
-}
-
-/**
- * Hook matcher configuration
- */
-export interface HookMatcher {
-  matcher?: string;
-  hooks: HookConfig[];
-}
-
-/**
- * Hook entity - from hooks.json files
- */
-export interface Hook {
-  /** Hook name (from filename or plugin) */
-  name: string;
-  /** Full absolute path to hooks.json */
-  path: string;
-  /** Source information */
-  source: EntitySource;
-  /** Hook event configurations */
-  hooks: Partial<Record<HookEvent, HookMatcher[]>>;
-}
-
-// ==================== CLAUDE.MD CONTEXT FILES ====================
-
-/**
- * Scope of a CLAUDE.md file - where it's located
+ * Scope of a CLAUDE.md file - internal representation
+ * @deprecated Use MemoryFileScope from shared-types
  */
 export type ClaudeMdScope = "global" | "project" | "nested";
 
@@ -180,7 +74,8 @@ export interface ClaudeMdFrontmatter {
 }
 
 /**
- * CLAUDE.md file information
+ * CLAUDE.md file information (internal format)
+ * Use toMemoryFile() to convert to the shared MemoryFile type
  */
 export interface ClaudeMdFile {
   /** Filename (always "CLAUDE.md") */
@@ -202,7 +97,7 @@ export interface ClaudeMdFile {
 }
 
 /**
- * Node in the CLAUDE.md file tree
+ * Node in the CLAUDE.md file tree (internal representation)
  */
 export interface ClaudeMdNode {
   /** Node type: file or directory */
@@ -217,27 +112,32 @@ export interface ClaudeMdNode {
   children?: ClaudeMdNode[];
 }
 
-// ==================== AGGREGATED CONFIG ====================
+/**
+ * Convert ClaudeMdFile to MemoryFile (shared type)
+ */
+export function toMemoryFile(file: ClaudeMdFile): MemoryFile {
+  return {
+    path: file.path,
+    content: file.content,
+    frontmatter: file.frontmatter ?? undefined,
+    scope: file.scope, // Same values: "global" | "project" | "nested"
+    relativePath: file.scope === "nested" ? file.relativePath : undefined,
+    depth: file.level,
+  };
+}
+
+// ==================== AGGREGATED CONFIG (LEGACY) ====================
 
 /**
  * Complete Claude Code configuration with all entities
+ * @deprecated Use AgentContext from shared-types
  */
 export interface ClaudeConfig {
-  skills: Skill[];
-  commands: Command[];
-  agents: Agent[];
-  hooks: Hook[];
+  skills: import("@ai-systems/shared-types").Skill[];
+  commands: import("@ai-systems/shared-types").Command[];
+  agents: import("@ai-systems/shared-types").Agent[];
+  hooks: import("@ai-systems/shared-types").Hook[];
 }
-
-// ==================== PLUGIN SOURCE ====================
-
-/**
- * Plugin source - where to get the plugin
- */
-export type PluginSource =
-  | { source: "github"; repo: string }
-  | { source: "url"; url: string }
-  | { source: "directory"; path: string };
 
 // ==================== PLUGIN MANIFEST ====================
 
@@ -256,15 +156,6 @@ export interface PluginManifest {
   keywords?: string[];
   agents?: string[];
   mcpServers?: Record<string, McpServerConfig>;
-}
-
-/**
- * MCP Server configuration
- */
-export interface McpServerConfig {
-  command: string;
-  args?: string[];
-  env?: Record<string, string>;
 }
 
 // ==================== MARKETPLACE ====================
@@ -355,39 +246,6 @@ export interface Settings {
   [key: string]: unknown;
 }
 
-// ==================== PLUGIN ====================
-
-/**
- * Full plugin information (aggregated from discovery)
- */
-export interface Plugin {
-  /** Unique plugin ID: "plugin-name@marketplace-name" or "plugin-name" */
-  id: string;
-  /** Plugin name */
-  name: string;
-  /** Marketplace name (if from marketplace) */
-  marketplace?: string;
-  /** Plugin description */
-  description?: string;
-  /** Plugin version */
-  version?: string;
-  /** Plugin source info */
-  source: PluginSource;
-  /** Absolute path to plugin directory */
-  path: string;
-  /** Whether plugin is enabled */
-  enabled: boolean;
-  /** Entity counts */
-  skillCount: number;
-  commandCount: number;
-  agentCount: number;
-  hookCount: number;
-  /** Has MCP servers */
-  hasMcpServers: boolean;
-  /** Installation info from registry */
-  installInfo?: InstalledPluginInfo;
-}
-
 // ==================== INSTALLATION ====================
 
 /**
@@ -431,4 +289,38 @@ export interface ClaudeEntityManagerOptions {
   projectDir?: string;
   /** Whether to include disabled plugins when loading (default: false) */
   includeDisabled?: boolean;
+}
+
+// ==================== INTERNAL PLUGIN TYPE (LEGACY) ====================
+
+/**
+ * Internal plugin representation during discovery
+ * Use the Plugin type from shared-types for the public API
+ */
+export interface InternalPlugin {
+  /** Unique plugin ID: "plugin-name@marketplace-name" or "plugin-name" */
+  id: string;
+  /** Plugin name */
+  name: string;
+  /** Marketplace name (if from marketplace) */
+  marketplace?: string;
+  /** Plugin description */
+  description?: string;
+  /** Plugin version */
+  version?: string;
+  /** Plugin source info */
+  source: PluginSource;
+  /** Absolute path to plugin directory */
+  path: string;
+  /** Whether plugin is enabled (legacy - use enabledStatus) */
+  enabled: boolean;
+  /** Entity counts */
+  skillCount: number;
+  commandCount: number;
+  agentCount: number;
+  hookCount: number;
+  /** Has MCP servers */
+  hasMcpServers: boolean;
+  /** Installation info from registry */
+  installInfo?: InstalledPluginInfo;
 }

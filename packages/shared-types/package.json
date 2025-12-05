@@ -1,0 +1,44 @@
+{
+  "name": "@ai-systems/shared-types",
+  "version": "0.1.0",
+  "description": "Shared TypeScript types for Claude Code entities, plugins, and agent contexts",
+  "type": "module",
+  "main": "./dist/index.js",
+  "types": "./dist/index.d.ts",
+  "exports": {
+    ".": {
+      "types": "./dist/index.d.ts",
+      "import": "./dist/index.js"
+    }
+  },
+  "files": [
+    "dist/",
+    "README.md"
+  ],
+  "scripts": {
+    "build": "tsc",
+    "dev": "tsc --watch",
+    "typecheck": "tsc --noEmit"
+  },
+  "keywords": [
+    "claude",
+    "claude-code",
+    "types",
+    "typescript",
+    "plugins",
+    "entities"
+  ],
+  "author": "Hunter Hopkins",
+  "license": "MIT",
+  "repository": {
+    "type": "git",
+    "url": "git+https://github.com/hhopkins95/ai-systems.git",
+    "directory": "packages/shared-types"
+  },
+  "engines": {
+    "node": ">=18.0.0"
+  },
+  "devDependencies": {
+    "typescript": "^5.7.2"
+  }
+}

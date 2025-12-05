@@ -1,0 +1,21 @@
+/**
+ * @ai-systems/shared-types
+ *
+ * Shared TypeScript types for Claude Code entities, plugins, and agent contexts.
+ * Used across the ai-systems monorepo for consistent type definitions.
+ */
+
+// Source tracking
+export * from "./sources.js";
+
+// Plugin types
+export * from "./plugin.js";
+
+// MCP types
+export * from "./mcp.js";
+
+// Entity types
+export * from "./entities/index.js";
+
+// Agent context (composed type)
+export * from "./agent-context.js";

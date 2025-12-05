@@ -315,7 +315,7 @@ export class PluginInstaller {
       const parsed = this.sourceParser.parse(source);
       // Convert InstallSource to PluginSource
       if (parsed.type === "github") {
-        parsedSource = { source: "github", repo: `${parsed.owner}/${parsed.repo}` };
+        parsedSource = { source: "github", repo: parsed.repo, owner: parsed.owner };
       } else if (parsed.type === "git") {
         parsedSource = { source: "url", url: parsed.url };
       } else if (parsed.type === "directory") {
