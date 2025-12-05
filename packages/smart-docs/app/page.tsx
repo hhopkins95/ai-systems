@@ -2,13 +2,12 @@
 
 import { useState, useEffect } from 'react';
 import DocsTab from './components/DocsTab';
-import ClaudeConfigTab from './components/ClaudeConfigTab';
+import AgentProfileTab from './components/AgentProfileTab';
 import PluginsTab from './components/PluginsTab';
-import ContextTab from './components/ContextTab';
 import type { ServerConfig } from '@/types';
 
 export default function Home() {
-  const [activeTab, setActiveTab] = useState<'docs' | 'claude' | 'plugins' | 'context'>('docs');
+  const [activeTab, setActiveTab] = useState<'docs' | 'agent-profile' | 'plugins'>('docs');
   const [config, setConfig] = useState<ServerConfig | null>(null);
 
   useEffect(() => {
@@ -48,13 +47,13 @@ export default function Home() {
           </button>
           <button
             className={`px-4 py-2 font-medium ${
-              activeTab === 'claude'
+              activeTab === 'agent-profile'
                 ? 'border-b-2 border-blue-500 text-blue-600 dark:text-blue-400'
                 : 'text-gray-600 dark:text-gray-400 hover:text-gray-900 dark:hover:text-gray-200'
             }`}
-            onClick={() => setActiveTab('claude')}
+            onClick={() => setActiveTab('agent-profile')}
           >
-            🤖 Claude Config
+            👤 Agent Profile
           </button>
           <button
             className={`px-4 py-2 font-medium ${
@@ -66,25 +65,14 @@ export default function Home() {
           >
             🔌 Plugins
           </button>
-          <button
-            className={`px-4 py-2 font-medium ${
-              activeTab === 'context'
-                ? 'border-b-2 border-blue-500 text-blue-600 dark:text-blue-400'
-                : 'text-gray-600 dark:text-gray-400 hover:text-gray-900 dark:hover:text-gray-200'
-            }`}
-            onClick={() => setActiveTab('context')}
-          >
-            📋 Context
-          </button>
         </div>
       </header>
 
       {/* Content */}
       <main className="flex-1 overflow-hidden">
         {activeTab === 'docs' && <DocsTab />}
-        {activeTab === 'claude' && <ClaudeConfigTab />}
+        {activeTab === 'agent-profile' && <AgentProfileTab />}
         {activeTab === 'plugins' && <PluginsTab />}
-        {activeTab === 'context' && <ContextTab />}
       </main>
     </div>
   );
