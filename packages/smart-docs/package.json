@@ -40,18 +40,19 @@
   ],
   "repository": {
     "type": "git",
-    "url": "https://github.com/hhopkins95/smart-docs.git"
+    "url": "git+https://github.com/hhopkins95/ai-systems.git",
+    "directory": "packages/smart-docs"
   },
   "bugs": {
-    "url": "https://github.com/hhopkins95/smart-docs/issues"
+    "url": "https://github.com/hhopkins95/ai-systems/issues"
   },
-  "homepage": "https://github.com/hhopkins95/smart-docs#readme",
+  "homepage": "https://github.com/hhopkins95/ai-systems/tree/main/packages/smart-docs#readme",
   "author": "",
   "license": "MIT",
   "dependencies": {
     "@hhopkins/claude-entity-manager": "workspace:*",
     "@tailwindcss/typography": "^0.5.19",
-    "@types/node": "^20",
+    "@types/node": "^22",
     "@types/react": "^19",
     "@types/react-dom": "^19",
     "@types/react-syntax-highlighter": "^15.5.13",
@@ -73,7 +74,7 @@
     "socket.io": "^4.8.1",
     "socket.io-client": "^4.8.1",
     "tailwindcss": "^3.4.1",
-    "typescript": "^5"
+    "typescript": "^5.7.2"
   },
   "engines": {
     "node": ">=18.0.0"

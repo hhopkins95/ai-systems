@@ -18,12 +18,12 @@
   ],
   "repository": {
     "type": "git",
-    "url": "https://github.com/hhopkins95/agent-runtime.git",
-    "directory": "agent-runtime-react"
+    "url": "git+https://github.com/hhopkins95/ai-systems.git",
+    "directory": "packages/agent-runtime-react"
   },
-  "homepage": "https://github.com/hhopkins95/agent-runtime#readme",
+  "homepage": "https://github.com/hhopkins95/ai-systems/tree/main/packages/agent-runtime-react#readme",
   "bugs": {
-    "url": "https://github.com/hhopkins95/agent-runtime/issues"
+    "url": "https://github.com/hhopkins95/ai-systems/issues"
   },
   "author": "Hunter Hopkins",
   "license": "MIT",

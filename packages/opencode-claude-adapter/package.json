@@ -9,7 +9,8 @@
   "author": "Hunter Hopkins",
   "repository": {
     "type": "git",
-    "url": "git+https://github.com/hhopkins95/opencode-claude-adapter.git"
+    "url": "git+https://github.com/hhopkins95/ai-systems.git",
+    "directory": "packages/opencode-claude-adapter"
   },
   "publishConfig": {
     "access": "public",
@@ -25,9 +26,9 @@
     "claude",
     "claude code"
   ],
-  "homepage": "https://github.com/hhopkins95/opencode-claude-adapter#readme",
+  "homepage": "https://github.com/hhopkins95/ai-systems/tree/main/packages/opencode-claude-adapter#readme",
   "bugs": {
-    "url": "https://github.com/hhopkins95/opencode-claude-adapter/issues"
+    "url": "https://github.com/hhopkins95/ai-systems/issues"
   },
   "files": [
     "dist/",
@@ -49,7 +50,7 @@
     "@opencode-ai/plugin": "^1.0.126",
     "@types/bun": "^1.3.0",
     "bun-types": "^1.3.0",
-    "typescript": "^5.9.3"
+    "typescript": "^5.7.2"
   },
   "dependencies": {
     "@hhopkins/claude-entity-manager": "workspace:*",
