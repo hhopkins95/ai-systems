@@ -30,3 +30,9 @@ Thumbs.db
 
 # Testing
 coverage
+
+# OpenCode generated files (synced from .claude by opencode-claude-adapter)
+.opencode/skills/
+.opencode/command/
+.opencode/agent/
+AGENTS.md
