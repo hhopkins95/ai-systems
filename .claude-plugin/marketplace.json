@@ -1,0 +1,18 @@
+{
+  "name": "hhopkins-agent-system",
+  "owner": {
+    "name": "Hunter Hopkins",
+    "email": "hhopkins614@gmail.com"
+  },
+  "metadata": {
+    "description": "AI systems plugins for agent runtime and tooling",
+    "version": "1.0.0"
+  },
+  "plugins": [
+    {
+      "name": "agent-service",
+      "description": "Skills and patterns for creating apps that use the agent runtime",
+      "source": "./plugins/agent-service"
+    }
+  ]
+}

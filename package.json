@@ -9,6 +9,8 @@
     "dev": "turbo run dev",
     "check": "turbo run check",
     "clean": "turbo run clean && rm -rf node_modules .turbo",
+    "docs": "pnpm --filter @hhopkins/smart-docs exec smart-docs ../../docs",
+    "docs:dev": "pnpm --filter @hhopkins/smart-docs exec smart-docs ../../docs --dev",
     "publish:entity-manager": "pnpm --filter @hhopkins/claude-entity-manager publish",
     "publish:agent-runtime": "pnpm --filter @hhopkins/agent-runtime publish",
     "publish:agent-runtime-react": "pnpm --filter @hhopkins/agent-runtime-react publish",
