@@ -126,6 +126,49 @@ export function toMemoryFile(file: ClaudeMdFile): MemoryFile {
   };
 }
 
+/**
+ * Flatten a ClaudeMdNode tree into a sorted array of ClaudeMdFile objects.
+ * Files are sorted by precedence: global → project → nested (by level, then path)
+ */
+export function flattenClaudeMdNodes(nodes: ClaudeMdNode[]): ClaudeMdFile[] {
+  const files: ClaudeMdFile[] = [];
+
+  function traverse(node: ClaudeMdNode) {
+    if (node.type === "file" && node.file) {
+      files.push(node.file);
+    }
+    if (node.children) {
+      for (const child of node.children) {
+        traverse(child);
+      }
+    }
+  }
+
+  for (const node of nodes) {
+    traverse(node);
+  }
+
+  // Sort by scope priority: global first, then project, then nested
+  const scopeOrder: Record<ClaudeMdScope, number> = {
+    global: 0,
+    project: 1,
+    nested: 2,
+  };
+
+  files.sort((a, b) => {
+    const orderDiff = scopeOrder[a.scope] - scopeOrder[b.scope];
+    if (orderDiff !== 0) return orderDiff;
+    // For nested files, sort by level then path
+    if (a.scope === "nested" && b.scope === "nested") {
+      if (a.level !== b.level) return a.level - b.level;
+      return a.path.localeCompare(b.path);
+    }
+    return 0;
+  });
+
+  return files;
+}
+
 // ==================== AGGREGATED CONFIG (LEGACY) ====================
 
 /**

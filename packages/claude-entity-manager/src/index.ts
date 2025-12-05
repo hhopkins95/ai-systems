@@ -16,7 +16,14 @@ export type {
   HookMatcher,
   ClaudeConfig,
   EntitySource,
-  // CLAUDE.md context types
+  // Agent context types
+  AgentContext,
+  AgentContextSources,
+  LoadAgentContextOptions,
+  // Memory file types
+  MemoryFile,
+  MemoryFileScope,
+  // CLAUDE.md context types (internal)
   ClaudeMdScope,
   ClaudeMdFrontmatter,
   ClaudeMdFile,
@@ -28,6 +35,7 @@ export type {
   MarketplaceManifest,
   MarketplacePlugin,
   McpServerConfig,
+  PluginMcpServer,
   // Registry types
   PluginRegistry,
   InstalledPluginInfo,
@@ -41,6 +49,9 @@ export type {
   // Service options
   ClaudeEntityManagerOptions,
 } from "./types.js";
+
+// Helper function exports
+export { toMemoryFile, flattenClaudeMdNodes } from "./types.js";
 
 // Service exports for advanced usage
 export { SkillLoader } from "./loaders/SkillLoader.js";

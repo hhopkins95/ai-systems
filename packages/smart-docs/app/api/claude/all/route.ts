@@ -8,12 +8,11 @@ export async function GET(request: Request) {
 
     const { entityManager } = getServices();
 
-    // ClaudeEntityManager.loadAllEntities() handles:
-    // - Loading from global ~/.claude
-    // - Loading from project .claude
-    // - Loading from all enabled plugins
-    // - File content loading when requested
-    const config = await entityManager.loadAllEntities(includeContents);
+    // loadEntitiesFromEnabledSources() loads from:
+    // - Global ~/.claude
+    // - Project .claude
+    // - All enabled plugins (disabled plugins are excluded)
+    const config = await entityManager.loadEntitiesFromEnabledSources(includeContents);
 
     return NextResponse.json(config);
   } catch (error) {

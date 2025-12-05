@@ -7,6 +7,7 @@ import type {
   PluginSource,
   KnownMarketplace,
   PluginEnabledStatus,
+  McpServerConfig,
 } from "../types.js";
 import { EntityDiscovery } from "./EntityDiscovery.js";
 import { PluginRegistryService } from "../registry/PluginRegistry.js";
@@ -414,6 +415,24 @@ export class PluginDiscovery {
     } catch {
       return null;
     }
+  }
+
+  /**
+   * Load MCP server configurations from a plugin directory.
+   * Returns an array of McpServerConfig objects from the plugin manifest.
+   */
+  async loadMcpServersFromPlugin(pluginDir: string): Promise<McpServerConfig[]> {
+    const manifest = await this.loadPluginManifest(pluginDir);
+    if (!manifest?.mcpServers) {
+      return [];
+    }
+
+    // Convert Record<string, McpServerConfig> to McpServerConfig[]
+    // Use the key as the name if not explicitly set in the config
+    return Object.entries(manifest.mcpServers).map(([name, config]) => ({
+      ...config,
+      name: config.name || name,
+    }));
   }
 
   /**
