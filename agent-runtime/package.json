@@ -1,0 +1,85 @@
+{
+  "name": "@hhopkins/agent-runtime",
+  "version": "0.1.1",
+  "description": "Node.js runtime for orchestrating AI agents (Claude, Gemini) in isolated Modal sandboxes",
+  "type": "module",
+  "main": "./dist/index.js",
+  "module": "./dist/index.js",
+  "types": "./dist/index.d.ts",
+  "exports": {
+    ".": {
+      "development": "./src/index.ts",
+      "import": "./dist/index.js",
+      "types": "./dist/index.d.ts"
+    },
+    "./types": {
+      "development": "./src/types/index.ts",
+      "import": "./dist/types/index.js",
+      "types": "./dist/types/index.d.ts"
+    }
+  },
+  "files": [
+    "dist",
+    "sandbox",
+    "README.md"
+  ],
+  "keywords": [
+    "ai",
+    "agent",
+    "claude",
+    "gemini",
+    "modal",
+    "runtime",
+    "sandbox",
+    "websocket",
+    "streaming",
+    "anthropic"
+  ],
+  "repository": {
+    "type": "git",
+    "url": "https://github.com/hhopkins95/agent-runtime.git",
+    "directory": "agent-runtime"
+  },
+  "homepage": "https://github.com/hhopkins95/agent-runtime#readme",
+  "bugs": {
+    "url": "https://github.com/hhopkins95/agent-runtime/issues"
+  },
+  "author": "Hunter Hopkins",
+  "license": "MIT",
+  "publishConfig": {
+    "access": "public"
+  },
+  "scripts": {
+    "prepublishOnly": "pnpm run build",
+    "build": "tsc",
+    "check-types": "tsc --noEmit",
+    "lint": "eslint . --ext ts,tsx --report-unused-disable-directives --max-warnings 0",
+    "check": "pnpm run check-types && pnpm run lint"
+  },
+  "dependencies": {
+    "@anthropic-ai/claude-agent-sdk": "^0.1.54",
+    "@hono/node-server": "^1.14.2",
+    "@hono/zod-validator": "^0.7.5",
+    "@opencode-ai/sdk": "^1.0.120",
+    "chokidar": "^4.0.3",
+    "commander": "^14.0.0",
+    "dotenv": "^17.2.2",
+    "hono": "^4.7.11",
+    "modal": "^0.5.4",
+    "pino": "^9.6.0",
+    "pino-pretty": "^13.0.0",
+    "socket.io": "^4.8.1",
+    "tar-stream": "^3.1.7",
+    "zod": "^3.24.1"
+  },
+  "devDependencies": {
+    "@google/gemini-cli-core": "^0.16.0",
+    "@types/node": "^24.1.0",
+    "@types/tar-stream": "^3.1.4",
+    "@typescript-eslint/eslint-plugin": "^6.7.0",
+    "@typescript-eslint/parser": "^6.7.0",
+    "eslint": "^8.49.0",
+    "tsx": "^4.19.2",
+    "typescript": "^5.2.2"
+  }
+}

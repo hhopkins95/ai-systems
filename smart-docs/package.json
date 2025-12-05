@@ -1,0 +1,81 @@
+{
+  "name": "@hhopkins/smart-docs",
+  "version": "0.1.11",
+  "description": "Local documentation viewer for AI-native codebases",
+  "bin": {
+    "smart-docs": "bin/cli.mjs"
+  },
+  "files": [
+    ".next/server",
+    ".next/static",
+    ".next/*.json",
+    ".next/BUILD_ID",
+    ".next/package.json",
+    "app",
+    "bin/cli.mjs",
+    "public",
+    "server",
+    "types",
+    "instrumentation.ts",
+    "next.config.ts",
+    "tailwind.config.ts",
+    "postcss.config.mjs",
+    "tsconfig.json",
+    "README.md"
+  ],
+  "scripts": {
+    "dev": "node bin/cli.mjs ./test-docs --dev",
+    "build": "npm run build:cli && next build",
+    "start": "next start",
+    "lint": "next lint",
+    "build:cli": "tsc bin/cli.ts --outDir bin --module es2022 --target es2022 --moduleResolution bundler --esModuleInterop true --skipLibCheck true && mv bin/cli.js bin/cli.mjs",
+    "prepublishOnly": "npm run build"
+  },
+  "keywords": [
+    "documentation",
+    "claude-code",
+    "ai",
+    "docs",
+    "markdown"
+  ],
+  "repository": {
+    "type": "git",
+    "url": "https://github.com/hhopkins95/smart-docs.git"
+  },
+  "bugs": {
+    "url": "https://github.com/hhopkins95/smart-docs/issues"
+  },
+  "homepage": "https://github.com/hhopkins95/smart-docs#readme",
+  "author": "",
+  "license": "MIT",
+  "dependencies": {
+    "@hhopkins/claude-entity-manager": "workspace:*",
+    "@tailwindcss/typography": "^0.5.19",
+    "@types/node": "^20",
+    "@types/react": "^19",
+    "@types/react-dom": "^19",
+    "@types/react-syntax-highlighter": "^15.5.13",
+    "autoprefixer": "^10.0.1",
+    "chokidar": "^4.0.1",
+    "eslint": "^8",
+    "eslint-config-next": "^15.0.0",
+    "gray-matter": "^4.0.3",
+    "mermaid": "^11.4.0",
+    "next": "^15.0.0",
+    "open": "^10.1.0",
+    "postcss": "^8",
+    "react": "^19.0.0",
+    "react-dom": "^19.0.0",
+    "react-markdown": "^9.0.1",
+    "react-syntax-highlighter": "^15.6.1",
+    "remark-frontmatter": "^5.0.0",
+    "remark-gfm": "^4.0.0",
+    "socket.io": "^4.8.1",
+    "socket.io-client": "^4.8.1",
+    "tailwindcss": "^3.4.1",
+    "typescript": "^5"
+  },
+  "engines": {
+    "node": ">=18.0.0"
+  }
+}

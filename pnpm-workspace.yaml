@@ -1,0 +1,8 @@
+packages:
+  - 'agent-runtime'
+  - 'agent-runtime-react'
+  - 'claude-entity-manager'
+  - 'smart-docs'
+  - 'opencode-claude-adapter'
+  - 'example-backend'
+  - 'example-frontend'

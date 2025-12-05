@@ -1,0 +1,32 @@
+# Dependencies
+node_modules
+
+# Build outputs
+dist
+.next
+!.next/static
+!.next/server
+
+# Turbo
+.turbo
+
+# Environment
+.env
+.env.local
+.env.*.local
+
+# Logs
+*.log
+logs
+
+# Editor
+.vscode/*
+!.vscode/extensions.json
+.idea
+
+# OS
+.DS_Store
+Thumbs.db
+
+# Testing
+coverage

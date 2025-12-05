@@ -1,0 +1,55 @@
+{
+  "name": "@hhopkins/claude-entity-manager",
+  "version": "0.2.4",
+  "description": "Unified service for discovering, loading, and managing Claude Code entities (skills, commands, agents, hooks) and plugins",
+  "type": "module",
+  "main": "./dist/index.js",
+  "types": "./dist/index.d.ts",
+  "exports": {
+    ".": {
+      "types": "./dist/index.d.ts",
+      "import": "./dist/index.js"
+    }
+  },
+  "files": [
+    "dist/",
+    "README.md",
+    "LICENSE"
+  ],
+  "scripts": {
+    "build": "tsc",
+    "dev": "tsc --watch",
+    "typecheck": "tsc --noEmit",
+    "prepublishOnly": "npm run build"
+  },
+  "keywords": [
+    "claude",
+    "claude-code",
+    "plugins",
+    "skills",
+    "agents",
+    "commands",
+    "anthropic"
+  ],
+  "author": "Hunter Hopkins",
+  "license": "MIT",
+  "repository": {
+    "type": "git",
+    "url": "git+https://github.com/hhopkins95/claude-entity-manager.git"
+  },
+  "engines": {
+    "node": ">=18.0.0"
+  },
+  "publishConfig": {
+    "access": "public"
+  },
+  "dependencies": {
+    "fast-glob": "^3.3.2",
+    "gray-matter": "^4.0.3",
+    "simple-git": "^3.22.0"
+  },
+  "devDependencies": {
+    "@types/node": "^20.0.0",
+    "typescript": "^5.3.0"
+  }
+}

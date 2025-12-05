@@ -1,0 +1,60 @@
+{
+  "name": "@hhopkins/agent-runtime-react",
+  "version": "0.1.1",
+  "description": "React hooks and client for interacting with agent-service",
+  "type": "module",
+  "main": "./dist/index.js",
+  "module": "./dist/index.js",
+  "types": "./dist/index.d.ts",
+  "exports": {
+    ".": {
+      "development": "./src/index.ts",
+      "import": "./dist/index.js",
+      "types": "./dist/index.d.ts"
+    }
+  },
+  "files": [
+    "dist"
+  ],
+  "repository": {
+    "type": "git",
+    "url": "https://github.com/hhopkins95/agent-runtime.git",
+    "directory": "agent-runtime-react"
+  },
+  "homepage": "https://github.com/hhopkins95/agent-runtime#readme",
+  "bugs": {
+    "url": "https://github.com/hhopkins95/agent-runtime/issues"
+  },
+  "author": "Hunter Hopkins",
+  "license": "MIT",
+  "publishConfig": {
+    "access": "public"
+  },
+  "scripts": {
+    "prepublishOnly": "pnpm run build",
+    "build": "tsc",
+    "type-check": "tsc --noEmit"
+  },
+  "keywords": [
+    "react",
+    "hooks",
+    "agent",
+    "ai",
+    "websocket",
+    "client",
+    "claude",
+    "gemini",
+    "streaming"
+  ],
+  "peerDependencies": {
+    "react": "^18.0.0 || ^19.0.0"
+  },
+  "dependencies": {
+    "@hhopkins/agent-runtime": "workspace:*",
+    "socket.io-client": "^4.8.1"
+  },
+  "devDependencies": {
+    "@types/react": "^18.3.0",
+    "typescript": "^5.7.2"
+  }
+}

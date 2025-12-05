@@ -1,0 +1,25 @@
+{
+  "name": "@example/backend",
+  "version": "1.0.0",
+  "private": true,
+  "type": "module",
+  "main": "dist/server.js",
+  "scripts": {
+    "dev": "tsx watch --conditions=development --clear-screen=false src/server.ts",
+    "build": "tsc",
+    "start": "node dist/server.js"
+  },
+  "dependencies": {
+    "@hhopkins/agent-runtime": "workspace:*",
+    "better-sqlite3": "^12.4.6",
+    "dotenv": "^16.4.7",
+    "fastmcp": "^3.24.0",
+    "zod": "^3.24.1"
+  },
+  "devDependencies": {
+    "@types/better-sqlite3": "^7.6.13",
+    "@types/node": "^22.10.2",
+    "tsx": "^4.19.2",
+    "typescript": "^5.7.2"
+  }
+}

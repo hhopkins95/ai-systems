@@ -1,0 +1,153 @@
+"use client";
+
+import { useState } from "react";
+import { useAgentSession } from "@hhopkins/agent-runtime-react";
+import { SessionList } from "@/components/SessionList";
+import { SessionHeader } from "@/components/SessionHeader";
+import { AgentChat } from "@/components/AgentChat";
+import { FileWorkspace } from "@/components/FileWorkspace";
+import { SubagentViewer } from "@/components/SubagentViewer";
+import { RawDataViewer } from "@/components/RawDataViewer";
+import { DebugEventList } from "@/components/DebugEventList";
+
+/**
+ * Main dashboard page
+ *
+ * Demonstrates the complete agent runtime integration:
+ * - Session management
+ * - Real-time chat with agent
+ * - File workspace tracking
+ * - Subagent conversations
+ */
+export default function HomePage() {
+  const [currentSessionId, setCurrentSessionId] = useState<string | null>(null);
+  const [activeTab, setActiveTab] = useState<"chat" | "files" | "subagents" | "raw">("chat");
+
+  // Use useAgentSession at the page level to ensure the WebSocket room is joined
+  // regardless of which tab is active. This is important because the room join
+  // logic lives in useAgentSession, not in useMessages.
+  useAgentSession(currentSessionId ?? undefined);
+
+  return (
+    <div className="h-screen flex flex-col overflow-hidden bg-gray-50">
+      {/* Header */}
+      <header className="flex-shrink-0 bg-white border-b shadow-sm">
+        <div className="max-w-screen-2xl mx-auto px-6 py-4">
+          <h1 className="text-2xl font-bold text-gray-800">
+            Agent Runtime Example
+          </h1>
+          <p className="text-sm text-gray-600 mt-1">
+            Demonstrating @hhopkins/agent-runtime with Next.js
+          </p>
+        </div>
+      </header>
+
+      {/* Main Content */}
+      <main className="flex-1 min-h-0 max-w-screen-2xl w-full mx-auto px-6 py-6 overflow-hidden">
+        <div className="grid grid-cols-12 gap-6 h-full overflow-hidden">
+          {/* Left Sidebar - Session List */}
+          <div className="col-span-3 h-full overflow-hidden">
+            <SessionList
+              currentSessionId={currentSessionId}
+              onSessionSelect={setCurrentSessionId}
+            />
+          </div>
+
+          {/* Main Panel */}
+          <div className="col-span-9 h-full flex flex-col overflow-hidden">
+            {!currentSessionId ? (
+              <div className="flex-1 flex items-center justify-center bg-white rounded-lg shadow">
+                <div className="text-center text-gray-400">
+                  <p className="text-lg font-medium mb-2">No session selected</p>
+                  <p className="text-sm">
+                    Create a new session or select an existing one to get started
+                  </p>
+                </div>
+              </div>
+            ) : (
+              <>
+                {/* Session Header */}
+                <SessionHeader
+                  sessionId={currentSessionId}
+                  onDelete={() => setCurrentSessionId(null)}
+                />
+
+                {/* Tab Navigation */}
+                <div className="flex gap-2 mb-4">
+                  <button
+                    onClick={() => setActiveTab("chat")}
+                    className={`px-4 py-2 rounded-lg font-medium transition-colors ${
+                      activeTab === "chat"
+                        ? "bg-blue-500 text-white"
+                        : "bg-white text-gray-700 hover:bg-gray-100"
+                    }`}
+                  >
+                    Chat
+                  </button>
+                  <button
+                    onClick={() => setActiveTab("files")}
+                    className={`px-4 py-2 rounded-lg font-medium transition-colors ${
+                      activeTab === "files"
+                        ? "bg-blue-500 text-white"
+                        : "bg-white text-gray-700 hover:bg-gray-100"
+                    }`}
+                  >
+                    Files
+                  </button>
+                  <button
+                    onClick={() => setActiveTab("subagents")}
+                    className={`px-4 py-2 rounded-lg font-medium transition-colors ${
+                      activeTab === "subagents"
+                        ? "bg-blue-500 text-white"
+                        : "bg-white text-gray-700 hover:bg-gray-100"
+                    }`}
+                  >
+                    Subagents
+                  </button>
+                  <button
+                    onClick={() => setActiveTab("raw")}
+                    className={`px-4 py-2 rounded-lg font-medium transition-colors ${
+                      activeTab === "raw"
+                        ? "bg-blue-500 text-white"
+                        : "bg-white text-gray-700 hover:bg-gray-100"
+                    }`}
+                  >
+                    Raw Data
+                  </button>
+                </div>
+
+                {/* Tab Content */}
+                <div className="flex-1 min-h-0 overflow-hidden">
+                  {activeTab === "chat" && (
+                    <AgentChat sessionId={currentSessionId} />
+                  )}
+                  {activeTab === "files" && (
+                    <FileWorkspace sessionId={currentSessionId} />
+                  )}
+                  {activeTab === "subagents" && (
+                    <SubagentViewer sessionId={currentSessionId} />
+                  )}
+                  {activeTab === "raw" && (
+                    <RawDataViewer sessionId={currentSessionId} />
+                  )}
+                </div>
+              </>
+            )}
+          </div>
+        </div>
+      </main>
+
+      {/* Debug Event Viewer */}
+      <DebugEventList />
+
+      {/* Footer */}
+      <footer className="flex-shrink-0 bg-white border-t py-2">
+        <div className="max-w-screen-2xl mx-auto px-6">
+          <p className="text-xs text-gray-500 text-center">
+            Built with @hhopkins/agent-runtime and @hhopkins/agent-runtime-react
+          </p>
+        </div>
+      </footer>
+    </div>
+  );
+}

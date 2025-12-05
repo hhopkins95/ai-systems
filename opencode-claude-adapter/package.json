@@ -1,0 +1,60 @@
+{
+  "name": "opencode-claude-adapter",
+  "version": "0.1.1",
+  "description": "OpenCode Claude Adapter - plugin for opencode that allows for automatic loading of agent profiles -- agents, skills, commands, etc... from claude code's system into opencode's system",
+  "main": "./dist/index.js",
+  "types": "./dist/index.d.ts",
+  "type": "module",
+  "license": "MIT",
+  "author": "Hunter Hopkins",
+  "repository": {
+    "type": "git",
+    "url": "git+https://github.com/hhopkins95/opencode-claude-adapter.git"
+  },
+  "publishConfig": {
+    "access": "public",
+    "provenance": true
+  },
+  "keywords": [
+    "opencode",
+    "skills",
+    "anthropic",
+    "plugin",
+    "agent",
+    "ai",
+    "claude",
+    "claude code"
+  ],
+  "homepage": "https://github.com/hhopkins95/opencode-claude-adapter#readme",
+  "bugs": {
+    "url": "https://github.com/hhopkins95/opencode-claude-adapter/issues"
+  },
+  "files": [
+    "dist/",
+    "README.md",
+    "LICENSE"
+  ],
+  "engines": {
+    "node": ">=20.0.0"
+  },
+  "scripts": {
+    "build": "tsc",
+    "typecheck": "tsc --noEmit",
+    "prepublishOnly": "npm run build"
+  },
+  "peerDependencies": {
+    "@opencode-ai/plugin": "^1.0.126"
+  },
+  "devDependencies": {
+    "@opencode-ai/plugin": "^1.0.126",
+    "@types/bun": "^1.3.0",
+    "bun-types": "^1.3.0",
+    "typescript": "^5.9.3"
+  },
+  "dependencies": {
+    "@hhopkins/claude-entity-manager": "workspace:*",
+    "@opencode-ai/sdk": "^1.0.126",
+    "gray-matter": "^4.0.3",
+    "zod": "^3.23.0"
+  }
+}

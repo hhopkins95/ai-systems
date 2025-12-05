@@ -1,0 +1,26 @@
+{
+  "name": "@hhopkins/ai-systems",
+  "version": "1.0.0",
+  "private": true,
+  "packageManager": "pnpm@9.12.5",
+  "description": "Monorepo for AI systems - agent runtime, entity management, and tooling",
+  "scripts": {
+    "build": "turbo run build",
+    "dev": "turbo run dev",
+    "check": "turbo run check",
+    "clean": "turbo run clean && rm -rf node_modules .turbo",
+    "publish:entity-manager": "pnpm --filter @hhopkins/claude-entity-manager publish",
+    "publish:agent-runtime": "pnpm --filter @hhopkins/agent-runtime publish",
+    "publish:agent-runtime-react": "pnpm --filter @hhopkins/agent-runtime-react publish",
+    "publish:smart-docs": "pnpm --filter @hhopkins/smart-docs publish",
+    "publish:opencode-adapter": "pnpm --filter opencode-claude-adapter publish"
+  },
+  "devDependencies": {
+    "turbo": "^2.6.1",
+    "typescript": "^5.7.2"
+  },
+  "engines": {
+    "node": ">=20",
+    "pnpm": ">=9"
+  }
+}
