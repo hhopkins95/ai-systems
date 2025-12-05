@@ -1,7 +1,7 @@
 /**
  * Instruction Adapter
  *
- * Concatenates CLAUDE.md files from various sources into a single AGENTS.md file.
+ * Concatenates memory files (CLAUDE.md) from various sources into a single AGENTS.md file.
  * AGENTS.md is OpenCode's equivalent of CLAUDE.md for project-level instructions.
  *
  * Sources are included in order:
@@ -10,65 +10,28 @@
  * - Nested (subdirectory CLAUDE.md files)
  */
 
-import type { ClaudeMdNode, ClaudeMdFile } from "@hhopkins/claude-entity-manager";
+import type { MemoryFile } from "@ai-systems/shared-types";
 import { writeFile } from "fs/promises";
 import { join } from "path";
 
 /**
- * Flatten the ClaudeMdNode tree into a list of files
+ * Get a display label for a memory file
  */
-function flattenClaudeMdNodes(nodes: ClaudeMdNode[]): ClaudeMdFile[] {
-  const files: ClaudeMdFile[] = [];
-
-  function traverse(node: ClaudeMdNode) {
-    if (node.type === "file" && node.file) {
-      files.push(node.file);
-    }
-    if (node.children) {
-      for (const child of node.children) {
-        traverse(child);
-      }
-    }
+function getSourceLabel(file: MemoryFile): string {
+  if (file.scope === "global") {
+    return "Global Instructions (from ~/.claude/CLAUDE.md)";
   }
-
-  for (const node of nodes) {
-    traverse(node);
+  if (file.scope === "project") {
+    return "Project Instructions (from ./CLAUDE.md)";
   }
-
-  // Sort by scope priority: global first, then project, then nested
-  const scopeOrder = { global: 0, project: 1, nested: 2 };
-  files.sort((a, b) => {
-    const orderDiff = scopeOrder[a.scope] - scopeOrder[b.scope];
-    if (orderDiff !== 0) return orderDiff;
-    // For nested files, sort by level then path
-    if (a.scope === "nested" && b.scope === "nested") {
-      if (a.level !== b.level) return a.level - b.level;
-      return a.path.localeCompare(b.path);
-    }
-    return 0;
-  });
-
-  return files;
+  // nested or unknown
+  return `Directory Instructions (from ${file.relativePath || file.path})`;
 }
 
 /**
- * Get a display label for a CLAUDE.md file
+ * Format the AGENTS.md content from memory files
  */
-function getSourceLabel(file: ClaudeMdFile): string {
-  switch (file.scope) {
-    case "global":
-      return "Global Instructions (from ~/.claude/CLAUDE.md)";
-    case "project":
-      return "Project Instructions (from ./CLAUDE.md)";
-    case "nested":
-      return `Directory Instructions (from ${file.relativePath})`;
-  }
-}
-
-/**
- * Format the AGENTS.md content from CLAUDE.md files
- */
-function formatAgentsMd(files: ClaudeMdFile[]): string {
+function formatAgentsMd(files: MemoryFile[]): string {
   if (files.length === 0) {
     return "";
   }
@@ -94,25 +57,25 @@ function formatAgentsMd(files: ClaudeMdFile[]): string {
 }
 
 /**
- * Sync CLAUDE.md files to AGENTS.md
+ * Sync memory files (CLAUDE.md) to AGENTS.md
+ *
+ * Memory files from AgentContext are already flattened and sorted by precedence.
  */
 export async function syncInstructions(
-  claudeMdNodes: ClaudeMdNode[],
+  memoryFiles: MemoryFile[],
   projectDir: string
 ): Promise<{ written: boolean; sources: string[] }> {
-  const files = flattenClaudeMdNodes(claudeMdNodes);
-
-  if (files.length === 0) {
+  if (memoryFiles.length === 0) {
     return { written: false, sources: [] };
   }
 
-  const content = formatAgentsMd(files);
+  const content = formatAgentsMd(memoryFiles);
   const targetPath = join(projectDir, "AGENTS.md");
 
   await writeFile(targetPath, content, "utf-8");
 
   return {
     written: true,
-    sources: files.map((f) => f.relativePath || f.path),
+    sources: memoryFiles.map((f) => f.relativePath || f.path),
   };
 }

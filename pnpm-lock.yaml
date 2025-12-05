@@ -196,6 +196,9 @@ importers:
 
   packages/opencode-claude-adapter:
     dependencies:
+      '@ai-systems/shared-types':
+        specifier: workspace:*
+        version: link:../shared-types
       '@hhopkins/claude-entity-manager':
         specifier: workspace:*
         version: link:../claude-entity-manager
