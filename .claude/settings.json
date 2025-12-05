@@ -2,10 +2,10 @@
   "enabledPlugins": {
     "document-skills@anthropic-agent-skills": true,
     "example-skills@anthropic-agent-skills": false,
-    "superpowers@superpowers-marketplace": true,
+    "superpowers@superpowers-marketplace": false,
     "episodic-memory@superpowers-marketplace": false,
     "superpowers-lab@superpowers-marketplace": false,
-    "agent-sdk-dev@claude-code-plugins": false,
+    "agent-sdk-dev@claude-code-plugins": true,
     "claude-opus-4-5-migration@claude-code-plugins": false,
     "security-guidance@claude-code-plugins": false,
     "ralph-wiggum@claude-code-plugins": false,

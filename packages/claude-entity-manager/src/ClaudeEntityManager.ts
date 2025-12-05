@@ -166,7 +166,7 @@ export class ClaudeEntityManager {
     };
 
     const [skills, commands, agents, hooks] = await Promise.all([
-      this.skillLoader.loadSkills(plugin.path, pluginSource, includeContents),
+      this.skillLoader.loadSkills(plugin.path, pluginSource, includeContents, true), // searchRootLevel for plugins
       this.commandLoader.loadCommands(plugin.path, pluginSource),
       this.agentLoader.loadAgents(plugin.path, pluginSource),
       this.hookLoader.loadHooks(plugin.path, pluginSource),
@@ -176,7 +176,7 @@ export class ClaudeEntityManager {
   }
 
   /**
-   * Load entities from a specific directory
+   * Load entities from a specific directory (searches root level)
    */
   async loadEntitiesFromDirectory(
     dirPath: string,
@@ -185,7 +185,7 @@ export class ClaudeEntityManager {
     const source: Omit<EntitySource, "path"> = { type: "global" };
 
     const [skills, commands, agents, hooks] = await Promise.all([
-      this.skillLoader.loadSkills(dirPath, source, includeContents),
+      this.skillLoader.loadSkills(dirPath, source, includeContents, true), // searchRootLevel
       this.commandLoader.loadCommands(dirPath, source),
       this.agentLoader.loadAgents(dirPath, source),
       this.hookLoader.loadHooks(dirPath, source),
@@ -228,7 +228,7 @@ export class ClaudeEntityManager {
       pluginId: plugin.id,
       marketplace: plugin.marketplace,
     };
-    return this.skillLoader.loadSkills(plugin.path, pluginSource, includeContents);
+    return this.skillLoader.loadSkills(plugin.path, pluginSource, includeContents, true); // searchRootLevel for plugins
   }
 
   /**
@@ -352,7 +352,7 @@ export class ClaudeEntityManager {
       };
 
       const [skills, commands, agents, hooks] = await Promise.all([
-        this.skillLoader.loadSkills(plugin.path, pluginSource, includeSkillFileContents),
+        this.skillLoader.loadSkills(plugin.path, pluginSource, includeSkillFileContents, true), // searchRootLevel for plugins
         this.commandLoader.loadCommands(plugin.path, pluginSource),
         this.agentLoader.loadAgents(plugin.path, pluginSource),
         this.hookLoader.loadHooks(plugin.path, pluginSource),

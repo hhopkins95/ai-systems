@@ -24,42 +24,21 @@ export class SkillLoader {
   ): Promise<Skill[]> {
     const skills: Skill[] = [];
 
-    // First, try the standard skills/ subdirectory
-    if (!searchRootLevel) {
-      const skillsDir = getSkillsDir(baseDir);
-      try {
-        const skillDirs = await this.findSkillDirectories(skillsDir);
-        for (const skillDir of skillDirs) {
-          const skill = await this.loadSkill(skillDir, source, includeContents);
-          if (skill) {
-            skills.push(skill);
-          }
-        }
-      } catch (error) {
-        // skills/ directory doesn't exist - that's OK
-        if ((error as NodeJS.ErrnoException).code !== "ENOENT") {
-          console.warn(`Error loading skills from ${baseDir}:`, error);
+    // Determine which directory to search
+    const searchDir = searchRootLevel ? baseDir : getSkillsDir(baseDir);
+
+    try {
+      const skillDirs = await this.findSkillDirectories(searchDir);
+      for (const skillDir of skillDirs) {
+        const skill = await this.loadSkill(skillDir, source, includeContents);
+        if (skill) {
+          skills.push(skill);
         }
       }
-    }
-
-    // If searchRootLevel or no skills found in skills/, search from root
-    if (searchRootLevel || skills.length === 0) {
-      try {
-        const rootSkillDirs = await this.findSkillDirectories(baseDir);
-        for (const skillDir of rootSkillDirs) {
-          const skill = await this.loadSkill(skillDir, source, includeContents);
-          if (skill) {
-            // Avoid duplicates if we already loaded from skills/
-            if (!skills.some((s) => s.path === skill.path)) {
-              skills.push(skill);
-            }
-          }
-        }
-      } catch (error) {
-        if ((error as NodeJS.ErrnoException).code !== "ENOENT") {
-          console.warn(`Error loading skills from root of ${baseDir}:`, error);
-        }
+    } catch (error) {
+      // Directory doesn't exist - that's OK
+      if ((error as NodeJS.ErrnoException).code !== "ENOENT") {
+        console.warn(`Error loading skills from ${searchDir}:`, error);
       }
     }
 
