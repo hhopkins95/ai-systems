@@ -92,6 +92,15 @@ export interface Plugin {
   /** Has MCP servers defined */
   hasMcpServers: boolean;
 
+  /** Explicit skill paths from marketplace.json (relative to plugin path) */
+  skillPaths?: string[];
+  /** Explicit command paths from marketplace.json (relative to plugin path) */
+  commandPaths?: string[];
+  /** Explicit agent paths from marketplace.json (relative to plugin path) */
+  agentPaths?: string[];
+  /** Explicit hook paths from marketplace.json (relative to plugin path) */
+  hookPaths?: string[];
+
   /** Installation details (only if installed) */
   installInfo?: PluginInstallInfo;
 }

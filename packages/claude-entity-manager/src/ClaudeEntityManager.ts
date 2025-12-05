@@ -165,8 +165,22 @@ export class ClaudeEntityManager {
       marketplace: plugin.marketplace,
     };
 
+    // If plugin has explicit entity paths from marketplace.json, use those
+    // Otherwise fall back to scanning the plugin directory
     const [skills, commands, agents, hooks] = await Promise.all([
-      this.skillLoader.loadSkills(plugin.path, pluginSource, includeContents, true), // searchRootLevel for plugins
+      plugin.skillPaths
+        ? this.skillLoader.loadSkillsFromPaths(
+            plugin.path,
+            plugin.skillPaths,
+            pluginSource,
+            includeContents
+          )
+        : this.skillLoader.loadSkills(
+            plugin.path,
+            pluginSource,
+            includeContents,
+            true
+          ), // searchRootLevel for plugins
       this.commandLoader.loadCommands(plugin.path, pluginSource),
       this.agentLoader.loadAgents(plugin.path, pluginSource),
       this.hookLoader.loadHooks(plugin.path, pluginSource),

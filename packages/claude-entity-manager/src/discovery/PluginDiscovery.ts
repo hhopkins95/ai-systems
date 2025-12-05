@@ -188,11 +188,16 @@ export class PluginDiscovery {
         enabled: enabledStates[pluginId] !== false,
         installationStatus: "installed", // We verified path exists above
         enabledStatus: this.computeEnabledStatus(pluginId, enabledStates),
-        skillCount: counts.skills,
-        commandCount: counts.commands,
-        agentCount: counts.agents,
-        hookCount: counts.hooks,
+        skillCount: pluginEntry.skills?.length ?? counts.skills,
+        commandCount: pluginEntry.commands?.length ?? counts.commands,
+        agentCount: pluginEntry.agents?.length ?? counts.agents,
+        hookCount: pluginEntry.hooks?.length ?? counts.hooks,
         hasMcpServers: counts.hasMcp,
+        // Store explicit entity paths from marketplace manifest
+        skillPaths: pluginEntry.skills,
+        commandPaths: pluginEntry.commands,
+        agentPaths: pluginEntry.agents,
+        hookPaths: pluginEntry.hooks,
         installInfo: installInfo
           ? {
               version: installInfo.installPath, // Temp fix

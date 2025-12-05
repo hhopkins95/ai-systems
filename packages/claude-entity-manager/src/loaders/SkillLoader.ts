@@ -46,6 +46,36 @@ export class SkillLoader {
   }
 
   /**
+   * Load skills from explicit paths (relative to baseDir)
+   * Used when marketplace.json specifies explicit skill paths
+   */
+  async loadSkillsFromPaths(
+    baseDir: string,
+    skillPaths: string[],
+    source: Omit<EntitySource, "path">,
+    includeContents = false
+  ): Promise<Skill[]> {
+    const skills: Skill[] = [];
+
+    for (const relativePath of skillPaths) {
+      const skillDir = join(baseDir, relativePath);
+      try {
+        const skill = await this.loadSkill(skillDir, source, includeContents);
+        if (skill) {
+          skills.push(skill);
+        }
+      } catch (error) {
+        // Skill directory doesn't exist or can't be read
+        if ((error as NodeJS.ErrnoException).code !== "ENOENT") {
+          console.warn(`Error loading skill from ${skillDir}:`, error);
+        }
+      }
+    }
+
+    return skills;
+  }
+
+  /**
    * Find all skill directories (containing SKILL.md)
    */
   private async findSkillDirectories(skillsDir: string): Promise<string[]> {
