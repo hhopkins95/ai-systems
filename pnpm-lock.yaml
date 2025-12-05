@@ -15,7 +15,75 @@ importers:
         specifier: ^5.7.2
         version: 5.9.3
 
-  agent-runtime:
+  examples/backend:
+    dependencies:
+      '@hhopkins/agent-runtime':
+        specifier: workspace:*
+        version: link:../../packages/agent-runtime
+      better-sqlite3:
+        specifier: ^12.4.6
+        version: 12.5.0
+      dotenv:
+        specifier: ^16.4.7
+        version: 16.6.1
+      fastmcp:
+        specifier: ^3.24.0
+        version: 3.25.0
+      zod:
+        specifier: ^3.24.1
+        version: 3.25.76
+    devDependencies:
+      '@types/better-sqlite3':
+        specifier: ^7.6.13
+        version: 7.6.13
+      '@types/node':
+        specifier: ^22.10.2
+        version: 22.19.1
+      tsx:
+        specifier: ^4.19.2
+        version: 4.21.0
+      typescript:
+        specifier: ^5.7.2
+        version: 5.9.3
+
+  examples/frontend:
+    dependencies:
+      '@hhopkins/agent-runtime-react':
+        specifier: workspace:*
+        version: link:../../packages/agent-runtime-react
+      next:
+        specifier: ^15.1.4
+        version: 15.5.7(@opentelemetry/api@1.9.0)(react-dom@18.3.1(react@18.3.1))(react@18.3.1)
+      react:
+        specifier: ^18.3.1
+        version: 18.3.1
+      react-dom:
+        specifier: ^18.3.1
+        version: 18.3.1(react@18.3.1)
+    devDependencies:
+      '@types/node':
+        specifier: ^22.19.1
+        version: 22.19.1
+      '@types/react':
+        specifier: ^18.3.18
+        version: 18.3.27
+      '@types/react-dom':
+        specifier: ^18.3.5
+        version: 18.3.7(@types/react@18.3.27)
+      autoprefixer:
+        specifier: ^10.4.20
+        version: 10.4.22(postcss@8.5.6)
+      postcss:
+        specifier: ^8.4.49
+        version: 8.5.6
+      tailwindcss:
+        specifier: ^3.4.17
+        version: 3.4.18(tsx@4.21.0)
+      typescript:
+        specifier: ^5.7.2
+        version: 5.9.3
+
+  packages/agent-runtime:
     dependencies:
       '@anthropic-ai/claude-agent-sdk':
         specifier: ^0.1.54
@@ -85,7 +153,7 @@ importers:
         specifier: ^5.2.2
         version: 5.9.3
 
-  agent-runtime-react:
+  packages/agent-runtime-react:
     dependencies:
       '@hhopkins/agent-runtime':
         specifier: workspace:*
@@ -104,7 +172,7 @@ importers:
         specifier: ^5.7.2
         version: 5.9.3
 
-  claude-entity-manager:
+  packages/claude-entity-manager:
     dependencies:
       fast-glob:
         specifier: ^3.3.2
@@ -123,75 +191,7 @@ importers:
         specifier: ^5.3.0
         version: 5.9.3
 
-  example-backend:
-    dependencies:
-      '@hhopkins/agent-runtime':
-        specifier: workspace:*
-        version: link:../agent-runtime
-      better-sqlite3:
-        specifier: ^12.4.6
-        version: 12.5.0
-      dotenv:
-        specifier: ^16.4.7
-        version: 16.6.1
-      fastmcp:
-        specifier: ^3.24.0
-        version: 3.25.0
-      zod:
-        specifier: ^3.24.1
-        version: 3.25.76
-    devDependencies:
-      '@types/better-sqlite3':
-        specifier: ^7.6.13
-        version: 7.6.13
-      '@types/node':
-        specifier: ^22.10.2
-        version: 22.19.1
-      tsx:
-        specifier: ^4.19.2
-        version: 4.21.0
-      typescript:
-        specifier: ^5.7.2
-        version: 5.9.3
-
-  example-frontend:
-    dependencies:
-      '@hhopkins/agent-runtime-react':
-        specifier: workspace:*
-        version: link:../agent-runtime-react
-      next:
-        specifier: ^15.1.4
-        version: 15.5.7(@opentelemetry/api@1.9.0)(react-dom@18.3.1(react@18.3.1))(react@18.3.1)
-      react:
-        specifier: ^18.3.1
-        version: 18.3.1
-      react-dom:
-        specifier: ^18.3.1
-        version: 18.3.1(react@18.3.1)
-    devDependencies:
-      '@types/node':
-        specifier: ^22.19.1
-        version: 22.19.1
-      '@types/react':
-        specifier: ^18.3.18
-        version: 18.3.27
-      '@types/react-dom':
-        specifier: ^18.3.5
-        version: 18.3.7(@types/react@18.3.27)
-      autoprefixer:
-        specifier: ^10.4.20
-        version: 10.4.22(postcss@8.5.6)
-      postcss:
-        specifier: ^8.4.49
-        version: 8.5.6
-      tailwindcss:
-        specifier: ^3.4.17
-        version: 3.4.18(tsx@4.21.0)
-      typescript:
-        specifier: ^5.7.2
-        version: 5.9.3
-
-  opencode-claude-adapter:
+  packages/opencode-claude-adapter:
     dependencies:
       '@hhopkins/claude-entity-manager':
         specifier: workspace:*
@@ -219,7 +219,7 @@ importers:
         specifier: ^5.9.3
         version: 5.9.3
 
-  smart-docs:
+  packages/smart-docs:
     dependencies:
       '@hhopkins/claude-entity-manager':
         specifier: workspace:*
@@ -6146,7 +6146,7 @@ snapshots:
 
   '@types/cors@2.8.19':
     dependencies:
-      '@types/node': 24.10.1
+      '@types/node': 22.19.1
 
   '@types/d3-array@3.2.2': {}
 
@@ -6280,7 +6280,7 @@ snapshots:
   '@types/glob@8.1.0':
     dependencies:
       '@types/minimatch': 5.1.2
-      '@types/node': 24.10.1
+      '@types/node': 22.19.1
 
   '@types/hast@2.3.10':
     dependencies:
@@ -6334,7 +6334,7 @@ snapshots:
 
   '@types/react-syntax-highlighter@15.5.13':
     dependencies:
-      '@types/react': 19.2.7
+      '@types/react': 18.3.27
 
   '@types/react@18.3.27':
     dependencies:
@@ -6348,7 +6348,7 @@ snapshots:
   '@types/request@2.48.13':
     dependencies:
       '@types/caseless': 0.12.5
-      '@types/node': 24.10.1
+      '@types/node': 22.19.1
       '@types/tough-cookie': 4.0.5
       form-data: 2.5.5
 
@@ -6356,7 +6356,7 @@ snapshots:
 
   '@types/tar-stream@3.1.4':
     dependencies:
-      '@types/node': 24.10.1
+      '@types/node': 22.19.1
 
   '@types/tough-cookie@4.0.5': {}
 
@@ -6369,7 +6369,7 @@ snapshots:
 
   '@types/yauzl@2.10.3':
     dependencies:
-      '@types/node': 24.10.1
+      '@types/node': 22.19.1
     optional: true
 
   '@typescript-eslint/eslint-plugin@6.21.0(@typescript-eslint/parser@6.21.0(eslint@8.57.1)(typescript@5.9.3))(eslint@8.57.1)(typescript@5.9.3)':
@@ -7342,7 +7342,7 @@ snapshots:
   engine.io@6.6.4:
     dependencies:
       '@types/cors': 2.8.19
-      '@types/node': 24.10.1
+      '@types/node': 22.19.1
       accepts: 1.3.8
       base64id: 2.0.0
       cookie: 0.7.2
@@ -9575,7 +9575,7 @@ snapshots:
       '@protobufjs/path': 1.1.2
       '@protobufjs/pool': 1.1.0
       '@protobufjs/utf8': 1.1.0
-      '@types/node': 24.10.1
+      '@types/node': 22.19.1
       long: 5.3.2
 
   proxy-addr@2.0.7:
