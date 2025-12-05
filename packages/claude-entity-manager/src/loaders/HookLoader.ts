@@ -52,6 +52,35 @@ export class HookLoader {
   }
 
   /**
+   * Load hooks from explicit paths (relative to baseDir)
+   * Used when marketplace.json specifies explicit hook paths
+   */
+  async loadHooksFromPaths(
+    baseDir: string,
+    hookPaths: string[],
+    source: Omit<EntitySource, "path">
+  ): Promise<Hook[]> {
+    const hooks: Hook[] = [];
+
+    for (const relativePath of hookPaths) {
+      const hookFile = join(baseDir, relativePath);
+      try {
+        const hook = await this.loadHookFile(hookFile, source);
+        if (hook) {
+          hooks.push(hook);
+        }
+      } catch (error) {
+        // Hook file doesn't exist or can't be read
+        if ((error as NodeJS.ErrnoException).code !== "ENOENT") {
+          console.warn(`Error loading hook from ${hookFile}:`, error);
+        }
+      }
+    }
+
+    return hooks;
+  }
+
+  /**
    * Load a single hook file
    */
   async loadHookFile(

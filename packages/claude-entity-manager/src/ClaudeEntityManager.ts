@@ -181,9 +181,27 @@ export class ClaudeEntityManager {
             includeContents,
             true
           ), // searchRootLevel for plugins
-      this.commandLoader.loadCommands(plugin.path, pluginSource),
-      this.agentLoader.loadAgents(plugin.path, pluginSource),
-      this.hookLoader.loadHooks(plugin.path, pluginSource),
+      plugin.commandPaths
+        ? this.commandLoader.loadCommandsFromPaths(
+            plugin.path,
+            plugin.commandPaths,
+            pluginSource
+          )
+        : this.commandLoader.loadCommands(plugin.path, pluginSource),
+      plugin.agentPaths
+        ? this.agentLoader.loadAgentsFromPaths(
+            plugin.path,
+            plugin.agentPaths,
+            pluginSource
+          )
+        : this.agentLoader.loadAgents(plugin.path, pluginSource),
+      plugin.hookPaths
+        ? this.hookLoader.loadHooksFromPaths(
+            plugin.path,
+            plugin.hookPaths,
+            pluginSource
+          )
+        : this.hookLoader.loadHooks(plugin.path, pluginSource),
     ]);
 
     return { skills, commands, agents, hooks };

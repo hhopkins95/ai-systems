@@ -45,6 +45,35 @@ export class AgentLoader {
   }
 
   /**
+   * Load agents from explicit paths (relative to baseDir)
+   * Used when marketplace.json specifies explicit agent paths
+   */
+  async loadAgentsFromPaths(
+    baseDir: string,
+    agentPaths: string[],
+    source: Omit<EntitySource, "path">
+  ): Promise<Agent[]> {
+    const agents: Agent[] = [];
+
+    for (const relativePath of agentPaths) {
+      const agentFile = join(baseDir, relativePath);
+      try {
+        const agent = await this.loadAgent(agentFile, source);
+        if (agent) {
+          agents.push(agent);
+        }
+      } catch (error) {
+        // Agent file doesn't exist or can't be read
+        if ((error as NodeJS.ErrnoException).code !== "ENOENT") {
+          console.warn(`Error loading agent from ${agentFile}:`, error);
+        }
+      }
+    }
+
+    return agents;
+  }
+
+  /**
    * Load a single agent from its file path
    */
   async loadAgent(

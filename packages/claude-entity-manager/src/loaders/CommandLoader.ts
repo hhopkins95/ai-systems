@@ -48,6 +48,35 @@ export class CommandLoader {
   }
 
   /**
+   * Load commands from explicit paths (relative to baseDir)
+   * Used when marketplace.json specifies explicit command paths
+   */
+  async loadCommandsFromPaths(
+    baseDir: string,
+    commandPaths: string[],
+    source: Omit<EntitySource, "path">
+  ): Promise<Command[]> {
+    const commands: Command[] = [];
+
+    for (const relativePath of commandPaths) {
+      const commandFile = join(baseDir, relativePath);
+      try {
+        const command = await this.loadCommand(commandFile, source);
+        if (command) {
+          commands.push(command);
+        }
+      } catch (error) {
+        // Command file doesn't exist or can't be read
+        if ((error as NodeJS.ErrnoException).code !== "ENOENT") {
+          console.warn(`Error loading command from ${commandFile}:`, error);
+        }
+      }
+    }
+
+    return commands;
+  }
+
+  /**
    * Load a single command from its file path
    */
   async loadCommand(
