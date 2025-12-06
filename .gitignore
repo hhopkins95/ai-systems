@@ -36,3 +36,7 @@ coverage
 .opencode/command/
 .opencode/agent/
 AGENTS.md
+
+
+# Example data 
+examples/backend/data
