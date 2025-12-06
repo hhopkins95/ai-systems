@@ -19,6 +19,14 @@ Welcome to the ai-systems documentation.
 
 - [Getting Started](./guides/getting-started.md)
 
+## Active Plans
+
+- [Monorepo Reorganization](./plans/monorepo-reorganization.md) - Restructuring packages for better separation of concerns
+
+## Session Summaries
+
+- [2024-12-05: Entity Manager Refactor](./session-summaries/2024-12-05-entity-manager-refactor.md)
+
 ## Repository Structure
 
 ```
