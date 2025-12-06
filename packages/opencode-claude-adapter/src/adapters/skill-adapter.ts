@@ -42,7 +42,7 @@ interface SyncedSkill {
  * Generate tool name from skill name
  * Example: "pdf-analyzer" → "skills_pdf_analyzer"
  */
-function generateToolName(skillName: string): string {
+export function generateToolName(skillName: string): string {
   return "skills_" + skillName.replace(/-/g, "_");
 }
 

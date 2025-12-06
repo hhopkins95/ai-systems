@@ -14,10 +14,14 @@
 import type { Plugin } from "@opencode-ai/plugin";
 import { ClaudeEntityManager } from "@hhopkins/claude-entity-manager";
 
-import { syncSkills, createSkillTools } from "./adapters/skill-adapter";
+import {
+  syncSkills,
+  createSkillTools,
+  generateToolName,
+} from "./adapters/skill-adapter";
 import { syncCommands } from "./adapters/command-adapter";
 import { syncAgents } from "./adapters/agent-adapter";
-import { syncInstructions } from "./adapters/instruction-adapter";
+import { syncInstructions, type SkillInfo } from "./adapters/instruction-adapter";
 
 export const ClaudeAdapterPlugin: Plugin = async (ctx) => {
   const projectDir = ctx.directory;
@@ -85,8 +89,19 @@ export const ClaudeAdapterPlugin: Plugin = async (ctx) => {
     console.error(`[claude-adapter] Error writing agent ${error.file}: ${error.error}`);
   }
 
-  // Sync instructions (memory files from AgentContext)
-  const instructionResult = await syncInstructions(agentContext.memoryFiles, projectDir);
+  // Transform synced skills to SkillInfo for instruction generation
+  const skillInfos: SkillInfo[] = syncedSkills.map((skill) => ({
+    name: skill.name,
+    description: skill.description,
+    toolName: generateToolName(skill.name),
+  }));
+
+  // Sync instructions (memory files + skill instructions)
+  const instructionResult = await syncInstructions(
+    agentContext.memoryFiles,
+    projectDir,
+    skillInfos
+  );
   if (instructionResult.written) {
     console.log(
       `[claude-adapter] Synced CLAUDE.md → AGENTS.md (${instructionResult.sources.length} sources)`
