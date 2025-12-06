@@ -6,6 +6,9 @@
  * Claude SDK and OpenCode.
  */
 
+// Agent architecture types
+export * from './architecture.js';
+
 // Conversation blocks
 export * from './blocks.js';
 

@@ -263,7 +263,7 @@ These are decision points that need to be resolved during implementation:
 3. Converters already have SDK-specific namespaces - consistent identifier helps
 4. It's a simple type with no dependencies
 
-**Status:** PENDING - Implement in Phase 2
+**Status:** RESOLVED - Added to shared-types/src/runtime/architecture.ts
 
 ---
 
@@ -348,6 +348,7 @@ packages/apps/                       # New directory
 - Added runtime types to `shared-types/src/runtime/`:
   - `blocks.ts` - ConversationBlock types and type guards
   - `stream-events.ts` - StreamEvent types and type guards
+  - `architecture.ts` - AgentArchitecture type, ArchitectureInfo, ARCHITECTURES constant
   - `index.ts` - exports
 - Created `packages/converters/` package:
   - `@hhopkins/agent-converters` npm package
@@ -356,6 +357,7 @@ packages/apps/                       # New directory
   - Utility functions (generateId, toISOTimestamp, Logger interface)
 - All packages build successfully
 - Original agent-runtime code left in place (will be removed in later phases)
+- Expanded planning document with detailed phase breakdowns, interfaces, and integration points
 
 ---
 
@@ -664,7 +666,7 @@ packages/agent-runtime/
 
 ### What's Not Done Yet
 
-1. **AgentArchitecture types** - Need to add to shared-types
+1. ~~**AgentArchitecture types**~~ - ✅ Added to shared-types
 2. **Session types** - Need to add to shared-types
 3. **Execution package** - Not started
 4. **Server refactoring** - Not started
