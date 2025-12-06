@@ -185,18 +185,18 @@ Add to `packages/shared-types/src/runtime/`:
 - [x] **4.3** Update imports to use new server package
 - [x] **4.4** Verify client package builds correctly
 
-### Phase 5: Other Packages
-- [ ] **5.1** Move opencode-claude-adapter to opencode-adapter
-- [ ] **5.2** Update package.json and imports
-- [ ] **5.3** Move smart-docs to apps/smart-docs
-- [ ] **5.4** Update package.json and imports
+### Phase 5: Other Packages ✅ COMPLETE
+- [x] ~~**5.1** Move opencode-claude-adapter to opencode-adapter~~ SKIPPED (keeping current location)
+- [x] ~~**5.2** Update package.json and imports~~ SKIPPED
+- [x] **5.3** Move smart-docs to apps/smart-docs
+- [x] **5.4** Update package.json paths and root scripts
 
 ### Phase 6: Infrastructure
-- [ ] **6.1** Update pnpm-workspace.yaml
-- [ ] **6.2** Update turbo.json build configuration
-- [ ] **6.3** Update root package.json scripts
-- [ ] **6.4** Update all cross-package imports
-- [ ] **6.5** Run full build, fix any issues
+- [x] **6.1** Update pnpm-workspace.yaml (done in Phase 5)
+- [x] **6.2** Update turbo.json build configuration (done in Phase 3-4)
+- [x] **6.3** Update root package.json scripts (done in Phase 4-5)
+- [x] **6.4** Update all cross-package imports (done in Phase 3-4)
+- [x] **6.5** Run full build, fix any issues (verified)
 - [ ] **6.6** Update documentation
 
 ### Phase 7: Verification
@@ -400,6 +400,17 @@ packages/apps/                       # New directory
   - Updated footer text
 - Updated `turbo.json` build dependency
 - Updated root `package.json` publish script
+- All 10 packages build successfully
+
+### Session 5 (Dec 6, 2024) - Phase 5 Implementation
+- SKIPPED: opencode-claude-adapter rename (keeping current location and name)
+- Moved `packages/smart-docs/` to `packages/apps/smart-docs/`
+- Updated `pnpm-workspace.yaml` to include `packages/apps/*`
+- Updated smart-docs package.json:
+  - Fixed dev script path (../../docs → ../../../docs)
+  - Updated repository.directory and homepage paths
+- Updated root `package.json` docs script paths
+- Cleaned stale .next cache before rebuild
 - All 10 packages build successfully
 
 ---
