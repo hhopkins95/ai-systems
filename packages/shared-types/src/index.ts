@@ -19,3 +19,6 @@ export * from "./entities/index.js";
 
 // Agent context (composed type)
 export * from "./agent-context.js";
+
+// Runtime types (blocks, stream events)
+export * from "./runtime/index.js";

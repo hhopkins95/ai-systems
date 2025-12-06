@@ -1,8 +1,8 @@
 # Monorepo Reorganization Plan
 
 **Created:** December 5, 2024
-**Status:** Planning
-**Branch:** TBD
+**Status:** In Progress
+**Branch:** misc
 
 ---
 
@@ -155,12 +155,13 @@ Add to `packages/shared-types/src/runtime/`:
 
 ## Progress Tracking
 
-### Phase 1: Foundation
-- [ ] **1.1** Add runtime types to shared-types package
-- [ ] **1.2** Create converters package structure
-- [ ] **1.3** Extract transcript parsers from agent-runtime to converters
-- [ ] **1.4** Extract block converters from agent-runtime to converters
-- [ ] **1.5** Verify converters package builds and exports correctly
+### Phase 1: Foundation ✅ COMPLETE
+
+- [x] **1.1** Add runtime types to shared-types package
+- [x] **1.2** Create converters package structure
+- [x] **1.3** Extract transcript parsers from agent-runtime to converters
+- [x] **1.4** Extract block converters from agent-runtime to converters
+- [x] **1.5** Verify converters package builds and exports correctly
 
 ### Phase 2: Execution Package
 - [ ] **2.1** Create runtime/execution package structure
@@ -217,7 +218,11 @@ These are decision points that need to be resolved during implementation:
 - Specific: `parseClaudeTranscript(raw: string): ConversationBlock[]`
 - Both: Specific functions with a generic wrapper
 
-**Status:** TBD
+**Status:** RESOLVED - Using specific functions per SDK:
+- `claudeSdk.parseClaudeTranscriptFile(content)`
+- `claudeSdk.convertMessagesToBlocks(messages)`
+- `opencode.parseOpenCodeTranscriptFile(content)`
+- `opencode.createStreamEventParser(sessionId)` for streaming
 
 ### Decision 2: Execution Package Bundling
 **Question:** How should the execution package be bundled for deployment to Modal?
@@ -323,6 +328,19 @@ packages/apps/                       # New directory
 - Decided on target structure
 - Identified key architectural changes (adapter split, execution normalization)
 - Created this planning document
+
+### Session 2 (Dec 5, 2024) - Phase 1 Implementation
+- Added runtime types to `shared-types/src/runtime/`:
+  - `blocks.ts` - ConversationBlock types and type guards
+  - `stream-events.ts` - StreamEvent types and type guards
+  - `index.ts` - exports
+- Created `packages/converters/` package:
+  - `@hhopkins/agent-converters` npm package
+  - Claude SDK transcript parser and block converter
+  - OpenCode transcript parser and stream event parser
+  - Utility functions (generateId, toISOTimestamp, Logger interface)
+- All packages build successfully
+- Original agent-runtime code left in place (will be removed in later phases)
 
 ---
 

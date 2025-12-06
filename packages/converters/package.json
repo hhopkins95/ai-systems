@@ -1,0 +1,68 @@
+{
+  "name": "@hhopkins/agent-converters",
+  "version": "0.1.0",
+  "description": "Pure transformation functions for parsing agent transcripts and converting to ConversationBlocks",
+  "type": "module",
+  "main": "./dist/index.js",
+  "types": "./dist/index.d.ts",
+  "exports": {
+    ".": {
+      "types": "./dist/index.d.ts",
+      "import": "./dist/index.js"
+    },
+    "./claude-sdk": {
+      "types": "./dist/claude-sdk/index.d.ts",
+      "import": "./dist/claude-sdk/index.js"
+    },
+    "./opencode": {
+      "types": "./dist/opencode/index.d.ts",
+      "import": "./dist/opencode/index.js"
+    }
+  },
+  "files": [
+    "dist/",
+    "README.md"
+  ],
+  "scripts": {
+    "build": "tsc",
+    "typecheck": "tsc --noEmit"
+  },
+  "keywords": [
+    "claude",
+    "opencode",
+    "transcript",
+    "parser",
+    "converter",
+    "agent"
+  ],
+  "author": "Hunter Hopkins",
+  "license": "MIT",
+  "repository": {
+    "type": "git",
+    "url": "git+https://github.com/hhopkins95/ai-systems.git",
+    "directory": "packages/converters"
+  },
+  "engines": {
+    "node": ">=18.0.0"
+  },
+  "dependencies": {
+    "@ai-systems/shared-types": "workspace:*"
+  },
+  "peerDependencies": {
+    "@anthropic-ai/claude-agent-sdk": ">=0.1.0",
+    "@opencode-ai/sdk": ">=1.0.0"
+  },
+  "peerDependenciesMeta": {
+    "@anthropic-ai/claude-agent-sdk": {
+      "optional": true
+    },
+    "@opencode-ai/sdk": {
+      "optional": true
+    }
+  },
+  "devDependencies": {
+    "@anthropic-ai/claude-agent-sdk": "^0.1.18",
+    "@opencode-ai/sdk": "^1.0.126",
+    "typescript": "^5.7.2"
+  }
+}
