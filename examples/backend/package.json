@@ -10,7 +10,7 @@
     "start": "node dist/server.js"
   },
   "dependencies": {
-    "@hhopkins/agent-runtime": "workspace:*",
+    "@hhopkins/agent-server": "workspace:*",
     "better-sqlite3": "^12.4.6",
     "dotenv": "^16.4.7",
     "fastmcp": "^3.24.0",

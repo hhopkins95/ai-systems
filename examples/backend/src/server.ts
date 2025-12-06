@@ -1,5 +1,5 @@
 import { createServer } from "http";
-import { createAgentRuntime, type PersistenceAdapter } from "@hhopkins/agent-runtime";
+import { createAgentRuntime, type PersistenceAdapter } from "@hhopkins/agent-server";
 import dotenv from "dotenv";
 import { InMemoryPersistenceAdapter, SqlitePersistenceAdapter } from "./persistence/index.js";
 import { config, validateConfig, exampleAgentProfile } from "./config.js";

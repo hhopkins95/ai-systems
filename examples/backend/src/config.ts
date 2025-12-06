@@ -1,4 +1,4 @@
-import type { AgentProfile } from "@hhopkins/agent-runtime";
+import type { AgentProfile } from "@hhopkins/agent-server";
 import path from "path";
 import { fileURLToPath } from "url";
 

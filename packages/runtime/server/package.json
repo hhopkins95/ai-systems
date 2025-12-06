@@ -1,5 +1,5 @@
 {
-  "name": "@hhopkins/agent-runtime",
+  "name": "@hhopkins/agent-server",
   "version": "0.1.1",
   "description": "Node.js runtime for orchestrating AI agents (Claude, Gemini) in isolated Modal sandboxes",
   "type": "module",
@@ -18,7 +18,6 @@
   },
   "files": [
     "dist",
-    "sandbox",
     "README.md"
   ],
   "keywords": [
@@ -36,9 +35,9 @@
   "repository": {
     "type": "git",
     "url": "git+https://github.com/hhopkins95/ai-systems.git",
-    "directory": "packages/agent-runtime"
+    "directory": "packages/runtime/server"
   },
-  "homepage": "https://github.com/hhopkins95/ai-systems/tree/main/packages/agent-runtime#readme",
+  "homepage": "https://github.com/hhopkins95/ai-systems/tree/main/packages/runtime/server#readme",
   "bugs": {
     "url": "https://github.com/hhopkins95/ai-systems/issues"
   },
@@ -55,6 +54,7 @@
     "check": "pnpm run check-types && pnpm run lint"
   },
   "dependencies": {
+    "@hhopkins/agent-converters": "workspace:*",
     "@anthropic-ai/claude-agent-sdk": "^0.1.54",
     "@hono/node-server": "^1.14.2",
     "@hono/zod-validator": "^0.7.5",

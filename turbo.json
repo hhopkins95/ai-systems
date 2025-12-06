@@ -26,7 +26,7 @@
       "outputs": ["dist/**"]
     },
     "@example/backend#dev": {
-      "dependsOn": ["@hhopkins/agent-runtime#build"],
+      "dependsOn": ["@hhopkins/agent-server#build"],
       "cache": false
     },
     "@example/frontend#dev": {

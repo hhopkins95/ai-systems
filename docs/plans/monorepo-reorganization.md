@@ -170,14 +170,14 @@ Add to `packages/shared-types/src/runtime/`:
 - [x] **2.4** Define ExecutionAdapter interface (types.ts)
 - [x] **2.5** Verify execution package builds correctly
 
-### Phase 3: Server Package
-- [ ] **3.1** Create runtime/ directory structure
-- [ ] **3.2** Move agent-runtime to runtime/server
-- [ ] **3.3** Update package.json (name, dependencies)
-- [ ] **3.4** Remove code that moved to converters and execution
-- [ ] **3.5** Update sandbox orchestration to work with new execution package
-- [ ] **3.6** Simplify/remove AgentArchitectureAdapter (use converters + execution)
-- [ ] **3.7** Verify server package builds correctly
+### Phase 3: Server Package ✅ COMPLETE
+- [x] **3.1** Move agent-runtime to runtime/server
+- [x] **3.2** Update package.json (name to @hhopkins/agent-server, add converters dep)
+- [x] **3.3** Remove duplicate agent-architectures code (parsers/converters now use converters package)
+- [x] **3.4** Update sandbox copy path to point to runtime/execution
+- [x] **3.5** Delete old sandbox directory from agent-runtime
+- [x] **3.6** Update all cross-package imports (agent-runtime-react, examples)
+- [x] **3.7** Verify all packages build correctly
 
 ### Phase 4: Client Package
 - [ ] **4.1** Move agent-runtime-react to runtime/client
@@ -371,6 +371,24 @@ packages/apps/                       # New directory
 - Skipped Gemini script (unused, can be added later)
 - Skipped bulk-write-files.ts (unused, replaced by tar-based writeFiles)
 - All packages build successfully
+
+### Session 4 (Dec 5, 2024) - Phase 3 Implementation
+- Moved `packages/agent-runtime/` to `packages/runtime/server/`
+- Renamed package from `@hhopkins/agent-runtime` to `@hhopkins/agent-server`
+- Added dependency on `@hhopkins/agent-converters`
+- Updated Modal sandbox copy path to point to `runtime/execution/`
+- Deleted old `agent-runtime/sandbox/` directory
+- Removed duplicate code from `agent-architectures/`:
+  - Deleted `claude-sdk/claude-transcript-parser.ts` and `block-converter.ts`
+  - Deleted `opencode/opencode-transcript-parser.ts` and `block-converter.ts`
+  - Kept config builders (`build-mcp-json.ts`, `build-config-json.ts`)
+  - Updated adapters to import from `@hhopkins/agent-converters`
+- Updated cross-package imports:
+  - `agent-runtime-react` now uses `@hhopkins/agent-server`
+  - `examples/backend` now uses `@hhopkins/agent-server`
+  - Updated `turbo.json` build dependencies
+  - Updated root `package.json` publish script
+- All 10 packages build successfully
 
 ---
 

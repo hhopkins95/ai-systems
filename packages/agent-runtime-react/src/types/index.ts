@@ -1,7 +1,7 @@
 /**
  * Type definitions for Agent Service React Client
  *
- * This package re-exports shared types from @hhopkins/agent-runtime
+ * This package re-exports shared types from @hhopkins/agent-server
  * and defines client-specific types for REST API and configuration.
  */
 
@@ -41,7 +41,7 @@ export type {
   // WebSocket event types
   ServerToClientEvents,
   ClientToServerEvents,
-} from '@hhopkins/agent-runtime/types';
+} from '@hhopkins/agent-server/types';
 
 // Export type guards
 export {
@@ -53,7 +53,7 @@ export {
   isSystemBlock,
   isSubagentBlock,
   isErrorBlock,
-} from '@hhopkins/agent-runtime/types';
+} from '@hhopkins/agent-server/types';
 
 // ============================================================================
 // Client-Specific Types
@@ -105,7 +105,7 @@ export type StreamingBlock = StreamingContent;
  */
 export interface SubagentState {
   id: string;
-  blocks: import('@hhopkins/agent-runtime/types').ConversationBlock[];
+  blocks: import('@hhopkins/agent-server/types').ConversationBlock[];
   status: 'running' | 'completed' | 'failed';
   metadata: SessionMetadata;
 }
@@ -116,25 +116,25 @@ export interface SubagentState {
 
 export interface CreateSessionRequest {
   agentProfileRef: string;
-  architecture: import('@hhopkins/agent-runtime/types').AGENT_ARCHITECTURE_TYPE;
-  sessionOptions?: import('@hhopkins/agent-runtime/types').AgentArchitectureSessionOptions;
+  architecture: import('@hhopkins/agent-server/types').AGENT_ARCHITECTURE_TYPE;
+  sessionOptions?: import('@hhopkins/agent-server/types').AgentArchitectureSessionOptions;
 }
 
 export interface CreateSessionResponse {
   sessionId: string;
-  runtime: import('@hhopkins/agent-runtime/types').SessionRuntimeState;
+  runtime: import('@hhopkins/agent-server/types').SessionRuntimeState;
   createdAt: number;
-  sessionOptions?: import('@hhopkins/agent-runtime/types').AgentArchitectureSessionOptions;
+  sessionOptions?: import('@hhopkins/agent-server/types').AgentArchitectureSessionOptions;
 }
 
 export interface UpdateSessionOptionsRequest {
-  sessionOptions: import('@hhopkins/agent-runtime/types').AgentArchitectureSessionOptions;
+  sessionOptions: import('@hhopkins/agent-server/types').AgentArchitectureSessionOptions;
 }
 
 export interface UpdateSessionOptionsResponse {
   success: boolean;
   sessionId: string;
-  sessionOptions: import('@hhopkins/agent-runtime/types').AgentArchitectureSessionOptions;
+  sessionOptions: import('@hhopkins/agent-server/types').AgentArchitectureSessionOptions;
 }
 
 export interface SendMessageRequest {

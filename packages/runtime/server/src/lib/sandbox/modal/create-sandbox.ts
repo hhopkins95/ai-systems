@@ -20,7 +20,7 @@ const __filename = fileURLToPath(import.meta.url);
 const __dirname = path.dirname(__filename);
 
 
-const localSandboxAppDir = path.resolve(__dirname, '../../../../sandbox');
+const localSandboxAppDir = path.resolve(__dirname, '../../../../../execution');
 
 /**
  * Create a new Modal sandbox with standard configuration

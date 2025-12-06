@@ -6,7 +6,7 @@ import type {
   WorkspaceFile,
   AgentProfile,
   AgentProfileListData,
-} from "@hhopkins/agent-runtime/types";
+} from "@hhopkins/agent-server/types";
 import * as fs from "fs";
 import * as path from "path";
 
