@@ -32,7 +32,7 @@ pnpm build
 Build a specific package:
 
 ```bash
-pnpm --filter @hhopkins/agent-runtime build
+pnpm --filter @hhopkins/agent-server build
 ```
 
 ## Development
@@ -45,10 +45,12 @@ pnpm dev
 
 ## Packages Overview
 
-### Core Runtime
+### Runtime
 
-- **[@hhopkins/agent-runtime](../packages/agent-runtime.md)** - The core Node.js runtime for orchestrating AI agents in Modal sandboxes
-- **[@hhopkins/agent-runtime-react](../packages/agent-runtime-react.md)** - React hooks for connecting to the agent runtime
+- **[@hhopkins/agent-server](../packages/agent-server.md)** - The core Node.js runtime for orchestrating AI agents in sandboxes
+- **[@hhopkins/agent-client](../packages/agent-client.md)** - React hooks for connecting to the agent server
+- **[@hhopkins/agent-execution](../packages/agent-execution.md)** - Environment-agnostic execution scripts for agent queries
+- **[@hhopkins/agent-converters](../packages/agent-converters.md)** - Pure transformation functions for parsing agent transcripts
 
 ### Tooling
 
@@ -60,8 +62,8 @@ pnpm dev
 
 The `examples/` directory contains reference implementations:
 
-- **backend** - Example server using `@hhopkins/agent-runtime`
-- **frontend** - Example React app using `@hhopkins/agent-runtime-react`
+- **backend** - Example server using `@hhopkins/agent-server`
+- **frontend** - Example React app using `@hhopkins/agent-client`
 
 ## Plugins
 

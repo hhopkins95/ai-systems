@@ -1,11 +1,11 @@
 ---
-title: "@hhopkins/agent-runtime-react"
-description: React hooks and client library for connecting to @hhopkins/agent-runtime
+title: "@hhopkins/agent-client"
+description: React hooks and client library for connecting to @hhopkins/agent-server
 ---
 
-# @hhopkins/agent-runtime-react
+# @hhopkins/agent-client
 
-React hooks and client library for connecting to [@hhopkins/agent-runtime](./agent-runtime.md). Provides type-safe, real-time access to AI agent sessions with support for message streaming, file tracking, and subagent conversations.
+React hooks and client library for connecting to [@hhopkins/agent-server](./agent-server.md). Provides type-safe, real-time access to AI agent sessions with support for message streaming, file tracking, and subagent conversations.
 
 ## Features
 
@@ -13,7 +13,7 @@ React hooks and client library for connecting to [@hhopkins/agent-runtime](./age
 - **Real-time WebSocket updates** for streaming responses
 - **Context-based state management** with optimized re-renders
 - **Full TypeScript support** with comprehensive type definitions
-- **Architecture-agnostic** - works with Claude SDK and Gemini CLI
+- **Architecture-agnostic** - works with Claude SDK, OpenCode, and Gemini CLI
 - **Session lifecycle management** - create, load, destroy sessions
 - **Message streaming** - real-time conversation blocks
 - **File workspace tracking** - monitor agent-created files
@@ -22,9 +22,9 @@ React hooks and client library for connecting to [@hhopkins/agent-runtime](./age
 ## Installation
 
 ```bash
-npm install @hhopkins/agent-runtime-react
+npm install @hhopkins/agent-client
 # or
-pnpm add @hhopkins/agent-runtime-react
+pnpm add @hhopkins/agent-client
 ```
 
 ## Quick Start
@@ -32,7 +32,7 @@ pnpm add @hhopkins/agent-runtime-react
 ### 1. Wrap your app with the provider
 
 ```tsx
-import { AgentServiceProvider } from '@hhopkins/agent-runtime-react';
+import { AgentServiceProvider } from '@hhopkins/agent-client';
 
 function App() {
   return (
@@ -55,7 +55,7 @@ import {
   useAgentSession,
   useMessages,
   useWorkspaceFiles,
-} from '@hhopkins/agent-runtime-react';
+} from '@hhopkins/agent-client';
 
 function ChatInterface() {
   const { session, createSession, destroySession } = useAgentSession();
@@ -185,7 +185,7 @@ type SessionStatus =
 ## Type Guards
 
 ```tsx
-import { isAssistantTextBlock, isToolUseBlock } from '@hhopkins/agent-runtime-react';
+import { isAssistantTextBlock, isToolUseBlock } from '@hhopkins/agent-client';
 
 function BlockRenderer({ block }: { block: ConversationBlock }) {
   if (isAssistantTextBlock(block)) {
@@ -199,6 +199,11 @@ function BlockRenderer({ block }: { block: ConversationBlock }) {
   // ... handle other block types
 }
 ```
+
+## Related Packages
+
+- [@hhopkins/agent-server](./agent-server.md) - The backend server this client connects to
+- [@hhopkins/agent-converters](./agent-converters.md) - Shared types and converters
 
 ## License
 

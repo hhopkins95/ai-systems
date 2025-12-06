@@ -1,28 +1,29 @@
 ---
-title: "@hhopkins/agent-runtime"
-description: Node.js runtime for orchestrating AI agents in isolated Modal sandboxes with real-time streaming
+title: "@hhopkins/agent-server"
+description: Node.js runtime for orchestrating AI agents in isolated sandboxes with real-time streaming
 ---
 
-# @hhopkins/agent-runtime
+# @hhopkins/agent-server
 
-Node.js runtime for orchestrating AI agents (Claude, Gemini) in isolated Modal sandboxes with real-time streaming and flexible persistence.
+Node.js runtime for orchestrating AI agents (Claude, Gemini) in isolated sandboxes with real-time streaming and flexible persistence.
 
 ## Features
 
-- **Isolated Sandbox Execution** - Run agents in secure, ephemeral Modal sandboxes
+- **Isolated Sandbox Execution** - Run agents in secure, ephemeral sandboxes (Modal, Docker, etc.)
 - **Real-time Streaming** - WebSocket-based streaming of agent messages and tool execution
 - **Adapter Pattern** - Plug in any persistence layer (Convex, PostgreSQL, MongoDB, etc.)
-- **Multi-Architecture** - Support for Claude Agent SDK and Gemini CLI
+- **Multi-Architecture** - Support for Claude Agent SDK, OpenCode, and Gemini CLI
 - **Session Management** - Complete session lifecycle with state tracking
 - **Event-Driven** - Internal event bus for extensibility
 - **Type-Safe** - Full TypeScript support with exported types
+- **SDK-Agnostic** - Uses [@hhopkins/agent-converters](./agent-converters.md) for normalized transcript parsing
 
 ## Installation
 
 ```bash
-npm install @hhopkins/agent-runtime
+npm install @hhopkins/agent-server
 # or
-pnpm add @hhopkins/agent-runtime
+pnpm add @hhopkins/agent-server
 ```
 
 ## Quick Start
@@ -32,7 +33,7 @@ pnpm add @hhopkins/agent-runtime
 The runtime requires a persistence adapter to store session data and files. Implement the `PersistenceAdapter` interface for your database:
 
 ```typescript
-import type { PersistenceAdapter } from '@hhopkins/agent-runtime/types';
+import type { PersistenceAdapter } from '@hhopkins/agent-server/types';
 
 class MyPersistenceAdapter implements PersistenceAdapter {
   constructor(private db: YourDatabase) {}
@@ -78,8 +79,8 @@ class MyPersistenceAdapter implements PersistenceAdapter {
 ### 2. Configure and Start the Runtime
 
 ```typescript
-import { AgentRuntime } from '@hhopkins/agent-runtime';
-import type { RuntimeConfig } from '@hhopkins/agent-runtime/types';
+import { AgentRuntime } from '@hhopkins/agent-server';
+import type { RuntimeConfig } from '@hhopkins/agent-server/types';
 
 // Create your adapter instance
 const persistence = new MyPersistenceAdapter(myDatabase);
@@ -122,7 +123,7 @@ DELETE /sessions/:id            # Terminate session
 ws://localhost:3000              # Real-time session updates
 ```
 
-Use the [@hhopkins/agent-runtime-react](./agent-runtime-react.md) package for easy React integration.
+Use the [@hhopkins/agent-client](./agent-client.md) package for easy React integration.
 
 ## Architecture
 
@@ -133,7 +134,7 @@ Use the [@hhopkins/agent-runtime-react](./agent-runtime-react.md) package for ea
 └───────────────────┬──────────────────────────────┘
                     │
 ┌───────────────────▼──────────────────────────────┐
-│              Agent Runtime (this package)         │
+│              Agent Server (this package)          │
 │                                                   │
 │  ┌─────────────┐  ┌─────────────┐  ┌───────────┐ │
 │  │   HTTP      │  │  WebSocket  │  │   Event   │ │
@@ -149,7 +150,8 @@ Use the [@hhopkins/agent-runtime-react](./agent-runtime-react.md) package for ea
 │         │                                        │
 └─────────┼────────────────────────────────────────┘
           │
-          ├──→ Modal Sandbox (Agent execution)
+          ├──→ Sandbox (Agent execution via @hhopkins/agent-execution)
+          ├──→ Converters (@hhopkins/agent-converters for transcript parsing)
           └──→ Persistence Adapter (Your database)
 ```
 
@@ -157,7 +159,7 @@ Use the [@hhopkins/agent-runtime-react](./agent-runtime-react.md) package for ea
 
 **Sessions** - Each agent conversation is a session with:
 - Unique session ID
-- Agent architecture type (Claude/Gemini)
+- Agent architecture type (Claude/OpenCode/Gemini)
 - Agent profile reference
 - Conversation blocks (messages, tool uses, thinking)
 - Workspace files
@@ -172,10 +174,16 @@ Use the [@hhopkins/agent-runtime-react](./agent-runtime-react.md) package for ea
 - `system` - System events
 - `subagent` - Subagent invocation
 
+## Related Packages
+
+- [@hhopkins/agent-client](./agent-client.md) - React hooks for connecting to this server
+- [@hhopkins/agent-converters](./agent-converters.md) - Transcript parsing (used internally)
+- [@hhopkins/agent-execution](./agent-execution.md) - Sandbox execution scripts
+
 ## Requirements
 
 - Node.js >= 18
-- Modal account ([modal.com](https://modal.com))
+- Modal account ([modal.com](https://modal.com)) for sandbox execution
 - Anthropic API key (for Claude agents)
 
 ## License

@@ -9,8 +9,15 @@ Welcome to the ai-systems documentation.
 
 ## Packages
 
-- [agent-runtime](./packages/agent-runtime.md) - Node.js runtime for orchestrating AI agents in isolated Modal sandboxes
-- [agent-runtime-react](./packages/agent-runtime-react.md) - React hooks for connecting to agent-runtime
+### Runtime
+
+- [agent-server](./packages/agent-server.md) - Node.js runtime for orchestrating AI agents in isolated sandboxes
+- [agent-client](./packages/agent-client.md) - React hooks for connecting to agent-server
+- [agent-execution](./packages/agent-execution.md) - Environment-agnostic execution scripts for agent queries
+- [agent-converters](./packages/agent-converters.md) - Pure transformation functions for parsing agent transcripts
+
+### Tooling
+
 - [claude-entity-manager](./packages/claude-entity-manager.md) - Service for discovering and managing Claude Code entities
 - [smart-docs](./packages/smart-docs.md) - Local documentation viewer for AI-native codebases
 - [opencode-claude-adapter](./packages/opencode-claude-adapter.md) - Adapter for syncing Claude entities to OpenCode
@@ -32,14 +39,19 @@ Welcome to the ai-systems documentation.
 ```
 ai-systems/
 ├── packages/
-│   ├── agent-runtime/           # @hhopkins/agent-runtime
-│   ├── agent-runtime-react/     # @hhopkins/agent-runtime-react
+│   ├── runtime/
+│   │   ├── server/              # @hhopkins/agent-server
+│   │   ├── client/              # @hhopkins/agent-client
+│   │   └── execution/           # @hhopkins/agent-execution
+│   ├── converters/              # @hhopkins/agent-converters
 │   ├── claude-entity-manager/   # @hhopkins/claude-entity-manager
-│   ├── smart-docs/              # @hhopkins/smart-docs
+│   ├── shared-types/            # @ai-systems/shared-types
 │   └── opencode-claude-adapter/ # opencode-claude-adapter
+├── packages/apps/
+│   └── smart-docs/              # @hhopkins/smart-docs
 ├── examples/
-│   ├── backend/                 # Example server using agent-runtime
-│   └── frontend/                # Example React app using agent-runtime-react
+│   ├── backend/                 # Example server using agent-server
+│   └── frontend/                # Example React app using agent-client
 └── plugins/
     └── agent-service/           # Claude Code plugin for agent development
 ```
