@@ -18,9 +18,9 @@
   "repository": {
     "type": "git",
     "url": "git+https://github.com/hhopkins95/ai-systems.git",
-    "directory": "packages/runtime/client"
+    "directory": "runtime/client"
   },
-  "homepage": "https://github.com/hhopkins95/ai-systems/tree/main/packages/runtime/client#readme",
+  "homepage": "https://github.com/hhopkins95/ai-systems/tree/main/runtime/client#readme",
   "bugs": {
     "url": "https://github.com/hhopkins95/ai-systems/issues"
   },

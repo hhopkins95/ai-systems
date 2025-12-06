@@ -15,79 +15,11 @@ importers:
         specifier: ^5.7.2
         version: 5.9.3
 
-  examples/backend:
-    dependencies:
-      '@hhopkins/agent-server':
-        specifier: workspace:*
-        version: link:../../packages/runtime/server
-      better-sqlite3:
-        specifier: ^12.4.6
-        version: 12.5.0
-      dotenv:
-        specifier: ^16.4.7
-        version: 16.6.1
-      fastmcp:
-        specifier: ^3.24.0
-        version: 3.25.0
-      zod:
-        specifier: ^3.24.1
-        version: 3.25.76
-    devDependencies:
-      '@types/better-sqlite3':
-        specifier: ^7.6.13
-        version: 7.6.13
-      '@types/node':
-        specifier: ^22.10.2
-        version: 22.19.1
-      tsx:
-        specifier: ^4.19.2
-        version: 4.21.0
-      typescript:
-        specifier: ^5.7.2
-        version: 5.9.3
-
-  examples/frontend:
-    dependencies:
-      '@hhopkins/agent-client':
-        specifier: workspace:*
-        version: link:../../packages/runtime/client
-      next:
-        specifier: ^15.1.4
-        version: 15.5.7(@opentelemetry/api@1.9.0)(react-dom@18.3.1(react@18.3.1))(react@18.3.1)
-      react:
-        specifier: ^18.3.1
-        version: 18.3.1
-      react-dom:
-        specifier: ^18.3.1
-        version: 18.3.1(react@18.3.1)
-    devDependencies:
-      '@types/node':
-        specifier: ^22.19.1
-        version: 22.19.1
-      '@types/react':
-        specifier: ^18.3.18
-        version: 18.3.27
-      '@types/react-dom':
-        specifier: ^18.3.5
-        version: 18.3.7(@types/react@18.3.27)
-      autoprefixer:
-        specifier: ^10.4.20
-        version: 10.4.22(postcss@8.5.6)
-      postcss:
-        specifier: ^8.4.49
-        version: 8.5.6
-      tailwindcss:
-        specifier: ^3.4.17
-        version: 3.4.18(tsx@4.21.0)
-      typescript:
-        specifier: ^5.7.2
-        version: 5.9.3
-
-  packages/apps/smart-docs:
+  apps/smart-docs:
     dependencies:
       '@hhopkins/claude-entity-manager':
         specifier: workspace:*
-        version: link:../../claude-entity-manager
+        version: link:../../packages/claude-entity-manager
       '@tailwindcss/typography':
         specifier: ^0.5.19
         version: 0.5.19(tailwindcss@3.4.18(tsx@4.21.0))
@@ -161,6 +93,74 @@ importers:
         specifier: ^5.7.2
         version: 5.9.3
 
+  examples/backend:
+    dependencies:
+      '@hhopkins/agent-server':
+        specifier: workspace:*
+        version: link:../../runtime/server
+      better-sqlite3:
+        specifier: ^12.4.6
+        version: 12.5.0
+      dotenv:
+        specifier: ^16.4.7
+        version: 16.6.1
+      fastmcp:
+        specifier: ^3.24.0
+        version: 3.25.0
+      zod:
+        specifier: ^3.24.1
+        version: 3.25.76
+    devDependencies:
+      '@types/better-sqlite3':
+        specifier: ^7.6.13
+        version: 7.6.13
+      '@types/node':
+        specifier: ^22.10.2
+        version: 22.19.1
+      tsx:
+        specifier: ^4.19.2
+        version: 4.21.0
+      typescript:
+        specifier: ^5.7.2
+        version: 5.9.3
+
+  examples/frontend:
+    dependencies:
+      '@hhopkins/agent-client':
+        specifier: workspace:*
+        version: link:../../runtime/client
+      next:
+        specifier: ^15.1.4
+        version: 15.5.7(@opentelemetry/api@1.9.0)(react-dom@18.3.1(react@18.3.1))(react@18.3.1)
+      react:
+        specifier: ^18.3.1
+        version: 18.3.1
+      react-dom:
+        specifier: ^18.3.1
+        version: 18.3.1(react@18.3.1)
+    devDependencies:
+      '@types/node':
+        specifier: ^22.19.1
+        version: 22.19.1
+      '@types/react':
+        specifier: ^18.3.18
+        version: 18.3.27
+      '@types/react-dom':
+        specifier: ^18.3.5
+        version: 18.3.7(@types/react@18.3.27)
+      autoprefixer:
+        specifier: ^10.4.20
+        version: 10.4.22(postcss@8.5.6)
+      postcss:
+        specifier: ^8.4.49
+        version: 8.5.6
+      tailwindcss:
+        specifier: ^3.4.17
+        version: 3.4.18(tsx@4.21.0)
+      typescript:
+        specifier: ^5.7.2
+        version: 5.9.3
+
   packages/claude-entity-manager:
     dependencies:
       '@ai-systems/shared-types':
@@ -191,10 +191,10 @@ importers:
     devDependencies:
       '@anthropic-ai/claude-agent-sdk':
         specifier: ^0.1.18
-        version: 0.1.59(zod@4.1.8)
+        version: 0.1.60(zod@4.1.8)
       '@opencode-ai/sdk':
         specifier: ^1.0.126
-        version: 1.0.133
+        version: 1.0.134
       typescript:
         specifier: ^5.7.2
         version: 5.9.3
@@ -209,7 +209,7 @@ importers:
         version: link:../claude-entity-manager
       '@opencode-ai/sdk':
         specifier: ^1.0.126
-        version: 1.0.133
+        version: 1.0.134
       gray-matter:
         specifier: ^4.0.3
         version: 4.0.3
@@ -219,7 +219,7 @@ importers:
     devDependencies:
       '@opencode-ai/plugin':
         specifier: ^1.0.126
-        version: 1.0.133
+        version: 1.0.134
       '@types/bun':
         specifier: ^1.3.0
         version: 1.3.3
@@ -230,7 +230,13 @@ importers:
         specifier: ^5.7.2
         version: 5.9.3
 
-  packages/runtime/client:
+  packages/shared-types:
+    devDependencies:
+      typescript:
+        specifier: ^5.7.2
+        version: 5.9.3
+
+  runtime/client:
     dependencies:
       '@hhopkins/agent-server':
         specifier: workspace:*
@@ -249,17 +255,17 @@ importers:
         specifier: ^5.7.2
         version: 5.9.3
 
-  packages/runtime/execution:
+  runtime/execution:
     dependencies:
       '@ai-systems/shared-types':
         specifier: workspace:*
-        version: link:../../shared-types
+        version: link:../../packages/shared-types
       '@anthropic-ai/claude-agent-sdk':
         specifier: ^0.1.0
-        version: 0.1.59(zod@3.25.76)
+        version: 0.1.60(zod@3.25.76)
       '@opencode-ai/sdk':
         specifier: ^1.0.120
-        version: 1.0.133
+        version: 1.0.134
       commander:
         specifier: ^14.0.0
         version: 14.0.2
@@ -274,14 +280,14 @@ importers:
         specifier: ^5.7.2
         version: 5.9.3
 
-  packages/runtime/server:
+  runtime/server:
     dependencies:
       '@anthropic-ai/claude-agent-sdk':
         specifier: ^0.1.54
-        version: 0.1.59(zod@3.25.76)
+        version: 0.1.60(zod@3.25.76)
       '@hhopkins/agent-converters':
         specifier: workspace:*
-        version: link:../../converters
+        version: link:../../packages/converters
       '@hono/node-server':
         specifier: ^1.14.2
         version: 1.19.6(hono@4.10.7)
@@ -290,7 +296,7 @@ importers:
         version: 0.7.5(hono@4.10.7)(zod@3.25.76)
       '@opencode-ai/sdk':
         specifier: ^1.0.126
-        version: 1.0.133
+        version: 1.0.134
       chokidar:
         specifier: ^4.0.3
         version: 4.0.3
@@ -347,12 +353,6 @@ importers:
         specifier: ^5.7.2
         version: 5.9.3
 
-  packages/shared-types:
-    devDependencies:
-      typescript:
-        specifier: ^5.7.2
-        version: 5.9.3
-
 packages:
 
   '@alloc/quick-lru@5.2.0':
@@ -362,8 +362,8 @@ packages:
   '@antfu/install-pkg@1.1.0':
     resolution: {integrity: sha512-MGQsmw10ZyI+EJo45CdSER4zEb+p31LpDAFp2Z3gkSd1yqVZGi0Ebx++YTEMonJy4oChEMLsxZ64j8FH6sSqtQ==}
 
-  '@anthropic-ai/claude-agent-sdk@0.1.59':
-    resolution: {integrity: sha512-9TMxQCkIOd9W3c+owLtTW7d1ZgWeYoz1tbUwqz1TiKJTZmsmAFHUfXebQsJBZ+W15g6msqA6ln9yYxOKlNnlGw==}
+  '@anthropic-ai/claude-agent-sdk@0.1.60':
+    resolution: {integrity: sha512-Kl7zo4yNiUs3fRc9CQ5kcRuihdPEzH26boC5E8szO9WMNwPFBfJExLfYZDAcYmFaE3+M6mLpuYzmTGLxSoXrhg==}
     engines: {node: '>=18.0.0'}
     peerDependencies:
       zod: ^3.24.1
@@ -1098,11 +1098,11 @@ packages:
     resolution: {integrity: sha512-nn5ozdjYQpUCZlWGuxcJY/KpxkWQs4DcbMCmKojjyrYDEAGy4Ce19NN4v5MduafTwJlbKc99UA8YhSVqq9yPZA==}
     engines: {node: '>=12.4.0'}
 
-  '@opencode-ai/plugin@1.0.133':
-    resolution: {integrity: sha512-ZsUE7D7+lMrmBmhotTcUnUZlgGadhL0dIhSu/Zvj7/W9wn8fGSe+oGVp5sOLhCYbacjJrOUOeHgpz9XwwrFUXA==}
+  '@opencode-ai/plugin@1.0.134':
+    resolution: {integrity: sha512-W5305/s7nVOtM4ha+qZ3iafY2h52D4zvPSylzq/ge0VVxowB/Ge1Tu+3mMUcwnoEcOOwGok7267SP9+4ulaK2w==}
 
-  '@opencode-ai/sdk@1.0.133':
-    resolution: {integrity: sha512-kM+VJJ09SU51aruQ78DSy+6CjNc4wMytvGBrZ1IIJ8etUIdGA59wrnIOSxBVs4u/Gb9pjjgsF8sWp59UdLWP9w==}
+  '@opencode-ai/sdk@1.0.134':
+    resolution: {integrity: sha512-9dc75GjcKQBikfCKVdxGKe1dlaatnSzdOl0FsxcGyY32vbO8y071D7IUZdcwlaI/OaS5ztgRot++Y3l7suu34A==}
 
   '@opentelemetry/api-logs@0.203.0':
     resolution: {integrity: sha512-9B9RU0H7Ya1Dx/Rkyc4stuBZSGVQF27WigitInx2QQoj6KUpEFYPKoWjdFTunJYxmXmh17HeBvbMa1EhGyPmqQ==}
@@ -1929,8 +1929,8 @@ packages:
     resolution: {integrity: sha512-lGe34o6EHj9y3Kts9R4ZYs/Gr+6N7MCaMlIFA3F1R2O5/m7K06AxfSeO5530PEERE6/WyEg3lsuyw4GHlPZHog==}
     engines: {node: ^4.5.0 || >= 5.9}
 
-  baseline-browser-mapping@2.9.2:
-    resolution: {integrity: sha512-PxSsosKQjI38iXkmb3d0Y32efqyA0uW4s41u4IVBsLlWLhCiYNpH/AfNOVWRqCQBlD8TFJTz6OUWNd4DFJCnmw==}
+  baseline-browser-mapping@2.9.4:
+    resolution: {integrity: sha512-ZCQ9GEWl73BVm8bu5Fts8nt7MHdbt5vY9bP6WGnUh+r3l8M7CgfyTlwsgCbMC66BNxPr6Xoce3j66Ms5YUQTNA==}
     hasBin: true
 
   better-sqlite3@12.5.0:
@@ -2508,8 +2508,8 @@ packages:
   ee-first@1.1.1:
     resolution: {integrity: sha512-WMwm9LhRUo+WUaRN+vRuETqG89IgZphVSNkdFgeb6sS/E4OrDIN7t48CAewSHXc6C8lefD8KKfr5vY61brQlow==}
 
-  electron-to-chromium@1.5.265:
-    resolution: {integrity: sha512-B7IkLR1/AE+9jR2LtVF/1/6PFhY5TlnEHnlrKmGk7PvkJibg5jr+mLXLLzq3QYl6PA1T/vLDthQPqIPAlS/PPA==}
+  electron-to-chromium@1.5.266:
+    resolution: {integrity: sha512-kgWEglXvkEfMH7rxP5OSZZwnaDWT7J9EoZCujhnpLbfi0bbNtRkgdX2E3gt0Uer11c61qCYktB3hwkAS325sJg==}
 
   emoji-regex@10.6.0:
     resolution: {integrity: sha512-toUI84YS5YmxW219erniWD0CIVOo46xGKColeNQRgOzDorgBi1v4D71/OFzgD9GO2UGKIv1C3Sp8DAn0+j5w7A==}
@@ -5145,7 +5145,7 @@ snapshots:
       package-manager-detector: 1.6.0
       tinyexec: 1.0.2
 
-  '@anthropic-ai/claude-agent-sdk@0.1.59(zod@3.25.76)':
+  '@anthropic-ai/claude-agent-sdk@0.1.60(zod@3.25.76)':
     dependencies:
       zod: 3.25.76
     optionalDependencies:
@@ -5158,7 +5158,7 @@ snapshots:
       '@img/sharp-linuxmusl-x64': 0.33.5
       '@img/sharp-win32-x64': 0.33.5
 
-  '@anthropic-ai/claude-agent-sdk@0.1.59(zod@4.1.8)':
+  '@anthropic-ai/claude-agent-sdk@0.1.60(zod@4.1.8)':
     dependencies:
       zod: 4.1.8
     optionalDependencies:
@@ -5863,12 +5863,12 @@ snapshots:
 
   '@nolyfill/is-core-module@1.0.39': {}
 
-  '@opencode-ai/plugin@1.0.133':
+  '@opencode-ai/plugin@1.0.134':
     dependencies:
-      '@opencode-ai/sdk': 1.0.133
+      '@opencode-ai/sdk': 1.0.134
       zod: 4.1.8
 
-  '@opencode-ai/sdk@1.0.133': {}
+  '@opencode-ai/sdk@1.0.134': {}
 
   '@opentelemetry/api-logs@0.203.0':
     dependencies:
@@ -6396,7 +6396,7 @@ snapshots:
 
   '@types/react-syntax-highlighter@15.5.13':
     dependencies:
-      '@types/react': 18.3.27
+      '@types/react': 19.2.7
 
   '@types/react@18.3.27':
     dependencies:
@@ -6771,7 +6771,7 @@ snapshots:
 
   base64id@2.0.0: {}
 
-  baseline-browser-mapping@2.9.2: {}
+  baseline-browser-mapping@2.9.4: {}
 
   better-sqlite3@12.5.0:
     dependencies:
@@ -6821,9 +6821,9 @@ snapshots:
 
   browserslist@4.28.1:
     dependencies:
-      baseline-browser-mapping: 2.9.2
+      baseline-browser-mapping: 2.9.4
       caniuse-lite: 1.0.30001759
-      electron-to-chromium: 1.5.265
+      electron-to-chromium: 1.5.266
       node-releases: 2.0.27
       update-browserslist-db: 1.2.2(browserslist@4.28.1)
 
@@ -7373,7 +7373,7 @@ snapshots:
 
   ee-first@1.1.1: {}
 
-  electron-to-chromium@1.5.265: {}
+  electron-to-chromium@1.5.266: {}
 
   emoji-regex@10.6.0: {}
 
@@ -7565,7 +7565,7 @@ snapshots:
       '@typescript-eslint/parser': 6.21.0(eslint@8.57.1)(typescript@5.9.3)
       eslint: 8.57.1
       eslint-import-resolver-node: 0.3.9
-      eslint-import-resolver-typescript: 3.10.1(eslint-plugin-import@2.32.0)(eslint@8.57.1)
+      eslint-import-resolver-typescript: 3.10.1(eslint-plugin-import@2.32.0(@typescript-eslint/parser@6.21.0(eslint@8.57.1)(typescript@5.9.3))(eslint@8.57.1))(eslint@8.57.1)
       eslint-plugin-import: 2.32.0(@typescript-eslint/parser@6.21.0(eslint@8.57.1)(typescript@5.9.3))(eslint-import-resolver-typescript@3.10.1)(eslint@8.57.1)
       eslint-plugin-jsx-a11y: 6.10.2(eslint@8.57.1)
       eslint-plugin-react: 7.37.5(eslint@8.57.1)
@@ -7585,7 +7585,7 @@ snapshots:
     transitivePeerDependencies:
       - supports-color
 
-  eslint-import-resolver-typescript@3.10.1(eslint-plugin-import@2.32.0)(eslint@8.57.1):
+  eslint-import-resolver-typescript@3.10.1(eslint-plugin-import@2.32.0(@typescript-eslint/parser@6.21.0(eslint@8.57.1)(typescript@5.9.3))(eslint@8.57.1))(eslint@8.57.1):
     dependencies:
       '@nolyfill/is-core-module': 1.0.39
       debug: 4.4.3
@@ -7600,14 +7600,14 @@ snapshots:
     transitivePeerDependencies:
       - supports-color
 
-  eslint-module-utils@2.12.1(@typescript-eslint/parser@6.21.0(eslint@8.57.1)(typescript@5.9.3))(eslint-import-resolver-node@0.3.9)(eslint-import-resolver-typescript@3.10.1)(eslint@8.57.1):
+  eslint-module-utils@2.12.1(@typescript-eslint/parser@6.21.0(eslint@8.57.1)(typescript@5.9.3))(eslint-import-resolver-node@0.3.9)(eslint-import-resolver-typescript@3.10.1(eslint-plugin-import@2.32.0(@typescript-eslint/parser@6.21.0(eslint@8.57.1)(typescript@5.9.3))(eslint@8.57.1))(eslint@8.57.1))(eslint@8.57.1):
     dependencies:
       debug: 3.2.7
     optionalDependencies:
       '@typescript-eslint/parser': 6.21.0(eslint@8.57.1)(typescript@5.9.3)
       eslint: 8.57.1
       eslint-import-resolver-node: 0.3.9
-      eslint-import-resolver-typescript: 3.10.1(eslint-plugin-import@2.32.0)(eslint@8.57.1)
+      eslint-import-resolver-typescript: 3.10.1(eslint-plugin-import@2.32.0(@typescript-eslint/parser@6.21.0(eslint@8.57.1)(typescript@5.9.3))(eslint@8.57.1))(eslint@8.57.1)
     transitivePeerDependencies:
       - supports-color
 
@@ -7622,7 +7622,7 @@ snapshots:
       doctrine: 2.1.0
       eslint: 8.57.1
       eslint-import-resolver-node: 0.3.9
-      eslint-module-utils: 2.12.1(@typescript-eslint/parser@6.21.0(eslint@8.57.1)(typescript@5.9.3))(eslint-import-resolver-node@0.3.9)(eslint-import-resolver-typescript@3.10.1)(eslint@8.57.1)
+      eslint-module-utils: 2.12.1(@typescript-eslint/parser@6.21.0(eslint@8.57.1)(typescript@5.9.3))(eslint-import-resolver-node@0.3.9)(eslint-import-resolver-typescript@3.10.1(eslint-plugin-import@2.32.0(@typescript-eslint/parser@6.21.0(eslint@8.57.1)(typescript@5.9.3))(eslint@8.57.1))(eslint@8.57.1))(eslint@8.57.1)
       hasown: 2.0.2
       is-core-module: 2.16.1
       is-glob: 4.0.3

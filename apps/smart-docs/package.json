@@ -24,7 +24,7 @@
     "README.md"
   ],
   "scripts": {
-    "dev": "node bin/cli.mjs ../../../docs --dev",
+    "dev": "node bin/cli.mjs ../../docs --dev",
     "build": "npm run build:cli && next build",
     "start": "next start",
     "lint": "next lint",
@@ -41,12 +41,12 @@
   "repository": {
     "type": "git",
     "url": "git+https://github.com/hhopkins95/ai-systems.git",
-    "directory": "packages/apps/smart-docs"
+    "directory": "apps/smart-docs"
   },
   "bugs": {
     "url": "https://github.com/hhopkins95/ai-systems/issues"
   },
-  "homepage": "https://github.com/hhopkins95/ai-systems/tree/main/packages/apps/smart-docs#readme",
+  "homepage": "https://github.com/hhopkins95/ai-systems/tree/main/apps/smart-docs#readme",
   "author": "",
   "license": "MIT",
   "dependencies": {
