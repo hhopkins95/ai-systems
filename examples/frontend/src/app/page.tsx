@@ -1,7 +1,7 @@
 "use client";
 
 import { useState } from "react";
-import { useAgentSession } from "@hhopkins/agent-runtime-react";
+import { useAgentSession } from "@hhopkins/agent-client";
 import { SessionList } from "@/components/SessionList";
 import { SessionHeader } from "@/components/SessionHeader";
 import { AgentChat } from "@/components/AgentChat";
@@ -144,7 +144,7 @@ export default function HomePage() {
       <footer className="flex-shrink-0 bg-white border-t py-2">
         <div className="max-w-screen-2xl mx-auto px-6">
           <p className="text-xs text-gray-500 text-center">
-            Built with @hhopkins/agent-runtime and @hhopkins/agent-runtime-react
+            Built with @hhopkins/agent-server and @hhopkins/agent-client
           </p>
         </div>
       </footer>

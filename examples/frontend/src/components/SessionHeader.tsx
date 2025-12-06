@@ -1,8 +1,8 @@
 "use client";
 
 import { useState } from "react";
-import { useSessionList, useAgentSession } from "@hhopkins/agent-runtime-react";
-import type { SessionListItem } from "@hhopkins/agent-runtime-react";
+import { useSessionList, useAgentSession } from "@hhopkins/agent-client";
+import type { SessionListItem } from "@hhopkins/agent-client";
 import { BACKEND_URL, API_KEY, type SupportedArchitecture } from "@/lib/constants";
 import { SessionOptionsPopover } from "./SessionOptionsPopover";
 

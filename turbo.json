@@ -30,7 +30,7 @@
       "cache": false
     },
     "@example/frontend#dev": {
-      "dependsOn": ["@hhopkins/agent-runtime-react#build"],
+      "dependsOn": ["@hhopkins/agent-client#build"],
       "cache": false
     }
   }

@@ -1,8 +1,8 @@
 "use client";
 
 import { useState } from "react";
-import { useAgentSession, useSessionList } from "@hhopkins/agent-runtime-react";
-import type { SessionListItem, AGENT_ARCHITECTURE_TYPE, AgentArchitectureSessionOptions } from "@hhopkins/agent-runtime-react";
+import { useAgentSession, useSessionList } from "@hhopkins/agent-client";
+import type { SessionListItem, AGENT_ARCHITECTURE_TYPE, AgentArchitectureSessionOptions } from "@hhopkins/agent-client";
 import { SUPPORTED_ARCHITECTURES, getModelOptionsForArchitecture, type SupportedArchitecture } from "../lib/constants";
 
 interface SessionListProps {

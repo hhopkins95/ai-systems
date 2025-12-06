@@ -13,7 +13,7 @@
     "docs:dev": "node packages/smart-docs/bin/cli.mjs docs --dev",
     "publish:entity-manager": "pnpm --filter @hhopkins/claude-entity-manager publish",
     "publish:agent-server": "pnpm --filter @hhopkins/agent-server publish",
-    "publish:agent-runtime-react": "pnpm --filter @hhopkins/agent-runtime-react publish",
+    "publish:agent-client": "pnpm --filter @hhopkins/agent-client publish",
     "publish:smart-docs": "pnpm --filter @hhopkins/smart-docs publish",
     "publish:opencode-adapter": "pnpm --filter opencode-claude-adapter publish"
   },

@@ -1,7 +1,7 @@
 {
-  "name": "@hhopkins/agent-runtime-react",
+  "name": "@hhopkins/agent-client",
   "version": "0.1.1",
-  "description": "React hooks and client for interacting with agent-service",
+  "description": "React hooks and client for interacting with agent-server",
   "type": "module",
   "main": "./dist/index.js",
   "module": "./dist/index.js",
@@ -18,9 +18,9 @@
   "repository": {
     "type": "git",
     "url": "git+https://github.com/hhopkins95/ai-systems.git",
-    "directory": "packages/agent-runtime-react"
+    "directory": "packages/runtime/client"
   },
-  "homepage": "https://github.com/hhopkins95/ai-systems/tree/main/packages/agent-runtime-react#readme",
+  "homepage": "https://github.com/hhopkins95/ai-systems/tree/main/packages/runtime/client#readme",
   "bugs": {
     "url": "https://github.com/hhopkins95/ai-systems/issues"
   },

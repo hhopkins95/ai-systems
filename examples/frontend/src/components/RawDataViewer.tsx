@@ -1,7 +1,7 @@
 "use client";
 
 import { useState, useCallback } from "react";
-import { useAgentSession } from "@hhopkins/agent-runtime-react";
+import { useAgentSession } from "@hhopkins/agent-client";
 import { BACKEND_URL, API_KEY } from "@/lib/constants";
 
 interface RawDataViewerProps {

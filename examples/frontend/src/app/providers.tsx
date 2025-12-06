@@ -1,6 +1,6 @@
 "use client";
 
-import { AgentServiceProvider } from "@hhopkins/agent-runtime-react";
+import { AgentServiceProvider } from "@hhopkins/agent-client";
 import { BACKEND_URL, API_KEY } from "@/lib/constants";
 
 /**

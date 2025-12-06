@@ -1,7 +1,7 @@
 "use client";
 
 import { useState } from "react";
-import { useWorkspaceFiles } from "@hhopkins/agent-runtime-react";
+import { useWorkspaceFiles } from "@hhopkins/agent-client";
 
 interface FileWorkspaceProps {
   sessionId: string;

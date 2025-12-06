@@ -1,7 +1,7 @@
 "use client";
 
 import { useState } from "react";
-import type { ConversationBlock } from "@hhopkins/agent-runtime-react";
+import type { ConversationBlock } from "@hhopkins/agent-client";
 
 type ToolUseBlock = Extract<ConversationBlock, { type: "tool_use" }>;
 type ToolResultBlock = Extract<ConversationBlock, { type: "tool_result" }>;

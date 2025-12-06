@@ -1,7 +1,7 @@
 "use client";
 
 import { useState } from "react";
-import { useEvents, type DebugEvent } from "@hhopkins/agent-runtime-react";
+import { useEvents, type DebugEvent } from "@hhopkins/agent-client";
 
 /**
  * Event Item - Displays a single debug event with expandable payload
