@@ -27,9 +27,9 @@ export class ModalSandbox implements SandboxPrimitive {
 
         const sandboxPrimitive = new ModalSandbox(sandbox);
 
-        // copy the app dir to the sandbox
+        // copy the execution scripts to the sandbox
         await copyLocalFilesToSandbox({
-            localDirPath: path.join(__dirname, "../../../../sandbox"),
+            localDirPath: path.join(__dirname, "../../../../../runtime/execution"),
             targetSandboxDirPath: sandboxPrimitive.getBasePaths().APP_DIR,
             sandbox: sandboxPrimitive,
         });

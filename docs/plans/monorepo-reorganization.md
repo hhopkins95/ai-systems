@@ -163,12 +163,12 @@ Add to `packages/shared-types/src/runtime/`:
 - [x] **1.4** Extract block converters from agent-runtime to converters
 - [x] **1.5** Verify converters package builds and exports correctly
 
-### Phase 2: Execution Package
-- [ ] **2.1** Create runtime/execution package structure
-- [ ] **2.2** Move sandbox scripts from agent-runtime/sandbox to runtime/execution
-- [ ] **2.3** Update execution scripts to use converters for normalization
-- [ ] **2.4** Define ExecutionAdapter interface
-- [ ] **2.5** Verify execution package builds correctly
+### Phase 2: Execution Package ✅ COMPLETE
+- [x] **2.1** Create runtime/execution package structure
+- [x] **2.2** Move sandbox scripts from agent-runtime/sandbox to runtime/execution
+- [x] **2.3** Update Modal sandbox copy path to use new location
+- [x] **2.4** Define ExecutionAdapter interface (types.ts)
+- [x] **2.5** Verify execution package builds correctly
 
 ### Phase 3: Server Package
 - [ ] **3.1** Create runtime/ directory structure
@@ -358,6 +358,19 @@ packages/apps/                       # New directory
 - All packages build successfully
 - Original agent-runtime code left in place (will be removed in later phases)
 - Expanded planning document with detailed phase breakdowns, interfaces, and integration points
+
+### Session 3 (Dec 5, 2024) - Phase 2 Implementation
+- Created `packages/runtime/execution/` package:
+  - `@hhopkins/agent-execution` npm package
+  - Moved `execute-claude-sdk-query.ts` from agent-runtime/sandbox
+  - Moved `execute-opencode-query.ts` from agent-runtime/sandbox
+  - Added `src/types.ts` with ExecutionAdapter interface types
+  - Added `src/index.ts` with exports
+- Updated `pnpm-workspace.yaml` to include `packages/runtime/*`
+- Updated Modal sandbox copy path in `agent-runtime/src/lib/sandbox/modal/index.ts`
+- Skipped Gemini script (unused, can be added later)
+- Skipped bulk-write-files.ts (unused, replaced by tar-based writeFiles)
+- All packages build successfully
 
 ---
 
