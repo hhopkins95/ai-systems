@@ -45,6 +45,7 @@ async function main() {
   // Parse arguments
   const args = process.argv.slice(2);
   const isDev = args.includes('--dev');
+  const shouldOpen = args.includes('--open');
   const portIndex = args.findIndex(arg => arg === '--port' || arg === '-p');
   const specifiedPort = portIndex >= 0 && args[portIndex + 1] ? parseInt(args[portIndex + 1], 10) : null;
   const docsPath = args.find(arg => !arg.startsWith('--') && !arg.startsWith('-') && (portIndex < 0 || arg !== args[portIndex + 1])) || './docs';
@@ -94,8 +95,10 @@ async function main() {
 
   if (ready) {
     console.log('✅ Server ready!');
-    console.log(`🌐 Opening http://localhost:${port} in your browser...`);
-    await open(`http://localhost:${port}`);
+    if (shouldOpen) {
+      console.log(`🌐 Opening http://localhost:${port} in your browser...`);
+      await open(`http://localhost:${port}`);
+    }
   } else {
     console.log('❌ Server failed to start after 30 seconds');
     process.exit(1);

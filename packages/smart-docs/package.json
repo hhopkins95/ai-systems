@@ -24,7 +24,7 @@
     "README.md"
   ],
   "scripts": {
-    "dev": "node bin/cli.mjs ./test-docs --dev",
+    "dev": "node bin/cli.mjs ../../docs --dev",
     "build": "npm run build:cli && next build",
     "start": "next start",
     "lint": "next lint",

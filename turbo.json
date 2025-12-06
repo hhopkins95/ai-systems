@@ -7,7 +7,7 @@
       "outputs": ["dist/**", ".next/**", "!.next/cache/**"]
     },
     "dev": {
-      "dependsOn": ["^dev"],
+      "dependsOn": ["^build"],
       "cache": false,
       "persistent": true
     },
@@ -26,11 +26,11 @@
       "outputs": ["dist/**"]
     },
     "@example/backend#dev": {
-      "dependsOn": ["@hhopkins/agent-runtime#dev"],
+      "dependsOn": ["@hhopkins/agent-runtime#build"],
       "cache": false
     },
     "@example/frontend#dev": {
-      "dependsOn": ["@hhopkins/agent-runtime-react#dev"],
+      "dependsOn": ["@hhopkins/agent-runtime-react#build"],
       "cache": false
     }
   }
