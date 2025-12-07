@@ -41,14 +41,19 @@ export interface RuntimeConfig {
    */
   persistence: PersistenceAdapter;
 
+  /**
+   * Modal configuration for creating sandboxes
+   * Required for modal-sandbox execution environment
+   */
+  modal: ModalExecutionEnvironmentOptions;
 
   /**
    * Where sessions should be executed. Options will be validated based on type.
    */
-  executionEnvironment : { 
-    type : EXECUTION_ENVIRONMENTS, 
-    modal? : ModalExecutionEnvironmentOptions,
-    local? : LocalExecutionEnvironmentOptions
+  executionEnvironment: {
+    type: EXECUTION_ENVIRONMENTS;
+    modal?: ModalExecutionEnvironmentOptions;
+    local?: LocalExecutionEnvironmentOptions;
   }
 
 

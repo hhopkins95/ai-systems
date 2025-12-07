@@ -13,8 +13,9 @@
  */
 
 import { logger } from '../config/logger.js';
-import type { ModalContext } from '../lib/sandbox/modal/client.js';
+import type { ModalContext } from '../lib/execution-environments/modal-sandbox/modal/client.js';
 import type { PersistenceAdapter } from '../types/persistence-adapter.js';
+import type { RuntimeConfig } from '../types/runtime.js';
 import type {
   CreateSessionArgs,
   SessionListItem,
@@ -35,6 +36,7 @@ export class SessionManager {
   // Dependencies
   private readonly modalContext: ModalContext;
   private readonly eventBus: EventBus;
+  private readonly executionConfig: RuntimeConfig['executionEnvironment'];
   private readonly adapters: {
     persistence: PersistenceAdapter;
   };
@@ -42,12 +44,14 @@ export class SessionManager {
   constructor(
     modalContext: ModalContext,
     eventBus: EventBus,
+    executionConfig: RuntimeConfig['executionEnvironment'],
     adapters: {
       persistence: PersistenceAdapter;
     },
   ) {
     this.modalContext = modalContext;
     this.eventBus = eventBus;
+    this.executionConfig = executionConfig;
     this.adapters = adapters;
     logger.info('SessionManager initialized with injected adapters');
   }
@@ -107,6 +111,7 @@ export class SessionManager {
         this.modalContext,
         this.eventBus,
         this.adapters.persistence,
+        this.executionConfig,
         this.handleSandboxTerminated.bind(this),
       );
 
@@ -142,6 +147,7 @@ export class SessionManager {
         this.modalContext,
         this.eventBus,
         this.adapters.persistence,
+        this.executionConfig,
         this.handleSandboxTerminated.bind(this),
       );
 

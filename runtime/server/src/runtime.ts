@@ -46,7 +46,7 @@ import { createServer, type Server } from 'http';
 import type { Hono } from 'hono';
 import { Server as SocketIOServer } from 'socket.io';
 import { logger } from './config/logger.js';
-import { initializeModal, type ModalContext } from './lib/sandbox/modal/client.js';
+import { initializeModal, type ModalContext } from './lib/execution-environments/modal-sandbox/modal/client.js';
 import { EventBus } from './core/event-bus.js';
 import { SessionManager } from './core/session-manager.js';
 import { createWebSocketServer as createWSServer } from './transport/websocket/index.js';
@@ -123,6 +123,7 @@ export async function createAgentRuntime(
   const sessionManager = new SessionManager(
     modalContext,
     eventBus,
+    config.executionEnvironment,
     {
       persistence: config.persistence,
     },
