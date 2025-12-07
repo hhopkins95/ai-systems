@@ -1,0 +1,289 @@
+#!/usr/bin/env tsx
+/**
+ * Unified Execute Query - Runs inside sandbox
+ *
+ * Executes agent queries using either Claude SDK or OpenCode,
+ * converting native SDK output to StreamEvents before outputting.
+ *
+ * Usage:
+ *   execute-query "<prompt>" --architecture <arch> --session-id <id> [options]
+ *
+ * Arguments:
+ *   prompt                    - The user's message/prompt to send to the agent
+ *   --architecture <arch>     - Architecture: claude-sdk or opencode (required)
+ *   --session-id <id>         - The session ID to use (required)
+ *   --cwd <path>              - Working directory (default: /workspace)
+ *   --model <model>           - Model (provider/model format for opencode)
+ *   --tools <json>            - JSON array of allowed tools
+ *   --mcp-servers <json>      - JSON object of MCP server configs
+ *
+ * Output:
+ *   Streams JSONL to stdout, one StreamEvent per line
+ */
+
+import { Command } from 'commander';
+import * as fs from 'fs';
+import * as path from 'path';
+import { claudeSdk, opencode } from '@hhopkins/agent-converters';
+import type { ExecuteQueryArgs, AgentArchitecture } from '../types.js';
+import {
+  writeStreamEvents,
+  writeError,
+  logDebug,
+} from './shared/output.js';
+import {
+  setupSignalHandlers,
+  setupExceptionHandlers,
+} from './shared/signal-handlers.js';
+
+// Set up exception handlers early
+setupExceptionHandlers();
+
+// =============================================================================
+// Session Helpers
+// =============================================================================
+
+/**
+ * Check if a Claude SDK session transcript exists
+ */
+function claudeSessionExists(sessionId: string): boolean {
+  const projectsDir = path.join(process.env.HOME || '~', '.claude', 'projects');
+
+  if (!fs.existsSync(projectsDir)) {
+    return false;
+  }
+
+  // Scan all subdirectories for {sessionId}.jsonl
+  const projectDirs = fs.readdirSync(projectsDir, { withFileTypes: true })
+    .filter(d => d.isDirectory())
+    .map(d => d.name);
+
+  for (const dir of projectDirs) {
+    const transcriptPath = path.join(projectsDir, dir, `${sessionId}.jsonl`);
+    if (fs.existsSync(transcriptPath)) {
+      return true;
+    }
+  }
+
+  return false;
+}
+
+// =============================================================================
+// Claude SDK Executor
+// =============================================================================
+
+async function executeClaudeSdk(args: ExecuteQueryArgs): Promise<void> {
+  logDebug('Starting Claude SDK execution', { sessionId: args.sessionId });
+
+  // Validate environment
+  if (!process.env.ANTHROPIC_API_KEY) {
+    throw new Error('ANTHROPIC_API_KEY environment variable not set');
+  }
+
+  // Dynamic import of Claude SDK
+  const { query } = await import('@anthropic-ai/claude-agent-sdk');
+
+  const options: import('@anthropic-ai/claude-agent-sdk').Options = {
+    cwd: args.cwd || '/workspace',
+    settingSources: ['project', 'user'],
+    includePartialMessages: true,
+    maxBudgetUsd: 5.0,
+    permissionMode: 'bypassPermissions',
+    allowDangerouslySkipPermissions: true,
+    allowedTools: args.tools
+      ? [...args.tools, 'Skill']
+      : ['Skill'],
+    mcpServers: args.mcpServers as import('@anthropic-ai/claude-agent-sdk').Options['mcpServers'],
+  };
+
+  const needsCreation = !claudeSessionExists(args.sessionId);
+  logDebug('Session check', { sessionId: args.sessionId, needsCreation });
+
+  const generator = query({
+    prompt: args.prompt,
+    options: needsCreation
+      ? { ...options, extraArgs: { 'session-id': args.sessionId } }
+      : { ...options, resume: args.sessionId },
+  });
+
+  for await (const sdkMessage of generator) {
+    // Convert SDK message to StreamEvents using converter
+    const streamEvents = claudeSdk.parseStreamEvent(sdkMessage);
+    writeStreamEvents(streamEvents);
+  }
+}
+
+// =============================================================================
+// OpenCode Executor
+// =============================================================================
+
+async function executeOpencode(args: ExecuteQueryArgs): Promise<void> {
+  logDebug('Starting OpenCode execution', { sessionId: args.sessionId });
+
+  if (!args.model) {
+    throw new Error('Model is required for opencode architecture (format: provider/model)');
+  }
+
+  const [providerID, modelID] = args.model.split('/');
+  if (!providerID || !modelID) {
+    throw new Error('Model must be in format provider/model (e.g., anthropic/claude-sonnet-4-20250514)');
+  }
+
+  // Dynamic import of OpenCode SDK
+  const { createOpencode } = await import('@opencode-ai/sdk');
+
+  const oc = await createOpencode({ hostname: '127.0.0.1', port: 4096 });
+  const client = oc.client;
+  const server = oc.server;
+
+  // Setup cleanup on signals
+  setupSignalHandlers(() => server?.close());
+
+  try {
+    // Create stateful parser for this session
+    const parser = opencode.createStreamEventParser(args.sessionId);
+
+    // Check if session exists, create if not
+    const existingSession = await client.session.get({ path: { id: args.sessionId } });
+    logDebug('Session check', { sessionId: args.sessionId, exists: !!existingSession.data });
+
+    if (!existingSession.data) {
+      logDebug('Creating new session', { sessionId: args.sessionId });
+      await createOpencodeSession(args.sessionId, args.cwd || '/workspace');
+    }
+
+    // Subscribe to events
+    const events = await client.event.subscribe();
+
+    // Authenticate
+    await client.auth.set({
+      path: { id: 'zen' },
+      body: { type: 'api', key: process.env.OPENCODE_API_KEY || '' },
+    });
+
+    // Send prompt
+    await client.session.prompt({
+      path: { id: args.sessionId },
+      body: {
+        model: { providerID, modelID },
+        parts: [{ type: 'text', text: args.prompt }],
+      },
+    });
+
+    // Process events
+    for await (const event of events.stream) {
+      // Convert OpenCode event to StreamEvents using stateful parser
+      const streamEvents = parser.parseEvent(event);
+      writeStreamEvents(streamEvents);
+
+      // Break when session goes idle
+      if (event.type === 'session.idle' && event.properties.sessionID === args.sessionId) {
+        break;
+      }
+    }
+  } finally {
+    server?.close();
+  }
+}
+
+/**
+ * Create an OpenCode session with a specific ID
+ */
+async function createOpencodeSession(sessionId: string, cwd: string): Promise<void> {
+  const { exec } = await import('child_process');
+  const { promisify } = await import('util');
+  const execAsync = promisify(exec);
+  const os = await import('os');
+
+  const sessionFileContents = JSON.stringify({
+    info: {
+      id: sessionId,
+      version: '1.0.120',
+      projectID: 'global',
+      directory: cwd,
+      title: 'New Session',
+      time: {
+        created: Date.now(),
+        updated: Date.now(),
+      },
+      summary: {
+        additions: 0,
+        deletions: 0,
+        files: 0,
+      },
+    },
+    messages: [],
+  }, null, 2);
+
+  const filePath = path.join(os.tmpdir(), `temp-${sessionId}.json`);
+  fs.writeFileSync(filePath, sessionFileContents);
+
+  try {
+    await execAsync(`opencode import "${filePath}"`);
+  } finally {
+    // Clean up temp file
+    try {
+      fs.unlinkSync(filePath);
+    } catch {
+      // Ignore cleanup errors
+    }
+  }
+}
+
+// =============================================================================
+// Main
+// =============================================================================
+
+const program = new Command()
+  .name('execute-query')
+  .description('Execute agent query with unified StreamEvent output')
+  .argument('<prompt>', 'The user prompt')
+  .requiredOption('-a, --architecture <arch>', 'Architecture: claude-sdk or opencode')
+  .requiredOption('-s, --session-id <id>', 'Session ID')
+  .option('-c, --cwd <path>', 'Working directory', '/workspace')
+  .option('-m, --model <model>', 'Model (provider/model for opencode)')
+  .option('-t, --tools <json>', 'JSON array of allowed tools')
+  .option('--mcp-servers <json>', 'JSON object of MCP server configs')
+  .parse();
+
+async function main() {
+  const opts = program.opts();
+  const prompt = program.args[0];
+
+  const args: ExecuteQueryArgs = {
+    prompt,
+    sessionId: opts.sessionId,
+    architecture: opts.architecture as AgentArchitecture,
+    cwd: opts.cwd,
+    model: opts.model,
+    tools: opts.tools ? JSON.parse(opts.tools) : undefined,
+    mcpServers: opts.mcpServers ? JSON.parse(opts.mcpServers) : undefined,
+  };
+
+  logDebug('Executing query', {
+    architecture: args.architecture,
+    sessionId: args.sessionId,
+    cwd: args.cwd,
+  });
+
+  try {
+    if (args.architecture === 'claude-sdk') {
+      await executeClaudeSdk(args);
+    } else if (args.architecture === 'opencode') {
+      await executeOpencode(args);
+    } else {
+      throw new Error(`Unknown architecture: ${args.architecture}`);
+    }
+
+    process.exit(0);
+  } catch (error) {
+    writeError(error as Error);
+    process.exit(1);
+  }
+}
+
+// Setup default signal handlers
+setupSignalHandlers();
+
+// Run
+main();

@@ -1,22 +1,29 @@
 /**
- * @hhopkins/agent-execution
+ * @hhopkins/agent-execution (agent-runner)
  *
- * Execution scripts for running agent queries inside Modal sandboxes.
+ * Execution scripts for running agent queries inside sandboxes.
  *
- * This package contains CLI scripts that are copied to Modal sandboxes
- * and executed to run queries against various agent SDKs (Claude SDK, OpenCode).
+ * This package contains CLI scripts that are bundled and deployed to sandboxes
+ * (Modal, Docker, etc.) or run locally to execute queries against agent SDKs.
  *
- * The scripts stream JSONL output to stdout, which is consumed by the
- * agent-runtime server.
+ * The scripts output StreamEvents as JSONL to stdout, which is consumed by
+ * the ExecutionEnvironment in the agent-runtime server.
  *
- * Scripts:
- * - claude-sdk.ts: Executes Anthropic Agent SDK queries
- * - opencode.ts: Executes OpenCode SDK queries
+ * CLI Scripts:
+ * - execute-query: Unified query executor for Claude SDK and OpenCode
+ * - setup-session: Session setup (entities, MCP config, transcripts)
  */
 
 export type {
+  // Core types
   AgentArchitecture,
   ExecutionContext,
   ExecutionOptions,
   ExecutionResult,
+  // CLI types
+  ExecuteQueryArgs,
+  SetupSessionInput,
+  SetupSessionResult,
+  McpServerConfig,
+  ClaudeMcpJsonConfig,
 } from './types.js';

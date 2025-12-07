@@ -1,22 +1,30 @@
 {
   "name": "@hhopkins/agent-execution",
-  "version": "0.1.0",
-  "description": "Execution scripts for running agent queries inside Modal sandboxes",
+  "version": "0.2.0",
+  "description": "Execution scripts for running agent queries inside sandboxes",
   "type": "module",
   "main": "./dist/index.js",
   "types": "./dist/index.d.ts",
+  "bin": {
+    "execute-query": "./dist/execute-query.js",
+    "setup-session": "./dist/setup-session.js"
+  },
   "exports": {
     ".": {
       "types": "./dist/index.d.ts",
       "import": "./dist/index.js"
-    }
+    },
+    "./execute-query": "./dist/execute-query.js",
+    "./setup-session": "./dist/setup-session.js"
   },
   "files": [
-    "dist/",
-    "src/"
+    "dist/"
   ],
   "scripts": {
-    "build": "tsc",
+    "build": "pnpm run build:types && pnpm run build:bundle",
+    "build:types": "tsc",
+    "build:bundle": "tsx esbuild.config.ts",
+    "build:watch": "tsx esbuild.config.ts --watch",
     "typecheck": "tsc --noEmit"
   },
   "keywords": [
@@ -24,7 +32,8 @@
     "execution",
     "sandbox",
     "claude",
-    "opencode"
+    "opencode",
+    "runner"
   ],
   "author": "Hunter Hopkins",
   "license": "MIT",
@@ -38,13 +47,18 @@
   },
   "dependencies": {
     "@ai-systems/shared-types": "workspace:*",
-    "@anthropic-ai/claude-agent-sdk": "^0.1.0",
-    "@opencode-ai/sdk": "^1.0.120",
+    "@hhopkins/agent-converters": "workspace:*",
+    "@hhopkins/claude-entity-manager": "workspace:*",
+    "@anthropic-ai/claude-agent-sdk": "^0.1.18",
+    "@opencode-ai/sdk": "^1.0.126",
     "commander": "^14.0.0",
+    "gray-matter": "^4.0.3",
     "zod": "^3.24.1"
   },
   "devDependencies": {
     "@types/node": "^24.1.0",
+    "esbuild": "^0.24.0",
+    "tsx": "^4.7.0",
     "typescript": "^5.7.2"
   }
 }
