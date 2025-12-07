@@ -19,7 +19,7 @@ import type {
   CreateSessionArgs,
   SessionListItem,
   SessionRuntimeState
-} from '../types/session/index.js';
+} from '../../../../packages/types/src/runtime/session.js';
 import { AgentSession } from './agent-session.js';
 import type { EventBus } from './event-bus.js';
 

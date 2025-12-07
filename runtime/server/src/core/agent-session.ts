@@ -15,7 +15,7 @@
 
 import { randomUUID } from 'crypto';
 import { logger } from '../config/logger.js';
-import type { ModalContext } from '../lib/sandbox/modal/client.js';
+import type { ModalContext } from '../lib/execution-environments/sandbox/modal/client.js';
 import type { PersistenceAdapter } from '../types/persistence-adapter.js';
 import type { AgentProfile } from '../types/agent-profiles.js';
 import type {
@@ -27,12 +27,12 @@ import type {
   SessionRuntimeState,
   SandboxStatus,
   CreateSessionArgs,
-} from '../types/session/index.js';
+} from '../../../../packages/types/src/runtime/session.js';
 import type { ConversationBlock } from '../types/session/blocks.js';
 import type { EventBus } from './event-bus.js';
-import type { SandboxPrimitive } from '../lib/sandbox/base.js';
+import type { SandboxPrimitive } from '../lib/execution-environments/sandbox/base.js';
 import type { AgentArchitectureAdapter, AgentArchitectureSessionOptions, WorkspaceFileEvent, TranscriptChangeEvent } from '../lib/agent-architectures/base.js';
-import { createSandbox } from '../lib/sandbox/factory.js';
+import { createSandbox } from '../lib/execution-environments/sandbox/factory.js';
 import { createSessionId, getAgentArchitectureAdapter, parseTranscript } from '../lib/agent-architectures/factory.js';
 
 /**

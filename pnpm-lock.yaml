@@ -282,6 +282,9 @@ importers:
 
   runtime/server:
     dependencies:
+      '@ai-systems/shared-types':
+        specifier: workspace:*
+        version: link:../../packages/types
       '@anthropic-ai/claude-agent-sdk':
         specifier: ^0.1.54
         version: 0.1.60(zod@3.25.76)

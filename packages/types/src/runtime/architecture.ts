@@ -55,6 +55,17 @@ export const ARCHITECTURES: Record<AgentArchitecture, ArchitectureInfo> = {
   }
 };
 
+
+type ClaudeSDKSessionOptions = {
+  model?: string,
+}
+
+type OpenCodeSessionOptions = {
+  model?: string,
+}
+
+export type AgentArchitectureSessionOptions = ClaudeSDKSessionOptions | OpenCodeSessionOptions;
+
 /**
  * Get architecture info by ID
  */

@@ -2,7 +2,7 @@ import { SDKMessage } from "@anthropic-ai/claude-agent-sdk";
 import { basename } from "path";
 import { AgentArchitectureAdapter, WorkspaceFileEvent, TranscriptChangeEvent } from "../base.js";
 import { AgentProfile } from "../../../types/agent-profiles.js";
-import { WorkspaceFile } from "../../../types/session/index.js";
+import { WorkspaceFile } from "../../../../../../packages/types/src/runtime/session.js";
 import { StreamEvent } from "../../../types/session/streamEvents.js";
 import { SandboxPrimitive } from "../../sandbox/base.js";
 import { ConversationBlock } from "../../../types/session/blocks.js";

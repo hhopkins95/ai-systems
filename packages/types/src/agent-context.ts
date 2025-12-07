@@ -5,6 +5,8 @@
 
 import type { Skill, Command, Agent, Hook, MemoryFile } from "./entities/index.js";
 import type { McpServerConfig } from "./mcp.js";
+import { Plugin, PluginSource } from "./plugin.js";
+import { WorkspaceFile } from "./runtime/session.js";
 
 /**
  * Sources that contributed to an AgentContext
@@ -19,7 +21,7 @@ export interface AgentContextSources {
 }
 
 /**
- * The complete context for an agent, including all entities from all sources
+ * The complete context for an agent at RUNTIME -- independent of the entity sources, including all entities from all sources
  *
  * This represents the "state space" of an agent when run from a given folder -
  * all the capabilities, context, and configuration available to it.
@@ -64,3 +66,47 @@ export interface LoadAgentContextOptions {
   /** Whether to include file contents for skills */
   includeSkillFileContents?: boolean;
 }
+
+
+
+
+/**
+ * Minimal agent profile data meant to be used to show all possible agent profiles before their full data are loaded.
+ */
+export interface AgentProfileListData {
+  id: string,
+  name: string,
+  description?: string,
+}
+
+/**
+ * Agent profile for how to cosntruct an agent -- includes sources
+ */
+export interface AgentProfile extends AgentProfileListData {
+
+  systemPrompt?: string,
+
+  memoryFile?: string,  // The CLAUDE.md file
+
+  customEntities: {
+    skills?: Skill[],
+    subagents?: Agent[],
+    commands?: Command[],
+  }
+
+  plugins? : PluginSource[]
+
+  // MCP apps bundled in the codebase
+  bundledMCPs?: {
+    name: string,
+    description: string,
+    localProjectPath: string,
+    startCommand: string,
+    installCommand: string
+  }[]
+  externalMCPs?: McpServerConfig[],
+  
+  defaultWorkspaceFiles?: WorkspaceFile[],
+}
+
+

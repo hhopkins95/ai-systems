@@ -1,5 +1,5 @@
 import { AgentProfile, AgentProfileListData } from "./agent-profiles";
-import { PersistedSessionData, PersistedSessionListData, WorkspaceFile } from "./session";
+import { PersistedSessionData, PersistedSessionListData, WorkspaceFile } from "../../../../packages/types/src/runtime/session";
 
 /**
  * Combined persistence adapter for sessions and storage

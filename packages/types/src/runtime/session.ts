@@ -1,5 +1,5 @@
-import { AgentArchitectureSessionOptions } from "../../lib/agent-architectures/base";
-import type { ConversationBlock } from "./blocks";
+import { AgentArchitectureSessionOptions } from "./architecture.js";
+import type { ConversationBlock } from "@ai-systems/shared-types";
 
 export type AGENT_ARCHITECTURE_TYPE = "claude-agent-sdk"  | "opencode"
 

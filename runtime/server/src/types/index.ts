@@ -37,7 +37,7 @@ export type {
   PersistedSessionListData,
   CreateSessionArgs,
   PersistedSessionData
-} from './session';
+} from '../../../../packages/types/src/runtime/session';
 
 // ============================================================================
 // Agent Profile Types
@@ -48,46 +48,6 @@ export type {
   AgentProfile,
 } from './agent-profiles';
 
-// ============================================================================
-// Block Types (Conversation Elements)
-// ============================================================================
-
-export type {
-  // Content types
-  TextContent,
-  ImageContent,
-  ContentPart,
-  MessageContent,
-  // Tool execution
-  ToolExecutionStatus,
-  ToolIO,
-  // Base block
-  BaseBlock,
-  // Block types
-  UserMessageBlock,
-  AssistantTextBlock,
-  ToolUseBlock,
-  ToolResultBlock,
-  ThinkingBlock,
-  SystemBlock,
-  SubagentStatus,
-  SubagentBlock,
-  ErrorBlock,
-  // Union type
-  ConversationBlock,
-} from './session/blocks';
-
-// Export type guards
-export {
-  isUserMessageBlock,
-  isAssistantTextBlock,
-  isToolUseBlock,
-  isToolResultBlock,
-  isThinkingBlock,
-  isSystemBlock,
-  isSubagentBlock,
-  isErrorBlock,
-} from './session/blocks';
 
 // ============================================================================
 // Event Types (WebSocket)
@@ -99,15 +59,4 @@ export type {
   InterServerEvents,
   SocketData,
 } from './events';
-
-// ============================================================================
-// Session Options Types
-// ============================================================================
-
-export type {
-  AgentArchitectureSessionOptions,
-  ClaudeSDKSessionOptions,
-  OpenCodeSessionOptions,
-} from '../lib/agent-architectures/base';
-
 

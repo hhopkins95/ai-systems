@@ -14,3 +14,6 @@ export * from './blocks.js';
 
 // Stream events
 export * from './stream-events.js';
+
+// Session Types
+export * from './session.js';

@@ -11,8 +11,8 @@
  * - session:status - Session lifecycle status change
  */
 
-import { SessionListItem, SessionRuntimeState, WorkspaceFile } from "./session/index";
-import { ConversationBlock } from "./session/blocks";
+import { SessionListItem, SessionRuntimeState, WorkspaceFile } from "@ai-systems/shared-types";
+import { ConversationBlock } from "@ai-systems/shared-types";
 import { AgentArchitectureSessionOptions } from "../lib/agent-architectures/base";
 
 // ============================================================================
