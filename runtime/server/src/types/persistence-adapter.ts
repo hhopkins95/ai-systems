@@ -1,4 +1,4 @@
-import { AgentProfile, AgentProfileListData } from "./agent-profiles";
+import { AgentProfile, AgentProfileListData } from "@ai-systems/shared-types";
 import { PersistedSessionData, PersistedSessionListData, WorkspaceFile } from "../../../../packages/types/src/runtime/session";
 
 /**
