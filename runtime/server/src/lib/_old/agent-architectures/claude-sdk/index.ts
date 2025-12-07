@@ -1,15 +1,15 @@
 import { SDKMessage } from "@anthropic-ai/claude-agent-sdk";
 import { basename } from "path";
 import { AgentArchitectureAdapter, WorkspaceFileEvent, TranscriptChangeEvent } from "../base.js";
-import { AgentProfile } from "../../../types/agent-profiles.js";
-import { WorkspaceFile } from "../../../../../../packages/types/src/runtime/session.js";
-import { StreamEvent } from "../../../types/session/streamEvents.js";
-import { SandboxPrimitive } from "../../sandbox/base.js";
-import { ConversationBlock } from "../../../types/session/blocks.js";
+import { AgentProfile } from "../../../../types/agent-profiles.js";
+import { WorkspaceFile } from "../../../../../../../packages/types/src/runtime/session.js";
+import { StreamEvent } from "../../../../types/session/streamEvents.js";
+import { SandboxPrimitive } from "../../../sandbox/base.js";
+import { ConversationBlock } from "../../../../types/session/blocks.js";
 import { claudeSdk } from "@hhopkins/agent-converters";
 const { parseClaudeTranscriptFile, parseStreamEvent, convertMessagesToBlocks } = claudeSdk;
-import { logger } from "../../../config/logger.js";
-import { streamJSONL } from "../../helpers/stream.js";
+import { logger } from "../../../../config/logger.js";
+import { streamJSONL } from "../../../helpers/stream.js";
 import { randomUUID } from "crypto";
 import { buildMcpJson, McpServerConfig } from "./build-mcp-json.js";
 

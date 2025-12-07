@@ -5,7 +5,7 @@
  */
 
 import { ModalClient, type App } from 'modal';
-import { logger } from '../../../config/logger.js';
+import { logger } from '../../../../config/logger';
 
 /**
  * Modal context containing client and app references

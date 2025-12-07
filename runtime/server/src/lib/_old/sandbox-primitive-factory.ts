@@ -1,6 +1,6 @@
 import { AgentProfile } from "../../types/agent-profiles"
 import { AGENT_ARCHITECTURE_TYPE } from "../../types/session/index"
-import { SandboxPrimitive } from "./base"
+import { SandboxPrimitive } from "../../_old/sanbox-primitive-base"
 import { ModalSandbox } from "./modal"
 import { ModalContext } from "./modal/client"
 

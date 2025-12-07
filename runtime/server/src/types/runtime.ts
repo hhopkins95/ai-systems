@@ -2,6 +2,7 @@
  * Runtime configuration types
  */
 
+import { EXECUTION_ENVIRONMENTS, LocalExecutionEnvironmentOptions, ModalExecutionEnvironmentOptions } from './execution-environment';
 import type {
   PersistenceAdapter,
 } from './persistence-adapter';
@@ -40,29 +41,16 @@ export interface RuntimeConfig {
    */
   persistence: PersistenceAdapter;
 
-  // ========================================
-  // Modal Configuration (required)
-  // ========================================
 
-  modal: {
-    /**
-     * Modal API token ID
-     * Get from https://modal.com/settings
-     */
-    tokenId: string;
+  /**
+   * Where sessions should be executed. Options will be validated based on type.
+   */
+  executionEnvironment : { 
+    type : EXECUTION_ENVIRONMENTS, 
+    modal? : ModalExecutionEnvironmentOptions,
+    local? : LocalExecutionEnvironmentOptions
+  }
 
-    /**
-     * Modal API token secret
-     * Get from https://modal.com/settings
-     */
-    tokenSecret: string;
-
-    /**
-     * Modal app name
-     * Must be unique within your Modal account
-     */
-    appName: string;
-  };
 
   // ========================================
   // Optional Configuration

@@ -1,6 +1,6 @@
 import path from "path";
-import type { AgentProfile } from "../../../types";
-import { normalizeString } from "../../util/normalize-string";
+import type { AgentProfile } from "../../../../types";
+import { normalizeString } from "../../../util/normalize-string";
 
 type OpencodeMcpServerConfig = {
   type: "local";

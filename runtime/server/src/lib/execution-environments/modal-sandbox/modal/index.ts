@@ -1,6 +1,6 @@
 import { Sandbox } from "modal";
 import * as tar from "tar-stream";
-import { SandboxPrimitive, WriteFilesResult, WatchEvent, WatchEventType } from "../base";
+import { SandboxPrimitive, WriteFilesResult, WatchEvent, WatchEventType } from "../../../_old/sanbox-primitive-base";
 import { AgentProfile } from "../../../types/agent-profiles";
 import { ModalContext } from "./client";
 import { createModalSandbox } from "./create-sandbox";

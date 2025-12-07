@@ -1,6 +1,6 @@
 import { ClaudeSDKAdapter } from "./claude-sdk";
 import { OpenCodeAdapter } from "./opencode";
-import { AGENT_ARCHITECTURE_TYPE } from "../../../../../packages/types/src/runtime/session";
+import { AGENT_ARCHITECTURE_TYPE } from "../../../../../../packages/types/src/runtime/session";
 import { AgentArchitectureAdapter } from "./base";
 import { SandboxPrimitive } from "../sandbox/base";
 import { ConversationBlock } from "../../types/session/blocks";

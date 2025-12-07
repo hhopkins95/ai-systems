@@ -11,16 +11,16 @@
 
 import { Event as OpenCodeEvent } from '@opencode-ai/sdk';
 import { randomUUID } from 'crypto';
-import { logger } from '../../../config/logger.js';
-import { AgentProfile } from '../../../types/agent-profiles.js';
-import { ConversationBlock } from '../../../types/session/blocks.js';
-import { StreamEvent } from '../../../types/session/streamEvents.js';
-import { readStreamToString, streamJSONL } from '../../helpers/stream.js';
-import { SandboxPrimitive } from '../../sandbox/base.js';
+import { logger } from '../../../../config/logger.js';
+import { AgentProfile } from '../../../../types/agent-profiles.js';
+import { ConversationBlock } from '../../../../types/session/blocks.js';
+import { StreamEvent } from '../../../../types/session/streamEvents.js';
+import { readStreamToString, streamJSONL } from '../../../helpers/stream.js';
+import { SandboxPrimitive } from '../../../sandbox/base.js';
 import { AgentArchitectureAdapter, TranscriptChangeEvent, WorkspaceFileEvent } from '../base.js';
 import { opencode } from '@hhopkins/agent-converters';
 const { parseOpencodeStreamEvent, parseOpenCodeTranscriptFile } = opencode;
-import { WorkspaceFile } from '../../../../../../packages/types/src/runtime/session.js';
+import { WorkspaceFile } from '../../../../../../../packages/types/src/runtime/session.js';
 import { buildConfigJson } from './build-config-json.js';
 
 
