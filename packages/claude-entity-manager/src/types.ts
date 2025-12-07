@@ -46,23 +46,18 @@ export type {
   AgentContext,
   AgentContextSources,
   LoadAgentContextOptions,
-} from "@ai-systems/shared-types";
+} from "../../types/dist/index.js";
 
 // Import types we need for local types
 import type {
   EntitySource,
   MemoryFile,
   PluginSource,
+  MemoryFileScope,
   McpServerConfig,
-} from "@ai-systems/shared-types";
+} from "../../types/dist/index.js";
 
 // ==================== CLAUDE.MD (INTERNAL) ====================
-
-/**
- * Scope of a CLAUDE.md file - internal representation
- * @deprecated Use MemoryFileScope from shared-types
- */
-export type ClaudeMdScope = "global" | "project" | "nested";
 
 /**
  * Frontmatter parsed from CLAUDE.md files
@@ -85,7 +80,7 @@ export interface ClaudeMdFile {
   /** Relative path for display */
   relativePath: string;
   /** Scope: global, project, or nested */
-  scope: ClaudeMdScope;
+  scope: MemoryFileScope;
   /** Depth in hierarchy (0=global, 1=project, 2+=nested) */
   level: number;
   /** File content (body after frontmatter) */
@@ -149,7 +144,7 @@ export function flattenClaudeMdNodes(nodes: ClaudeMdNode[]): ClaudeMdFile[] {
   }
 
   // Sort by scope priority: global first, then project, then nested
-  const scopeOrder: Record<ClaudeMdScope, number> = {
+  const scopeOrder: Record<MemoryFileScope, number> = {
     global: 0,
     project: 1,
     nested: 2,
@@ -176,10 +171,10 @@ export function flattenClaudeMdNodes(nodes: ClaudeMdNode[]): ClaudeMdFile[] {
  * @deprecated Use AgentContext from shared-types
  */
 export interface ClaudeConfig {
-  skills: import("@ai-systems/shared-types").Skill[];
-  commands: import("@ai-systems/shared-types").Command[];
-  agents: import("@ai-systems/shared-types").Agent[];
-  hooks: import("@ai-systems/shared-types").Hook[];
+  skills: import("../../types/dist/index.js").Skill[];
+  commands: import("../../types/dist/index.js").Command[];
+  agents: import("../../types/dist/index.js").Agent[];
+  hooks: import("../../types/dist/index.js").Hook[];
 }
 
 // ==================== PLUGIN MANIFEST ====================
