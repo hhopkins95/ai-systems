@@ -3,7 +3,7 @@ import { join, relative, dirname, basename } from "path";
 import type {
   ClaudeMdFile,
   ClaudeMdNode,
-  ClaudeMdScope,
+  MemoryFileScope,
   ClaudeMdFrontmatter,
 } from "../types.js";
 import { parseFrontmatter } from "../utils/frontmatter.js";
@@ -118,7 +118,7 @@ export class ClaudeMdLoader {
    */
   private async readClaudeMdFile(
     filePath: string,
-    scope: ClaudeMdScope,
+    scope: MemoryFileScope,
     level: number,
     displayPath: string
   ): Promise<ClaudeMdFile | null> {

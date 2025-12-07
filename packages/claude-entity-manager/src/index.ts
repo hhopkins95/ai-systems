@@ -24,7 +24,6 @@ export type {
   MemoryFile,
   MemoryFileScope,
   // CLAUDE.md context types (internal)
-  ClaudeMdScope,
   ClaudeMdFrontmatter,
   ClaudeMdFile,
   ClaudeMdNode,
@@ -69,6 +68,7 @@ export { SettingsManager } from "./registry/SettingsManager.js";
 
 export { PluginInstaller } from "./installation/PluginInstaller.js";
 export { SourceParser } from "./installation/SourceParser.js";
+export { EntityWriter, type WriteResult, type WriteEntitiesOptions } from "./installation/EntityWriter.js";
 
 // Utility exports
 export * from "./utils/paths.js";

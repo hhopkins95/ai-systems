@@ -37,6 +37,7 @@ import { MarketplaceRegistryService } from "./registry/MarketplaceRegistry.js";
 import { SettingsManager } from "./registry/SettingsManager.js";
 import { PluginInstaller } from "./installation/PluginInstaller.js";
 import { SourceParser } from "./installation/SourceParser.js";
+import { EntityWriter, type WriteResult, type WriteEntitiesOptions } from "./installation/EntityWriter.js";
 
 /**
  * Main service class for discovering and managing Claude Code entities
@@ -60,6 +61,7 @@ export class ClaudeEntityManager {
   private settingsManager: SettingsManager;
   private pluginInstaller: PluginInstaller;
   private sourceParser: SourceParser;
+  private entityWriter?: EntityWriter;
 
   constructor(options: ClaudeEntityManagerOptions = {}) {
     this.claudeDir = getClaudeDir(options.claudeDir);
@@ -610,5 +612,76 @@ export class ClaudeEntityManager {
         await this.settingsManager.disablePlugin(pluginId);
       }
     }
+  }
+
+  // ==================== ENTITY WRITING ====================
+
+  /**
+   * Get or create the entity writer for the project directory
+   * @throws Error if no project directory is configured
+   */
+  private getEntityWriter(): EntityWriter {
+    if (!this.projectDir) {
+      throw new Error("No project directory configured. EntityWriter requires a projectDir.");
+    }
+    if (!this.entityWriter) {
+      this.entityWriter = new EntityWriter(this.projectDir);
+    }
+    return this.entityWriter;
+  }
+
+  /**
+   * Write a skill to the project's .claude/skills directory
+   * @throws Error if no project directory is configured
+   */
+  async writeProjectSkill(skill: Skill): Promise<WriteResult> {
+    return this.getEntityWriter().writeSkill(skill);
+  }
+
+  /**
+   * Write a command to the project's .claude/commands directory
+   * @throws Error if no project directory is configured
+   */
+  async writeProjectCommand(command: Command): Promise<WriteResult> {
+    return this.getEntityWriter().writeCommand(command);
+  }
+
+  /**
+   * Write an agent to the project's .claude/agents directory
+   * @throws Error if no project directory is configured
+   */
+  async writeProjectAgent(agent: Agent): Promise<WriteResult> {
+    return this.getEntityWriter().writeAgent(agent);
+  }
+
+  /**
+   * Write a hook to the project's .claude/hooks directory
+   * Merges with existing hooks if present
+   * @throws Error if no project directory is configured
+   */
+  async writeProjectHook(hook: Hook): Promise<WriteResult> {
+    return this.getEntityWriter().writeHook(hook);
+  }
+
+  /**
+   * Write CLAUDE.md to the project's .claude directory
+   * @throws Error if no project directory is configured
+   */
+  async writeProjectClaudeMd(content: string): Promise<WriteResult> {
+    return this.getEntityWriter().writeClaudeMd(content);
+  }
+
+  /**
+   * Write multiple entities at once
+   * @throws Error if no project directory is configured
+   */
+  async writeProjectEntities(options: WriteEntitiesOptions): Promise<{
+    skills: WriteResult[];
+    commands: WriteResult[];
+    agents: WriteResult[];
+    hooks: WriteResult[];
+    claudeMd?: WriteResult;
+  }> {
+    return this.getEntityWriter().writeEntities(options);
   }
 }
