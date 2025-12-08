@@ -22,12 +22,13 @@ import type {
 } from '@ai-systems/shared-types';
 import type { SetupSessionInput, SetupSessionResult, McpServerConfig } from '@hhopkins/agent-execution';
 
-import { ExecutionEnvironment, WorkspaceFileEvent, TranscriptChangeEvent } from '../base.js';
-import { ModalContext } from './modal/client.js';
-import { createModalSandbox } from './modal/create-sandbox.js';
-import { logger } from '../../../config/logger.js';
-import { normalizeString } from '../../util/normalize-string.js';
-import { CombinedClaudeTranscript } from '../../utils/transcript-utils.js';
+import { ExecutionEnvironment, WorkspaceFileEvent, TranscriptChangeEvent } from '../base';
+import { ModalContext } from './modal/client';
+import { createModalSandbox } from './modal/create-sandbox';
+import { logger } from '../../../config/logger';
+import { normalizeString } from '../../util/normalize-string';
+import { claudeSdk } from '@hhopkins/agent-converters';
+type CombinedClaudeTranscript = claudeSdk.CombinedClaudeTranscript;
 
 // ES module __dirname equivalent
 const __filename = fileURLToPath(import.meta.url);
@@ -167,9 +168,9 @@ export class ModalSandboxExecutionEnvironment implements ExecutionEnvironment {
         }
 
         // Add tools if available from profile
-        if (this.agentProfile?.tools && this.agentProfile.tools.length > 0) {
-            command.push('--tools', JSON.stringify(this.agentProfile.tools));
-        }
+        // if (this.agentProfile?.tools && this.agentProfile.tools.length > 0) {
+        //     command.push('--tools', JSON.stringify(this.agentProfile.tools));
+        // }
 
         const process = await this.sandbox.exec(command, { workdir: SANDBOX_PATHS.WORKSPACE_DIR });
 
@@ -620,4 +621,4 @@ export class ModalSandboxExecutionEnvironment implements ExecutionEnvironment {
 }
 
 // Re-export for convenience
-export { ModalContext } from './modal/client.js';
+export type { ModalContext } from './modal/client.js';

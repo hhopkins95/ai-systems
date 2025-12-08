@@ -70,7 +70,53 @@ export {
 } from './utils.js';
 
 // Claude SDK converters
-export * as claudeSdk from './claude-sdk/index.js';
+export * from './claude-sdk/index.js';
 
 // OpenCode converters
 export * as opencode from './opencode/index.js';
+
+// =============================================================================
+// Unified Transcript Parsing
+// =============================================================================
+
+import type { ConversationBlock, AGENT_ARCHITECTURE_TYPE } from '@ai-systems/shared-types';
+import { parseCombinedClaudeTranscript } from './claude-sdk/index.js';
+import { parseOpenCodeTranscriptFile } from './opencode/index.js';
+
+/**
+ * Result of parsing a transcript (unified across architectures)
+ */
+export interface ParsedTranscript {
+  /** Conversation blocks from the main transcript */
+  blocks: ConversationBlock[];
+  /** Subagent conversations */
+  subagents: { id: string; blocks: ConversationBlock[] }[];
+}
+
+/**
+ * Parse a transcript based on the agent architecture type.
+ *
+ * For Claude SDK: expects combined JSON format { main: string, subagents: [...] }
+ * For OpenCode: expects native JSON format from `opencode export`
+ *
+ * @param architecture - The agent architecture type
+ * @param rawTranscript - The raw transcript string
+ * @returns Parsed blocks and subagent conversations
+ */
+export function parseTranscript(
+  architecture: AGENT_ARCHITECTURE_TYPE,
+  rawTranscript: string
+): ParsedTranscript {
+  if (!rawTranscript) {
+    return { blocks: [], subagents: [] };
+  }
+
+  switch (architecture) {
+    case 'claude-agent-sdk':
+      return parseCombinedClaudeTranscript(rawTranscript);
+    case 'opencode':
+      return parseOpenCodeTranscriptFile(rawTranscript);
+    default:
+      return { blocks: [], subagents: [] };
+  }
+}

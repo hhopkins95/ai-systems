@@ -10,7 +10,10 @@ export {
   parseClaudeTranscriptFile,
   extractSubagentId,
   detectSubagentStatus,
+  parseCombinedClaudeTranscript,
   type ParseTranscriptOptions,
+  type CombinedClaudeTranscript,
+  type ParsedCombinedTranscript,
 } from './transcript-parser.js';
 
 // Block conversion

@@ -33,7 +33,7 @@ import type { EventBus } from './event-bus.js';
 import type { RuntimeConfig } from '../types/runtime.js';
 import { ExecutionEnvironment, WorkspaceFileEvent, TranscriptChangeEvent } from '../lib/execution-environments/base.js';
 import { getExecutionEnvironment } from '../lib/execution-environments/factory.js';
-import { parseTranscript, createSessionId } from '../lib/utils/transcript-utils.js';
+import { parseTranscript } from '@hhopkins/agent-converters';
 
 /**
  * Callback type for sandbox termination notification
@@ -135,7 +135,7 @@ export class AgentSession {
       });
     } else {
       // Create a new session
-      const newSessionId = createSessionId(input.architecture);
+      const newSessionId = randomUUID();
       const agentProfile = await persistenceAdapter.loadAgentProfile(input.agentProfileRef);
       if (!agentProfile) {
         throw new Error(`Agent profile ${input.agentProfileRef} not found in persistence`);

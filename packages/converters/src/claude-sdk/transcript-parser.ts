@@ -6,11 +6,16 @@
  * - Subagents/tasks: agent-{uuid}.jsonl
  *
  * Each line is a JSON object representing an SDK message.
+ *
+ * Also supports parsing "combined transcripts" - a wrapper format that bundles
+ * the main transcript and all subagent transcripts into a single JSON blob.
  */
 
 import type { SDKMessage } from '@anthropic-ai/claude-agent-sdk';
+import type { ConversationBlock } from '@ai-systems/shared-types';
 import type { Logger } from '../utils.js';
 import { noopLogger } from '../utils.js';
+import { convertMessagesToBlocks } from './block-converter.js';
 
 export interface ParseTranscriptOptions {
   logger?: Logger;
@@ -99,4 +104,81 @@ export function detectSubagentStatus(
   }
 
   return 'active';
+}
+
+// =============================================================================
+// Combined Transcript Format
+// =============================================================================
+
+/**
+ * Combined transcript format for Claude SDK.
+ * Wraps the main JSONL + all subagent JSONLs into a single JSON blob.
+ * This is an abstraction layer - Claude natively uses separate files.
+ */
+export interface CombinedClaudeTranscript {
+  /** Raw JSONL content of the main transcript */
+  main: string;
+  /** Subagent transcripts */
+  subagents: { id: string; transcript: string }[];
+}
+
+/**
+ * Result of parsing a combined transcript
+ */
+export interface ParsedCombinedTranscript {
+  /** Conversation blocks from the main transcript */
+  blocks: ConversationBlock[];
+  /** Subagent conversations */
+  subagents: { id: string; blocks: ConversationBlock[] }[];
+}
+
+/**
+ * Parse a combined Claude transcript (JSON wrapper format) into conversation blocks.
+ *
+ * The combined format bundles the main transcript and all subagent transcripts
+ * into a single JSON object for easier storage and transport.
+ *
+ * @param combinedTranscript - JSON string of the combined transcript
+ * @param options - Optional configuration including logger
+ * @returns Parsed blocks and subagent conversations
+ */
+export function parseCombinedClaudeTranscript(
+  combinedTranscript: string,
+  options: ParseTranscriptOptions = {}
+): ParsedCombinedTranscript {
+  const logger = options.logger ?? noopLogger;
+
+  if (!combinedTranscript) {
+    return { blocks: [], subagents: [] };
+  }
+
+  try {
+    const combined: CombinedClaudeTranscript = JSON.parse(combinedTranscript);
+
+    const mainBlocks = convertMessagesToBlocks(
+      parseClaudeTranscriptFile(combined.main, options)
+    );
+
+    const subagentBlocks = combined.subagents
+      .map((raw) => ({
+        id: raw.id,
+        blocks: convertMessagesToBlocks(
+          parseClaudeTranscriptFile(raw.transcript, options)
+        ),
+      }))
+      // Filter out default random subagents that Claude creates on startup
+      .filter((subagent) => subagent.blocks.length > 1);
+
+    return {
+      blocks: mainBlocks,
+      subagents: subagentBlocks,
+    };
+  } catch (error) {
+    // If parsing fails, log and return empty
+    logger.warn(
+      { error },
+      'Failed to parse as CombinedClaudeTranscript'
+    );
+    return { blocks: [], subagents: [] };
+  }
 }

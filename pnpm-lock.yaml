@@ -306,6 +306,9 @@ importers:
       '@hhopkins/agent-converters':
         specifier: workspace:*
         version: link:../../packages/converters
+      '@hhopkins/agent-execution':
+        specifier: workspace:*
+        version: link:../execution
       '@hono/node-server':
         specifier: ^1.14.2
         version: 1.19.6(hono@4.10.7)

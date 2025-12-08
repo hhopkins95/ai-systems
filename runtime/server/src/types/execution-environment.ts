@@ -1,6 +1,3 @@
-import { ModalContext } from "../lib/execution-environments/modal-sandbox/modal/client"
-
-
 export type EXECUTION_ENVIRONMENTS = "modal-sandbox" | "local"
 
 

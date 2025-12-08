@@ -27,9 +27,6 @@ const commonOptions: esbuild.BuildOptions = {
   minify: false, // Keep readable for debugging in sandbox
   // Bundle EVERYTHING - no externals for self-contained deployment
   external: [],
-  banner: {
-    js: '#!/usr/bin/env node',
-  },
   // Handle Node.js built-ins
   define: {
     'import.meta.url': 'import.meta.url',
@@ -43,9 +40,9 @@ const commonOptions: esbuild.BuildOptions = {
 };
 
 /**
- * Entry points to build
+ * CLI entry points (with shebang banner for executable scripts)
  */
-const entryPoints = [
+const cliEntryPoints = [
   {
     input: join(__dirname, 'src/cli/execute-query.ts'),
     output: join(__dirname, 'dist/execute-query.js'),
@@ -56,17 +53,37 @@ const entryPoints = [
   },
 ];
 
+/**
+ * Library entry point (no shebang)
+ */
+const libEntryPoint = {
+  input: join(__dirname, 'src/index.ts'),
+  output: join(__dirname, 'dist/index.js'),
+};
+
 async function build() {
   console.log('Building agent-runner bundles...');
 
-  for (const entry of entryPoints) {
+  // Build CLI scripts with shebang banner
+  for (const entry of cliEntryPoints) {
     console.log(`  Building ${entry.output}...`);
     await esbuild.build({
       ...commonOptions,
       entryPoints: [entry.input],
       outfile: entry.output,
+      banner: {
+        js: '#!/usr/bin/env node',
+      },
     });
   }
+
+  // Build library entry point (no shebang)
+  console.log(`  Building ${libEntryPoint.output}...`);
+  await esbuild.build({
+    ...commonOptions,
+    entryPoints: [libEntryPoint.input],
+    outfile: libEntryPoint.output,
+  });
 
   console.log('Build complete!');
 }
@@ -74,17 +91,28 @@ async function build() {
 async function watch() {
   console.log('Watching for changes...');
 
-  const contexts = await Promise.all(
-    entryPoints.map((entry) =>
+  // Create contexts for CLI scripts (with shebang)
+  const cliContexts = await Promise.all(
+    cliEntryPoints.map((entry) =>
       esbuild.context({
         ...commonOptions,
         entryPoints: [entry.input],
         outfile: entry.output,
+        banner: {
+          js: '#!/usr/bin/env node',
+        },
       })
     )
   );
 
-  await Promise.all(contexts.map((ctx) => ctx.watch()));
+  // Create context for library entry point (no shebang)
+  const libContext = await esbuild.context({
+    ...commonOptions,
+    entryPoints: [libEntryPoint.input],
+    outfile: libEntryPoint.output,
+  });
+
+  await Promise.all([...cliContexts, libContext].map((ctx) => ctx.watch()));
 
   console.log('Watching for changes... Press Ctrl+C to stop.');
 }
