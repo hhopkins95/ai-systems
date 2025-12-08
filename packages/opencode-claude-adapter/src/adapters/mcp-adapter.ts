@@ -2,7 +2,7 @@
  * MCP Adapter
  *
  * Syncs MCP server configurations from Claude Code format (.claude/.mcp.json)
- * to OpenCode format (opencode.config.json).
+ * to OpenCode format (opencode.json).
  *
  * Transformations:
  * - Reads from .claude/.mcp.json (Claude SDK format)
@@ -39,7 +39,7 @@ interface OpencodeConfig {
  * Read existing opencode.config.json if present
  */
 async function readOpencodeConfig(projectDir: string): Promise<OpencodeConfig> {
-  const configPath = join(projectDir, "opencode.config.json");
+  const configPath = join(projectDir, "opencode.json");
 
   try {
     const content = await readFile(configPath, "utf-8");
@@ -51,13 +51,13 @@ async function readOpencodeConfig(projectDir: string): Promise<OpencodeConfig> {
 }
 
 /**
- * Write opencode.config.json with MCP servers
+ * Write opencode.json with MCP servers
  */
 async function writeOpencodeConfig(
   projectDir: string,
   config: OpencodeConfig
 ): Promise<void> {
-  const configPath = join(projectDir, "opencode.config.json");
+  const configPath = join(projectDir, "opencode.json");
   await writeFile(configPath, JSON.stringify(config, null, 2), "utf-8");
 }
 
@@ -77,7 +77,7 @@ function transformMcpServer(server: McpServerConfig): {
 }
 
 /**
- * Sync MCP servers to opencode.config.json
+ * Sync MCP servers to opencode.json
  */
 export async function syncMcpServers(
   mcpServers: McpServerConfig[],
@@ -112,7 +112,7 @@ export async function syncMcpServers(
     await writeOpencodeConfig(projectDir, config);
   } catch (error) {
     const message = error instanceof Error ? error.message : String(error);
-    result.errors.push({ file: "opencode.config.json", error: message });
+    result.errors.push({ file: "opencode.json", error: message });
   }
 
   return result;

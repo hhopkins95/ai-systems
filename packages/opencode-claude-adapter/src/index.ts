@@ -114,7 +114,7 @@ export const ClaudeAdapterPlugin: Plugin = async (ctx) => {
     const mcpResult = await syncMcpServers(agentContext.mcpServers, projectDir);
     if (mcpResult.written.length > 0) {
       console.log(
-        `[claude-adapter] Synced ${mcpResult.written.length} MCP servers to opencode.config.json`
+        `[claude-adapter] Synced ${mcpResult.written.length} MCP servers to opencode.json`
       );
     }
     for (const error of mcpResult.errors) {

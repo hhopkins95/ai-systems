@@ -1,4 +1,14 @@
 {
   "$schema": "https://opencode.ai/config.json",
-  "plugin": ["./packages/opencode-claude-adapter"]
+  "plugin": [
+    "./packages/opencode-claude-adapter"
+  ],
+  "mcp": {
+    "foo": {
+      "command": "node",
+      "args": [
+        "foo.fj"
+      ]
+    }
+  }
 }
