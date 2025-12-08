@@ -49,7 +49,7 @@ pnpm dev
 
 - **[@hhopkins/agent-server](../packages/agent-server.md)** - The core Node.js runtime for orchestrating AI agents in sandboxes
 - **[@hhopkins/agent-client](../packages/agent-client.md)** - React hooks for connecting to the agent server
-- **[@hhopkins/agent-execution](../packages/agent-execution.md)** - Environment-agnostic execution scripts for agent queries
+- **[@hhopkins/agent-runner](../packages/agent-execution.md)** - Environment-agnostic execution scripts for agent queries
 - **[@hhopkins/agent-converters](../packages/agent-converters.md)** - Pure transformation functions for parsing agent transcripts
 
 ### Tooling

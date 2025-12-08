@@ -2,7 +2,7 @@
  * ModalSandboxExecutionEnvironment
  *
  * ExecutionEnvironment implementation that runs agent queries in Modal sandboxes.
- * Uses the CLI scripts from @hhopkins/agent-execution package for session setup
+ * Uses the CLI scripts from @hhopkins/agent-runner package for session setup
  * and query execution.
  */
 

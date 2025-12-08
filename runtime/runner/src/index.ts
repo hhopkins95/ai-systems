@@ -1,5 +1,5 @@
 /**
- * @hhopkins/agent-execution (agent-runner)
+ * @hhopkins/agent-runner (agent-runner)
  *
  * Execution scripts for running agent queries inside sandboxes.
  *

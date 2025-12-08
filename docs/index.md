@@ -42,7 +42,7 @@ ai-systems/
 │   ├── runtime/
 │   │   ├── server/              # @hhopkins/agent-server
 │   │   ├── client/              # @hhopkins/agent-client
-│   │   └── execution/           # @hhopkins/agent-execution
+│   │   └── execution/           # @hhopkins/agent-runner
 │   ├── converters/              # @hhopkins/agent-converters
 │   ├── claude-entity-manager/   # @hhopkins/claude-entity-manager
 │   ├── shared-types/            # @ai-systems/shared-types

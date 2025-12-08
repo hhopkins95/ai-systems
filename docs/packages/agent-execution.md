@@ -1,9 +1,9 @@
 ---
-title: "@hhopkins/agent-execution"
+title: "@hhopkins/agent-runner"
 description: Environment-agnostic execution scripts for running agent queries in isolated environments
 ---
 
-# @hhopkins/agent-execution
+# @hhopkins/agent-runner
 
 Environment-agnostic execution scripts for running agent queries in isolated environments. These scripts are designed to be portable and can run in any sandbox/container environment (Modal, Docker, local processes, etc.).
 
@@ -71,7 +71,7 @@ import type {
   ExecutionContext,
   ExecutionOptions,
   ExecutionResult,
-} from '@hhopkins/agent-execution';
+} from '@hhopkins/agent-runner';
 ```
 
 ### `AgentArchitecture`

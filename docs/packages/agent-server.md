@@ -150,7 +150,7 @@ Use the [@hhopkins/agent-client](./agent-client.md) package for easy React integ
 │         │                                        │
 └─────────┼────────────────────────────────────────┘
           │
-          ├──→ Sandbox (Agent execution via @hhopkins/agent-execution)
+          ├──→ Sandbox (Agent execution via @hhopkins/agent-runner)
           ├──→ Converters (@hhopkins/agent-converters for transcript parsing)
           └──→ Persistence Adapter (Your database)
 ```
@@ -178,7 +178,7 @@ Use the [@hhopkins/agent-client](./agent-client.md) package for easy React integ
 
 - [@hhopkins/agent-client](./agent-client.md) - React hooks for connecting to this server
 - [@hhopkins/agent-converters](./agent-converters.md) - Transcript parsing (used internally)
-- [@hhopkins/agent-execution](./agent-execution.md) - Sandbox execution scripts
+- [@hhopkins/agent-runner](./agent-execution.md) - Sandbox execution scripts
 
 ## Requirements
 

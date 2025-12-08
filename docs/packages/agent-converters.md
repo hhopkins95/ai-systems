@@ -213,7 +213,7 @@ logger.info('Processing transcript');
 ## Related Packages
 
 - [@hhopkins/agent-server](./agent-server.md) - Uses converters for transcript parsing
-- [@hhopkins/agent-execution](./agent-execution.md) - Uses converters for output normalization
+- [@hhopkins/agent-runner](./agent-execution.md) - Uses converters for output normalization
 - [@ai-systems/shared-types](https://github.com/hhopkins/ai-systems/tree/main/packages/shared-types) - Source of block/event types
 
 ## License

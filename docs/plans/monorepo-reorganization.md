@@ -73,7 +73,7 @@ packages/
 | `packages/opencode-adapter` | `opencode-claude-adapter` | Keep existing name, move location |
 | `packages/runtime/server` | `@hhopkins/agent-server` | Renamed from agent-runtime |
 | `packages/runtime/client` | `@hhopkins/agent-client` | Renamed from agent-runtime-react |
-| `packages/runtime/execution` | `@hhopkins/agent-execution` | New package |
+| `packages/runtime/execution` | `@hhopkins/agent-runner` | New package |
 | `packages/apps/smart-docs` | `@hhopkins/smart-docs` | Keep existing |
 
 ---
@@ -361,7 +361,7 @@ packages/apps/                       # New directory
 
 ### Session 3 (Dec 5, 2024) - Phase 2 Implementation
 - Created `packages/runtime/execution/` package:
-  - `@hhopkins/agent-execution` npm package
+  - `@hhopkins/agent-runner` npm package
   - Moved `execute-claude-sdk-query.ts` from agent-runtime/sandbox
   - Moved `execute-opencode-query.ts` from agent-runtime/sandbox
   - Added `src/types.ts` with ExecutionAdapter interface types

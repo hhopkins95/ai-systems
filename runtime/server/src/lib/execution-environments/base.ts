@@ -28,7 +28,7 @@ export interface TranscriptChangeEvent {
  * - Lifecycle management (health checks, cleanup)
  *
  * Implementations should:
- * - Use the CLI scripts from @hhopkins/agent-execution package
+ * - Use the CLI scripts from @hhopkins/agent-runner package
  * - Parse JSONL output from CLI scripts into StreamEvents
  * - Handle sandbox/process lifecycle internally
  */

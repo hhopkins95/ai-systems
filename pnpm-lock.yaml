@@ -309,7 +309,7 @@ importers:
       '@hhopkins/agent-converters':
         specifier: workspace:*
         version: link:../../packages/converters
-      '@hhopkins/agent-execution':
+      '@hhopkins/agent-runner':
         specifier: workspace:*
         version: link:../execution
       '@hono/node-server':
