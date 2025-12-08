@@ -15,7 +15,6 @@
 
 import { randomUUID } from 'crypto';
 import { logger } from '../config/logger.js';
-import type { ModalContext } from '../lib/_old/execution-environments/modal-sandbox/modal/client.js';
 import type { PersistenceAdapter } from '../types/persistence-adapter.js';
 import type { AgentProfile } from '@ai-systems/shared-types';
 import type {
@@ -31,8 +30,8 @@ import type {
 import type { ConversationBlock } from '@ai-systems/shared-types';
 import type { EventBus } from './event-bus.js';
 import type { RuntimeConfig } from '../types/runtime.js';
-import { ExecutionEnvironment, WorkspaceFileEvent, TranscriptChangeEvent } from '../lib/_old/execution-environments/base.js';
-import { getExecutionEnvironment } from '../lib/_old/execution-environments/factory.js';
+import { EnvironmentPrimitive } from '../lib/environment-primitives/base';
+import { getEnvironmentPrimitive } from '../lib/environment-primitives/factory';
 import { parseTranscript } from '@hhopkins/agent-converters';
 
 /**
@@ -71,7 +70,6 @@ export class AgentSession {
   private architecture: AGENT_ARCHITECTURE_TYPE;
 
   // Services
-  private readonly modalContext: ModalContext;
   private readonly eventBus: EventBus;
   private readonly persistenceAdapter: PersistenceAdapter;
   private readonly executionConfig: RuntimeConfig['executionEnvironment'];
@@ -87,7 +85,6 @@ export class AgentSession {
     input: {
       sessionId: string
     } | CreateSessionArgs,
-    modalContext: ModalContext,
     eventBus: EventBus,
     persistenceAdapter: PersistenceAdapter,
     executionConfig: RuntimeConfig['executionEnvironment'],
@@ -118,7 +115,6 @@ export class AgentSession {
       }
 
       return new AgentSession({
-        modalContext,
         eventBus,
         persistenceAdapter,
         executionConfig,
@@ -142,7 +138,6 @@ export class AgentSession {
       }
 
       const session = new AgentSession({
-        modalContext,
         eventBus,
         persistenceAdapter,
         executionConfig,
@@ -176,7 +171,6 @@ export class AgentSession {
 
   private constructor(
     props: {
-      modalContext: ModalContext;
       eventBus: EventBus;
       persistenceAdapter: PersistenceAdapter;
       executionConfig: RuntimeConfig['executionEnvironment'];
@@ -194,7 +188,6 @@ export class AgentSession {
       rawTranscript?: string;
     }
   ) {
-    this.modalContext = props.modalContext;
     this.eventBus = props.eventBus;
     this.persistenceAdapter = props.persistenceAdapter;
     this.executionConfig = props.executionConfig;
@@ -232,7 +225,6 @@ export class AgentSession {
       {
         architecture: this.architecture,
         agentProfile: this.agentProfile,
-        modalContext: this.modalContext,
       }
     );
     this.sandboxId = this.executionEnvironment.getId();

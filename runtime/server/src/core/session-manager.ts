@@ -13,7 +13,6 @@
  */
 
 import { logger } from '../config/logger.js';
-import type { ModalContext } from '../lib/_old/execution-environments/modal-sandbox/modal/client.js';
 import type { PersistenceAdapter } from '../types/persistence-adapter.js';
 import type { RuntimeConfig } from '../types/runtime.js';
 import type {
@@ -34,7 +33,6 @@ export class SessionManager {
   private loadedSessions: Map<string, AgentSession> = new Map();
 
   // Dependencies
-  private readonly modalContext: ModalContext;
   private readonly eventBus: EventBus;
   private readonly executionConfig: RuntimeConfig['executionEnvironment'];
   private readonly adapters: {
@@ -42,14 +40,12 @@ export class SessionManager {
   };
 
   constructor(
-    modalContext: ModalContext,
     eventBus: EventBus,
     executionConfig: RuntimeConfig['executionEnvironment'],
     adapters: {
       persistence: PersistenceAdapter;
     },
   ) {
-    this.modalContext = modalContext;
     this.eventBus = eventBus;
     this.executionConfig = executionConfig;
     this.adapters = adapters;
@@ -108,7 +104,6 @@ export class SessionManager {
           architecture: request.architecture,
           sessionOptions: request.sessionOptions ?? {},
         },
-        this.modalContext,
         this.eventBus,
         this.adapters.persistence,
         this.executionConfig,
@@ -144,7 +139,6 @@ export class SessionManager {
       // Create AgentSession instance using static factory (loads from persistence internally)
       const session = await AgentSession.create(
         { sessionId },
-        this.modalContext,
         this.eventBus,
         this.adapters.persistence,
         this.executionConfig,
