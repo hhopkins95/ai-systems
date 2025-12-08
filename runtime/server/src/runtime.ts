@@ -46,7 +46,6 @@ import { createServer, type Server } from 'http';
 import type { Hono } from 'hono';
 import { Server as SocketIOServer } from 'socket.io';
 import { logger } from './config/logger.js';
-import { initializeModal, type ModalContext } from './lib/_old/execution-environments/modal-sandbox/modal/client.js';
 import { EventBus } from './core/event-bus.js';
 import { SessionManager } from './core/session-manager.js';
 import { createWebSocketServer as createWSServer } from './transport/websocket/index.js';
@@ -106,14 +105,6 @@ export async function createAgentRuntime(
 ): Promise<AgentRuntime> {
   logger.info('Creating agent runtime...');
 
-  // Initialize Modal client
-  const modalContext: ModalContext = await initializeModal({
-    tokenId: config.modal.tokenId,
-    tokenSecret: config.modal.tokenSecret,
-    appName: config.modal.appName,
-  });
-
-  logger.debug('Modal context created');
 
   // Create EventBus for domain events
   const eventBus = new EventBus();
@@ -121,7 +112,6 @@ export async function createAgentRuntime(
 
   // Create SessionManager with injected adapters
   const sessionManager = new SessionManager(
-    modalContext,
     eventBus,
     config.executionEnvironment,
     {
