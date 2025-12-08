@@ -1,6 +1,6 @@
 import { readFile } from "fs/promises";
 import { join } from "path";
-import type { McpServerConfig, EntitySource } from "../types.js";
+import type { EntitySource } from "../types.js";
 import { getMcpConfigPath } from "../utils/paths.js";
 
 /**
@@ -11,7 +11,7 @@ export interface McpJsonConfig {
   mcpServers?: Record<
     string,
     {
-      type?: "stdio" | "http" | "sse";
+      type?: "stdio" | "http";
       command?: string;
       args?: string[];
       env?: Record<string, string>;
@@ -22,10 +22,28 @@ export interface McpJsonConfig {
 }
 
 /**
- * MCP server with source tracking
+ * MCP server with source tracking and name
+ * Includes fields from both stdio and http server types
  */
-export interface McpServerWithSource extends McpServerConfig {
+export interface McpServerWithSource {
+  /** Server name (from JSON key) */
+  name: string;
+  /** Source tracking */
   source: EntitySource;
+  /** Server type: 'stdio' (default) or 'http' */
+  type?: "stdio" | "http";
+  // Stdio server fields
+  /** Command to start the server (stdio) */
+  command?: string;
+  /** Arguments to pass to the command (stdio) */
+  args?: string[];
+  /** Environment variables (stdio) */
+  env?: Record<string, string>;
+  // HTTP server fields
+  /** URL of the HTTP server */
+  url?: string;
+  /** Headers to send with HTTP requests */
+  headers?: Record<string, string>;
 }
 
 /**
@@ -83,7 +101,7 @@ export class MCPLoader {
     try {
       const content = await readFile(manifestPath, "utf-8");
       const manifest = JSON.parse(content) as {
-        mcpServers?: Record<string, McpServerConfig>;
+        mcpServers?: Record<string, unknown>;
       };
 
       if (!manifest.mcpServers) {
@@ -118,12 +136,12 @@ export class MCPLoader {
 
     try {
       const content = await readFile(mcpJsonPath, "utf-8");
-      const config = JSON.parse(content) as McpJsonConfig | Record<string, McpServerConfig>;
+      const config = JSON.parse(content) as McpJsonConfig | Record<string, unknown>;
 
       // Support both { mcpServers: {...} } and direct { serverName: config } format
       const serversRecord = "mcpServers" in config && config.mcpServers
         ? config.mcpServers
-        : (config as Record<string, McpServerConfig>);
+        : (config as Record<string, unknown>);
 
       return this.parseServersRecord(serversRecord as Record<string, unknown>, {
         ...source,
@@ -157,22 +175,37 @@ export class MCPLoader {
 
       const serverConfig = config as Record<string, unknown>;
 
-      // Build McpServerConfig from the config object
+      // Build McpServerWithSource from the config object
       const mcpServer: McpServerWithSource = {
         name,
-        command: (serverConfig.command as string) || "",
         source,
       };
 
-      // Optional fields
+      // Type field (defaults to 'stdio' if not specified)
+      if (serverConfig.type === "http") {
+        mcpServer.type = "http";
+      } else if (serverConfig.type === "stdio") {
+        mcpServer.type = "stdio";
+      }
+      // If no type specified, infer from fields: url means http, command means stdio
+
+      // Stdio server fields
+      if (typeof serverConfig.command === "string") {
+        mcpServer.command = serverConfig.command;
+      }
       if (Array.isArray(serverConfig.args)) {
         mcpServer.args = serverConfig.args as string[];
       }
       if (serverConfig.env && typeof serverConfig.env === "object") {
         mcpServer.env = serverConfig.env as Record<string, string>;
       }
-      if (typeof serverConfig.cwd === "string") {
-        mcpServer.cwd = serverConfig.cwd;
+
+      // HTTP server fields
+      if (typeof serverConfig.url === "string") {
+        mcpServer.url = serverConfig.url;
+      }
+      if (serverConfig.headers && typeof serverConfig.headers === "object") {
+        mcpServer.headers = serverConfig.headers as Record<string, string>;
       }
 
       result.push(mcpServer);

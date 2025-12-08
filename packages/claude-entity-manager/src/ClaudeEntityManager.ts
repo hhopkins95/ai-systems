@@ -37,7 +37,7 @@ import { MarketplaceRegistryService } from "./registry/MarketplaceRegistry.js";
 import { SettingsManager } from "./registry/SettingsManager.js";
 import { PluginInstaller } from "./installation/PluginInstaller.js";
 import { SourceParser } from "./installation/SourceParser.js";
-import { EntityWriter, type WriteResult, type WriteEntitiesOptions } from "./installation/EntityWriter.js";
+import { EntityWriter, type WriteResult, type WriteEntitiesOptions, type McpServerInput } from "./installation/EntityWriter.js";
 
 /**
  * Main service class for discovering and managing Claude Code entities
@@ -448,7 +448,8 @@ export class ClaudeEntityManager {
       commands: allCommands,
       subagents: allAgents, // AgentContext uses "subagents" field name
       hooks: allHooks,
-      mcpServers: allMcpServers,
+      // Cast to satisfy AgentContext type - McpServerWithSource includes additional source tracking
+      mcpServers: allMcpServers as unknown as McpServerConfig[],
       memoryFiles,
       sources,
     };
@@ -690,9 +691,10 @@ export class ClaudeEntityManager {
   /**
    * Write MCP servers to the project's .claude/.mcp.json
    * Merges with existing config (new servers overwrite by name)
+   * Supports both stdio and http server types
    * @throws Error if no project directory is configured
    */
-  async writeProjectMcpServers(servers: McpServerConfig[]): Promise<WriteResult> {
+  async writeProjectMcpServers(servers: McpServerInput[]): Promise<WriteResult> {
     return this.getEntityWriter().writeMcpServers(servers);
   }
 

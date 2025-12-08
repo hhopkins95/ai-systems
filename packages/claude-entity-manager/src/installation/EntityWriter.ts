@@ -9,7 +9,6 @@ import type {
   HookEvent,
   HookMatcher,
   ClaudeConfig,
-  McpServerConfig,
 } from "../types.js";
 import {
   getSkillsDir,
@@ -19,7 +18,7 @@ import {
   getProjectClaudeDir,
   getMcpConfigPath,
 } from "../utils/paths.js";
-import type { McpJsonConfig } from "../loaders/MCPLoader.js";
+import type { McpJsonConfig, McpServerWithSource } from "../loaders/MCPLoader.js";
 
 /**
  * Result of a write operation
@@ -27,6 +26,21 @@ import type { McpJsonConfig } from "../loaders/MCPLoader.js";
 export interface WriteResult {
   path: string;
   created: boolean;
+}
+
+/**
+ * MCP server input for writing (name + config fields)
+ */
+export interface McpServerInput {
+  name: string;
+  type?: "stdio" | "http";
+  // Stdio fields
+  command?: string;
+  args?: string[];
+  env?: Record<string, string>;
+  // HTTP fields
+  url?: string;
+  headers?: Record<string, string>;
 }
 
 /**
@@ -38,7 +52,7 @@ export interface WriteEntitiesOptions {
   agents?: Agent[];
   hooks?: Hook[];
   claudeMd?: string;
-  mcpServers?: McpServerConfig[];
+  mcpServers?: McpServerInput[];
 }
 
 /**
@@ -150,8 +164,9 @@ export class EntityWriter {
   /**
    * Write MCP servers to .claude/.mcp.json
    * Merges with existing config if present (new servers overwrite by name)
+   * Supports both stdio and http server types
    */
-  async writeMcpServers(servers: McpServerConfig[]): Promise<WriteResult> {
+  async writeMcpServers(servers: McpServerInput[]): Promise<WriteResult> {
     await this.ensureDir(this.claudeDir);
 
     const mcpPath = getMcpConfigPath(this.claudeDir);
@@ -171,11 +186,34 @@ export class EntityWriter {
     // Merge: new servers overwrite existing by name
     const mergedServers = { ...existingConfig.mcpServers };
     for (const server of servers) {
-      mergedServers[server.name] = {
-        command: server.command,
-        args: server.args,
-        env: server.env,
-      };
+      // Build config based on server type
+      const isHttp = server.type === "http" || (!server.type && server.url && !server.command);
+
+      if (isHttp) {
+        // HTTP server
+        mergedServers[server.name] = {
+          type: "http",
+          url: server.url,
+          headers: server.headers,
+        };
+      } else {
+        // Stdio server (default)
+        const stdioConfig: {
+          type?: "stdio" | "http";
+          command?: string;
+          args?: string[];
+          env?: Record<string, string>;
+        } = {
+          command: server.command,
+          args: server.args,
+          env: server.env,
+        };
+        // Only include type if explicitly set
+        if (server.type === "stdio") {
+          stdioConfig.type = "stdio";
+        }
+        mergedServers[server.name] = stdioConfig;
+      }
     }
 
     const config: McpJsonConfig = { mcpServers: mergedServers };

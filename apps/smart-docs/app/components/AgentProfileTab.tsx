@@ -457,53 +457,91 @@ export default function AgentProfileTab() {
   const renderMcpServers = () => {
     const grouped = groupBySource(mcpServers);
 
-    const renderMcpItem = (server: McpServerWithSource, canModify: boolean) => (
-      <div className="border border-gray-200 dark:border-gray-700 rounded p-4">
-        <div className="flex items-center justify-between mb-2">
-          <div className="flex items-center gap-2">
-            <h4 className="font-semibold">{server.name}</h4>
-            <SourceBadge source={server.source} />
-          </div>
-          {canModify && (
-            <div className="flex gap-2">
-              <button
-                className="text-sm text-blue-600 hover:text-blue-800 dark:text-blue-400"
-                onClick={() => {
-                  setSelectedMcpServer(server);
-                  setShowMcpModal(true);
-                }}
-              >
-                Edit
-              </button>
-              <button
-                className="text-sm text-red-600 hover:text-red-800 dark:text-red-400"
-                onClick={() => setMcpConfirmDialog({ isOpen: true, serverName: server.name })}
-              >
-                Delete
-              </button>
+    // Determine if server is HTTP type
+    const isHttpServer = (server: McpServerWithSource) =>
+      server.type === 'http' || (!server.command && server.url);
+
+    const renderMcpItem = (server: McpServerWithSource, canModify: boolean) => {
+      const isHttp = isHttpServer(server);
+      const serverType = isHttp ? 'http' : 'stdio';
+
+      return (
+        <div className="border border-gray-200 dark:border-gray-700 rounded p-4">
+          <div className="flex items-center justify-between mb-2">
+            <div className="flex items-center gap-2">
+              <h4 className="font-semibold">{server.name}</h4>
+              <span className={`text-xs px-2 py-0.5 rounded ${
+                isHttp
+                  ? 'bg-purple-100 text-purple-800 dark:bg-purple-900 dark:text-purple-200'
+                  : 'bg-cyan-100 text-cyan-800 dark:bg-cyan-900 dark:text-cyan-200'
+              }`}>
+                {serverType}
+              </span>
+              <SourceBadge source={server.source} />
             </div>
-          )}
-        </div>
-        <div className="text-sm text-gray-600 dark:text-gray-400 space-y-1">
-          <p><span className="font-medium">Command:</span> {server.command}</p>
-          {server.args && server.args.length > 0 && (
-            <p><span className="font-medium">Args:</span> {server.args.join(' ')}</p>
-          )}
-          {server.env && Object.keys(server.env).length > 0 && (
-            <details className="mt-2">
-              <summary className="cursor-pointer text-blue-600 dark:text-blue-400">
-                Environment Variables ({Object.keys(server.env).length})
-              </summary>
-              <div className="mt-1 pl-2 text-xs">
-                {Object.entries(server.env).map(([key, value]) => (
-                  <p key={key}><span className="font-mono">{key}</span>=<span className="font-mono">{value}</span></p>
-                ))}
+            {canModify && (
+              <div className="flex gap-2">
+                <button
+                  className="text-sm text-blue-600 hover:text-blue-800 dark:text-blue-400"
+                  onClick={() => {
+                    setSelectedMcpServer(server);
+                    setShowMcpModal(true);
+                  }}
+                >
+                  Edit
+                </button>
+                <button
+                  className="text-sm text-red-600 hover:text-red-800 dark:text-red-400"
+                  onClick={() => setMcpConfirmDialog({ isOpen: true, serverName: server.name })}
+                >
+                  Delete
+                </button>
               </div>
-            </details>
-          )}
+            )}
+          </div>
+          <div className="text-sm text-gray-600 dark:text-gray-400 space-y-1">
+            {/* HTTP Server: Show URL and headers */}
+            {isHttp ? (
+              <>
+                <p><span className="font-medium">URL:</span> {server.url}</p>
+                {server.headers && Object.keys(server.headers).length > 0 && (
+                  <details className="mt-2">
+                    <summary className="cursor-pointer text-blue-600 dark:text-blue-400">
+                      Headers ({Object.keys(server.headers).length})
+                    </summary>
+                    <div className="mt-1 pl-2 text-xs">
+                      {Object.entries(server.headers).map(([key, value]) => (
+                        <p key={key}><span className="font-mono">{key}</span>: <span className="font-mono">{value}</span></p>
+                      ))}
+                    </div>
+                  </details>
+                )}
+              </>
+            ) : (
+              <>
+                {/* Stdio Server: Show command, args, env */}
+                <p><span className="font-medium">Command:</span> {server.command}</p>
+                {server.args && server.args.length > 0 && (
+                  <p><span className="font-medium">Args:</span> {server.args.join(' ')}</p>
+                )}
+                {server.env && Object.keys(server.env).length > 0 && (
+                  <details className="mt-2">
+                    <summary className="cursor-pointer text-blue-600 dark:text-blue-400">
+                      Environment Variables ({Object.keys(server.env).length})
+                    </summary>
+                    <div className="mt-1 pl-2 text-xs">
+                      {Object.entries(server.env).map(([key, value]) => (
+                        <p key={key}><span className="font-mono">{key}</span>=<span className="font-mono">{value}</span></p>
+                      ))}
+                    </div>
+                  </details>
+                )}
+              </>
+            )}
+          </div>
         </div>
-      </div>
-    );
+      );
+    };
 
     return (
       <div className="space-y-6">
