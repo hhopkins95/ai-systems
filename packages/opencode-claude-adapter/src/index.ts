@@ -22,6 +22,7 @@ import {
 import { syncCommands } from "./adapters/command-adapter";
 import { syncAgents } from "./adapters/agent-adapter";
 import { syncInstructions, type SkillInfo } from "./adapters/instruction-adapter";
+import { syncMcpServers } from "./adapters/mcp-adapter";
 
 export const ClaudeAdapterPlugin: Plugin = async (ctx) => {
   const projectDir = ctx.directory;
@@ -106,6 +107,19 @@ export const ClaudeAdapterPlugin: Plugin = async (ctx) => {
     console.log(
       `[claude-adapter] Synced CLAUDE.md → AGENTS.md (${instructionResult.sources.length} sources)`
     );
+  }
+
+  // Sync MCP servers to opencode.config.json
+  if (agentContext.mcpServers.length > 0) {
+    const mcpResult = await syncMcpServers(agentContext.mcpServers, projectDir);
+    if (mcpResult.written.length > 0) {
+      console.log(
+        `[claude-adapter] Synced ${mcpResult.written.length} MCP servers to opencode.config.json`
+      );
+    }
+    for (const error of mcpResult.errors) {
+      console.error(`[claude-adapter] Error syncing MCP: ${error.error}`);
+    }
   }
 
   // Create skill tools (using synced skills from .opencode/skills/)
