@@ -35,32 +35,10 @@ import type {
 } from '../types.js';
 import { writeSetupResult, logDebug } from './shared/output.js';
 import { setupExceptionHandlers } from './shared/signal-handlers.js';
+import { readStdinJson } from './shared/input.js';
 
 // Set up exception handlers early
 setupExceptionHandlers();
-
-// =============================================================================
-// Input Reading
-// =============================================================================
-
-/**
- * Read JSON input from stdin
- */
-async function readStdinJson<T>(): Promise<T> {
-  const chunks: Buffer[] = [];
-
-  for await (const chunk of process.stdin) {
-    chunks.push(chunk);
-  }
-
-  const input = Buffer.concat(chunks).toString('utf-8');
-
-  if (!input.trim()) {
-    throw new Error('No input received via stdin');
-  }
-
-  return JSON.parse(input) as T;
-}
 
 // =============================================================================
 // MCP Configuration (OpenCode-specific)
@@ -117,6 +95,8 @@ async function writeClaudeTranscript(
   sessionId: string,
   transcript: string
 ): Promise<string> {
+
+
   const homeDir = process.env.HOME || '/root';
   const projectHash = hashProjectPath(projectDir);
   const transcriptDir = join(homeDir, '.claude', 'projects', projectHash);

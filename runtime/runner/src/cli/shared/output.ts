@@ -56,12 +56,6 @@ export function writeError(error: Error | string): void {
   console.log(JSON.stringify(event));
 }
 
-/**
- * Write a setup result as JSON to stdout
- */
-export function writeSetupResult(result: SetupSessionResult): void {
-  console.log(JSON.stringify(result));
-}
 
 /**
  * Write a generic JSON object to stdout
