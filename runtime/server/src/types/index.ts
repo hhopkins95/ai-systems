@@ -37,7 +37,7 @@ export type {
   PersistedSessionListData,
   CreateSessionArgs,
   PersistedSessionData
-} from '../../../../packages/types/src/runtime/session';
+} from '@ai-systems/shared-types';
 
 // ============================================================================
 // Agent Profile Types

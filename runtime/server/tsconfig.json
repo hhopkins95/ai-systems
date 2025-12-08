@@ -32,6 +32,6 @@
     "skipLibCheck": true,
     "forceConsistentCasingInFileNames": true
   },
-  "include": ["src/**/*", "../../packages/types/src/runtime/session.ts"],
+  "include": ["src/**/*"],
   "exclude": ["node_modules", "dist"]
 }

@@ -20,7 +20,7 @@ import type {
   CreateSessionArgs,
   SessionListItem,
   SessionRuntimeState
-} from '../../../../packages/types/src/runtime/session.js';
+} from '@ai-systems/shared-types';
 import { AgentSession } from './agent-session.js';
 import type { EventBus } from './event-bus.js';
 
