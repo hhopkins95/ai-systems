@@ -1,7 +1,7 @@
 import { Sandbox } from "modal";
 import * as tar from "tar-stream";
 import { AgentProfile } from "@ai-systems/shared-types";
-import { ModalContext } from "./client";
+import { initializeModal, ModalContext } from "./client";
 import { createModalSandbox } from "./create-sandbox";
 import { AGENT_ARCHITECTURE_TYPE } from "@ai-systems/shared-types";
 import { logger } from "../../../config/logger";
@@ -10,6 +10,7 @@ import path from "path";
 import { fileURLToPath } from "url";
 import { normalizeString } from "../../util/normalize-string";
 import { EnvironmentPrimitive, WatchEvent, WatchEventType, WriteFilesResult } from "../base";
+import { RuntimeExecutionEnvironmentOptions } from "../../../types/runtime";
 
 // ES module __dirname equivalent
 const __filename = fileURLToPath(import.meta.url);
@@ -21,9 +22,19 @@ export class ModalSandbox implements EnvironmentPrimitive {
     private readonly sandbox: Sandbox;
 
 
-    static async create(agentProfile: AgentProfile, modalContext: ModalContext, agentArchitecture: AGENT_ARCHITECTURE_TYPE): Promise<ModalSandbox> {
+    static async create(args : RuntimeExecutionEnvironmentOptions): Promise<ModalSandbox> {
 
-        const sandbox = await createModalSandbox(modalContext, agentProfile);
+        if (!args.modal) {
+            throw new Error("Modal context is required");
+        }
+
+        const modalContext = await initializeModal({
+            tokenId: args.modal?.tokenId,
+            tokenSecret: args.modal?.tokenSecret,
+            appName: args.modal?.appName,
+        });
+
+        const sandbox = await createModalSandbox(modalContext);
 
         const sandboxPrimitive = new ModalSandbox(sandbox);
 
@@ -35,15 +46,15 @@ export class ModalSandbox implements EnvironmentPrimitive {
         });
 
         // copy any local mcp files to the sandbox
-        if (agentProfile.bundledMCPs) {
-        for (const localmcp of agentProfile.bundledMCPs) { 
-          const sandboxPath = path.join("/mcps", normalizeString(localmcp.name));
-          await copyLocalFilesToSandbox({
-            localDirPath: localmcp.localProjectPath,
-            targetSandboxDirPath: sandboxPath,
-            sandbox: sandboxPrimitive,
-          });
-        }}
+        // if (agentProfile.bundledMCPs) {
+        // for (const localmcp of agentProfile.bundledMCPs) { 
+        //   const sandboxPath = path.join("/mcps", normalizeString(localmcp.name));
+        //   await copyLocalFilesToSandbox({
+        //     localDirPath: localmcp.localProjectPath,
+        //     targetSandboxDirPath: sandboxPath,
+        //     sandbox: sandboxPrimitive,
+        //   });
+        // }}
 
         return sandboxPrimitive;
 

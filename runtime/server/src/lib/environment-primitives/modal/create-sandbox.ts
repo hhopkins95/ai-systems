@@ -31,7 +31,7 @@ const localSandboxAppDir = path.resolve(__dirname, '../../../../../execution');
  */
 export async function createModalSandbox(
   modalContext: ModalContext,
-  agentProfile : AgentProfile
+  agentProfile? : AgentProfile
 ): Promise<Sandbox> {
 
   const workdir = "/workspace";
@@ -51,7 +51,7 @@ export async function createModalSandbox(
 
 
     // For each mcp in the agent profile, build the app commands
-    if (agentProfile.bundledMCPs) {
+    if (agentProfile?.bundledMCPs) {
     for (const localmcp of agentProfile.bundledMCPs) { 
       const sandboxPath = path.join("/mcps", normalizeString(localmcp.name));
       customCommands.push(...generateSandboxAppInstallCommands({

@@ -92,3 +92,6 @@ export interface RuntimeConfig {
   logLevel?: 'debug' | 'info' | 'warn' | 'error';
 }
 
+
+
+export type RuntimeExecutionEnvironmentOptions = RuntimeConfig['executionEnvironment']

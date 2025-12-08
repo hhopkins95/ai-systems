@@ -1,17 +1,16 @@
-import { AgentProfile } from "@ai-systems/shared-types"
-import { AGENT_ARCHITECTURE_TYPE } from "@ai-systems/shared-types"
+import { RuntimeExecutionEnvironmentOptions } from "../../types/runtime"
 import { EnvironmentPrimitive } from "./base"
 import { ModalSandbox } from "./modal"
-import { ModalContext } from "./modal/client"
-
-type SandboxProviders = "modal"
 
 
-export const getEnvironmentPrimitive = async (args : { 
-    provider : SandboxProviders, 
-    agentProfile : AgentProfile,
-    modalContext : ModalContext, 
-    agentArchitecture : AGENT_ARCHITECTURE_TYPE
-}) : Promise<EnvironmentPrimitive> => { 
-    return await ModalSandbox.create(args.agentProfile, args.modalContext, args.agentArchitecture);
+export const getEnvironmentPrimitive = async (args : RuntimeExecutionEnvironmentOptions) : Promise<EnvironmentPrimitive> => { 
+
+    if (args.type === "modal-sandbox") {
+        return await ModalSandbox.create(args);
+    } else if (args.type === "local") {
+        throw new Error("Local execution environment not implemented");
+    }
+    else {
+        throw new Error("Invalid execution environment type");
+    }
 }
