@@ -1,5 +1,5 @@
 {
-  "name": "@hhopkins/agent-execution",
+  "name": "@hhopkins/agent-runner",
   "version": "0.2.0",
   "description": "Execution scripts for running agent queries inside sandboxes",
   "type": "module",

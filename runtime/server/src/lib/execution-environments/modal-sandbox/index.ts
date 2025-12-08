@@ -20,7 +20,7 @@ import type {
     WorkspaceFile,
     AGENT_ARCHITECTURE_TYPE,
 } from '@ai-systems/shared-types';
-import type { SetupSessionInput, SetupSessionResult, McpServerConfig } from '@hhopkins/agent-execution';
+import type { SetupSessionInput, SetupSessionResult, McpServerConfig } from '../../../../../runner/dist';
 
 import { ExecutionEnvironment, WorkspaceFileEvent, TranscriptChangeEvent } from '../base';
 import { ModalContext } from './modal/client';
