@@ -68,8 +68,6 @@ export type {
 
   // Session Options
   AgentArchitectureSessionOptions,
-  ClaudeSDKSessionOptions,
-  OpenCodeSessionOptions,
 
   // Content Types
   TextContent,
@@ -111,13 +109,3 @@ export type {
   AgentServiceConfig,
 } from './types';
 
-// Type Guards
-export {
-  isUserMessageBlock,
-  isAssistantTextBlock,
-  isToolUseBlock,
-  isToolResultBlock,
-  isThinkingBlock,
-  isSystemBlock,
-  isSubagentBlock,
-} from './types';

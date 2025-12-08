@@ -3,9 +3,9 @@
  * for an agent running in a given project context
  */
 
-import type { Skill, Command, Agent, Hook, MemoryFile } from "./entities/index.js";
+import type { Agent, Command, Hook, MemoryFile, Skill } from "./entities/index.js";
 import type { McpServerConfig } from "./mcp.js";
-import { Plugin, PluginSource } from "./plugin.js";
+import { PluginSource } from "./plugin.js";
 import { WorkspaceFile } from "./runtime/session.js";
 
 /**
