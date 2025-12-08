@@ -25,6 +25,8 @@ export type {
   MarketplaceManifest,
   MarketplacePlugin,
   McpServerConfig,
+  // MCP types
+  McpServerWithSource,
   // Registry types
   PluginRegistry,
   InstalledPluginInfo,

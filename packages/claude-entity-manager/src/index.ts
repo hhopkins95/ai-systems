@@ -58,6 +58,7 @@ export { CommandLoader } from "./loaders/CommandLoader.js";
 export { AgentLoader } from "./loaders/AgentLoader.js";
 export { HookLoader } from "./loaders/HookLoader.js";
 export { ClaudeMdLoader } from "./loaders/ClaudeMdLoader.js";
+export { MCPLoader, type McpJsonConfig, type McpServerWithSource } from "./loaders/MCPLoader.js";
 
 export { PluginDiscovery } from "./discovery/PluginDiscovery.js";
 export { EntityDiscovery, type EntityCounts } from "./discovery/EntityDiscovery.js";

@@ -688,6 +688,15 @@ export class ClaudeEntityManager {
   }
 
   /**
+   * Write MCP servers to the project's .claude/.mcp.json
+   * Merges with existing config (new servers overwrite by name)
+   * @throws Error if no project directory is configured
+   */
+  async writeProjectMcpServers(servers: McpServerConfig[]): Promise<WriteResult> {
+    return this.getEntityWriter().writeMcpServers(servers);
+  }
+
+  /**
    * Write multiple entities at once
    * @throws Error if no project directory is configured
    */

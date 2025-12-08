@@ -9,15 +9,17 @@ import { Prism as SyntaxHighlighterBase } from 'react-syntax-highlighter';
 const SyntaxHighlighter = SyntaxHighlighterBase as any;
 import { vscDarkPlus } from 'react-syntax-highlighter/dist/esm/styles/prism';
 import remarkGfm from 'remark-gfm';
-import type { ClaudeConfig, Skill, Command, Agent, Hook, EntitySource, ClaudeMdNode, ClaudeMdFile } from '@/types';
+import type { ClaudeConfig, Skill, Command, Agent, Hook, EntitySource, ClaudeMdNode, ClaudeMdFile, McpServerWithSource } from '@/types';
 import SourceBadge from './SourceBadge';
 import SkillModal from './SkillModal';
 import CommandModal from './CommandModal';
 import AgentModal from './AgentModal';
+import McpServerModal from './McpServerModal';
 import Mermaid from './Mermaid';
+import ConfirmDialog from './ConfirmDialog';
 import { io } from 'socket.io-client';
 
-type DocumentType = 'skills' | 'commands' | 'agents' | 'hooks' | 'memory';
+type DocumentType = 'skills' | 'commands' | 'agents' | 'hooks' | 'memory' | 'mcp';
 type SourceType = 'global' | 'project' | 'plugin';
 
 // Interface for grouped entities with nested plugin structure
@@ -45,15 +47,30 @@ export default function AgentProfileTab() {
   const [memoryTree, setMemoryTree] = useState<ClaudeMdNode[]>([]);
   const [selectedMemoryFile, setSelectedMemoryFile] = useState<ClaudeMdFile | null>(null);
 
+  // MCP Servers state
+  const [mcpServers, setMcpServers] = useState<McpServerWithSource[]>([]);
+  const [selectedMcpServer, setSelectedMcpServer] = useState<McpServerWithSource | null>(null);
+  const [showMcpModal, setShowMcpModal] = useState(false);
+  const [mcpConfirmDialog, setMcpConfirmDialog] = useState<{
+    isOpen: boolean;
+    serverName: string;
+  }>({ isOpen: false, serverName: '' });
+
   useEffect(() => {
     fetchConfig();
     fetchMemoryTree();
+    fetchMcpServers();
 
-    // Set up socket for real-time updates to CLAUDE.md files
+    // Set up socket for real-time updates
     const socket = io();
     socket.on('file-change', (event: any) => {
-      if (event.area === 'claude' && event.path.includes('CLAUDE.md')) {
-        fetchMemoryTree();
+      if (event.area === 'claude') {
+        if (event.path.includes('CLAUDE.md')) {
+          fetchMemoryTree();
+        }
+        if (event.path.includes('.mcp.json')) {
+          fetchMcpServers();
+        }
       }
     });
 
@@ -81,6 +98,37 @@ export default function AgentProfileTab() {
       setMemoryTree(data);
     } catch (error) {
       console.error('Failed to fetch CLAUDE.md tree:', error);
+    }
+  };
+
+  const fetchMcpServers = async () => {
+    try {
+      const response = await fetch('/api/mcp/list');
+      const data = await response.json();
+      setMcpServers(data.mcpServers || []);
+    } catch (error) {
+      console.error('Failed to fetch MCP servers:', error);
+    }
+  };
+
+  const handleDeleteMcpServer = async (serverName: string) => {
+    try {
+      const response = await fetch('/api/mcp/delete', {
+        method: 'DELETE',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ name: serverName }),
+      });
+
+      if (!response.ok) {
+        const data = await response.json();
+        throw new Error(data.error || 'Failed to delete MCP server');
+      }
+
+      fetchMcpServers();
+    } catch (error) {
+      console.error('Failed to delete MCP server:', error);
+    } finally {
+      setMcpConfirmDialog({ isOpen: false, serverName: '' });
     }
   };
 
@@ -405,6 +453,147 @@ export default function AgentProfileTab() {
     );
   };
 
+  // MCP Servers rendering
+  const renderMcpServers = () => {
+    const grouped = groupBySource(mcpServers);
+
+    const renderMcpItem = (server: McpServerWithSource, canModify: boolean) => (
+      <div className="border border-gray-200 dark:border-gray-700 rounded p-4">
+        <div className="flex items-center justify-between mb-2">
+          <div className="flex items-center gap-2">
+            <h4 className="font-semibold">{server.name}</h4>
+            <SourceBadge source={server.source} />
+          </div>
+          {canModify && (
+            <div className="flex gap-2">
+              <button
+                className="text-sm text-blue-600 hover:text-blue-800 dark:text-blue-400"
+                onClick={() => {
+                  setSelectedMcpServer(server);
+                  setShowMcpModal(true);
+                }}
+              >
+                Edit
+              </button>
+              <button
+                className="text-sm text-red-600 hover:text-red-800 dark:text-red-400"
+                onClick={() => setMcpConfirmDialog({ isOpen: true, serverName: server.name })}
+              >
+                Delete
+              </button>
+            </div>
+          )}
+        </div>
+        <div className="text-sm text-gray-600 dark:text-gray-400 space-y-1">
+          <p><span className="font-medium">Command:</span> {server.command}</p>
+          {server.args && server.args.length > 0 && (
+            <p><span className="font-medium">Args:</span> {server.args.join(' ')}</p>
+          )}
+          {server.env && Object.keys(server.env).length > 0 && (
+            <details className="mt-2">
+              <summary className="cursor-pointer text-blue-600 dark:text-blue-400">
+                Environment Variables ({Object.keys(server.env).length})
+              </summary>
+              <div className="mt-1 pl-2 text-xs">
+                {Object.entries(server.env).map(([key, value]) => (
+                  <p key={key}><span className="font-mono">{key}</span>=<span className="font-mono">{value}</span></p>
+                ))}
+              </div>
+            </details>
+          )}
+        </div>
+      </div>
+    );
+
+    return (
+      <div className="space-y-6">
+        {/* Add MCP Server button */}
+        <div className="flex justify-end">
+          <button
+            className="px-4 py-2 bg-blue-600 text-white rounded hover:bg-blue-700"
+            onClick={() => {
+              setSelectedMcpServer(null);
+              setShowMcpModal(true);
+            }}
+          >
+            + Add MCP Server
+          </button>
+        </div>
+
+        {/* Global MCP Servers */}
+        {grouped.global.length > 0 && (
+          <div>
+            <h3 className="text-lg font-semibold mb-3">Global MCP Servers ({grouped.global.length})</h3>
+            <p className="text-sm text-gray-500 mb-3">Configured in ~/.claude/.mcp.json</p>
+            <div className="space-y-4">
+              {grouped.global.map((server, idx) => (
+                <div key={idx}>{renderMcpItem(server, false)}</div>
+              ))}
+            </div>
+          </div>
+        )}
+
+        {/* Project MCP Servers */}
+        {grouped.project.length > 0 && (
+          <div>
+            <h3 className="text-lg font-semibold mb-3">Project MCP Servers ({grouped.project.length})</h3>
+            <p className="text-sm text-gray-500 mb-3">Configured in .claude/.mcp.json</p>
+            <div className="space-y-4">
+              {grouped.project.map((server, idx) => (
+                <div key={idx}>{renderMcpItem(server, true)}</div>
+              ))}
+            </div>
+          </div>
+        )}
+
+        {/* Plugin MCP Servers */}
+        {Object.keys(grouped.pluginsBySource).length > 0 && (
+          <div>
+            <h3 className="text-lg font-semibold mb-3">Plugin MCP Servers</h3>
+            <div className="space-y-2">
+              {Object.entries(grouped.pluginsBySource).map(([pluginId, servers]) => {
+                const isExpanded = expandedPlugins[`mcp-${pluginId}`] ?? true;
+                return (
+                  <div key={pluginId} className="border border-gray-200 dark:border-gray-700 rounded">
+                    <button
+                      className="w-full flex items-center justify-between p-3 hover:bg-gray-50 dark:hover:bg-gray-800 transition-colors"
+                      onClick={() => togglePluginExpanded(`mcp-${pluginId}`)}
+                    >
+                      <div className="flex items-center gap-2">
+                        <span className={`transform transition-transform ${isExpanded ? 'rotate-90' : ''}`}>
+                          ▶
+                        </span>
+                        <span className="font-medium text-purple-700 dark:text-purple-300">{pluginId}</span>
+                        <span className="text-sm text-gray-500">({servers.length})</span>
+                      </div>
+                    </button>
+                    {isExpanded && (
+                      <div className="border-t border-gray-200 dark:border-gray-700 p-3 space-y-3">
+                        {servers.map((server, idx) => (
+                          <div key={idx}>{renderMcpItem(server, false)}</div>
+                        ))}
+                      </div>
+                    )}
+                  </div>
+                );
+              })}
+            </div>
+          </div>
+        )}
+
+        {/* Empty state */}
+        {mcpServers.length === 0 && (
+          <div className="text-center py-8 text-gray-500">
+            <p className="mb-2">No MCP servers configured</p>
+            <p className="text-sm">
+              MCP (Model Context Protocol) servers extend Claude&apos;s capabilities with tools and resources.
+            </p>
+          </div>
+        )}
+      </div>
+    );
+  };
+
   // Memory Files rendering (from ContextTab)
   const getScopeBadgeStyle = (scope: 'global' | 'project' | 'nested') => {
     const styles = {
@@ -619,6 +808,8 @@ export default function AgentProfileTab() {
         return renderHooks();
       case 'memory':
         return renderMemoryFiles();
+      case 'mcp':
+        return renderMcpServers();
     }
   };
 
@@ -628,6 +819,7 @@ export default function AgentProfileTab() {
     { id: 'agents', label: 'Agents', count: config?.agents.length },
     { id: 'hooks', label: 'Hooks', count: config?.hooks.length },
     { id: 'memory', label: 'Memory Files', count: memoryTree.length },
+    { id: 'mcp', label: 'MCP Servers', count: mcpServers.length },
   ];
 
   return (
@@ -676,6 +868,23 @@ export default function AgentProfileTab() {
         agent={selectedAgent}
         isOpen={selectedAgent !== null}
         onClose={() => setSelectedAgent(null)}
+      />
+      <McpServerModal
+        isOpen={showMcpModal}
+        onClose={() => {
+          setShowMcpModal(false);
+          setSelectedMcpServer(null);
+        }}
+        onSave={fetchMcpServers}
+        server={selectedMcpServer}
+      />
+      <ConfirmDialog
+        isOpen={mcpConfirmDialog.isOpen}
+        title="Delete MCP Server"
+        message={`Are you sure you want to delete the MCP server "${mcpConfirmDialog.serverName}"? This action cannot be undone.`}
+        onConfirm={() => handleDeleteMcpServer(mcpConfirmDialog.serverName)}
+        onCancel={() => setMcpConfirmDialog({ isOpen: false, serverName: '' })}
+        isDestructive
       />
     </div>
   );

@@ -26,7 +26,7 @@ export class FileSystemWatcher extends EventEmitter {
     this.watchPath(
       'global-claude',
       globalClaudePath,
-      ['skills/**', 'commands/**', 'agents/**', 'hooks/**', 'plugins/**/**/plugin.json', 'CLAUDE.md'],
+      ['skills/**', 'commands/**', 'agents/**', 'hooks/**', 'plugins/**/**/plugin.json', 'CLAUDE.md', '.mcp.json'],
       'claude'
     );
 
