@@ -1,0 +1,1 @@
+Design process -- Start slow. Walk through the logic and decision making step by step, and verify with me. Don't make any major decisions at once. Explain the impact and 
