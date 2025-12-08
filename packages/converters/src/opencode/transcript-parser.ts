@@ -10,9 +10,10 @@ import type {
   ConversationBlock,
   SubagentBlock,
   ToolExecutionStatus,
+  ParsedTranscript,
 } from '@ai-systems/shared-types';
-import type { Logger } from '../utils.js';
-import { generateId, toISOTimestamp, noopLogger } from '../utils.js';
+import { generateId, toISOTimestamp, noopLogger, type Logger } from '../utils.js';
+import type { ParseTranscriptOptions } from '../types.js';
 
 /**
  * Exported session type when running `opencode export <sessionId>`
@@ -43,18 +44,6 @@ export interface OpenCodeSessionTranscript {
     info: UserMessage | AssistantMessage;
     parts: Part[];
   }>;
-}
-
-/**
- * Result of parsing an OpenCode transcript
- */
-export interface ParsedTranscript {
-  blocks: ConversationBlock[];
-  subagents: { id: string; blocks: ConversationBlock[] }[];
-}
-
-export interface ParseTranscriptOptions {
-  logger?: Logger;
 }
 
 // ============================================================================

@@ -69,29 +69,16 @@ export {
   createConsoleLogger,
 } from './utils.js';
 
-// Claude SDK converters
-export * from './claude-sdk/index.js';
-
-// OpenCode converters
-export * as opencode from './opencode/index.js';
+// Internal converter types
+export * from './types.js';
 
 // =============================================================================
 // Unified Transcript Parsing
 // =============================================================================
 
-import type { ConversationBlock, AGENT_ARCHITECTURE_TYPE } from '@ai-systems/shared-types';
+import type { AGENT_ARCHITECTURE_TYPE, ParsedTranscript } from '@ai-systems/shared-types';
 import { parseCombinedClaudeTranscript } from './claude-sdk/index.js';
 import { parseOpenCodeTranscriptFile } from './opencode/index.js';
-
-/**
- * Result of parsing a transcript (unified across architectures)
- */
-export interface ParsedTranscript {
-  /** Conversation blocks from the main transcript */
-  blocks: ConversationBlock[];
-  /** Subagent conversations */
-  subagents: { id: string; blocks: ConversationBlock[] }[];
-}
 
 /**
  * Parse a transcript based on the agent architecture type.

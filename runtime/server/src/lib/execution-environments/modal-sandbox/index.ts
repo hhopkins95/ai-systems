@@ -27,8 +27,7 @@ import { ModalContext } from './modal/client';
 import { createModalSandbox } from './modal/create-sandbox';
 import { logger } from '../../../config/logger';
 import { normalizeString } from '../../util/normalize-string';
-import { claudeSdk } from '@hhopkins/agent-converters';
-type CombinedClaudeTranscript = claudeSdk.CombinedClaudeTranscript;
+import type { CombinedClaudeTranscript } from '@hhopkins/agent-converters/claude-sdk';
 
 // ES module __dirname equivalent
 const __filename = fileURLToPath(import.meta.url);

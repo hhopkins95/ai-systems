@@ -26,30 +26,46 @@ pnpm add @hhopkins/agent-converters
 ## Quick Start
 
 ```typescript
-import { claudeSdk, opencode } from '@hhopkins/agent-converters';
+// Import from subpaths
+import { parseClaudeTranscriptFile } from '@hhopkins/agent-converters/claude-sdk';
+import { parseOpenCodeTranscriptFile } from '@hhopkins/agent-converters/opencode';
 
 // Parse a Claude SDK transcript file
-const blocks = claudeSdk.parseClaudeTranscriptFile(transcriptContent);
+const blocks = parseClaudeTranscriptFile(transcriptContent);
 
 // Parse an OpenCode transcript file
-const { blocks, subagents } = opencode.parseOpenCodeTranscriptFile(transcriptContent);
+const { blocks, subagents } = parseOpenCodeTranscriptFile(transcriptContent);
 ```
 
 ## Claude SDK Converters
 
-Import via the `claudeSdk` namespace:
+Import from the `/claude-sdk` subpath:
 
 ```typescript
-import { claudeSdk } from '@hhopkins/agent-converters';
+import {
+  parseClaudeTranscriptFile,
+  parseCombinedClaudeTranscript,
+  convertMessagesToBlocks,
+  parseStreamEvent,
+} from '@hhopkins/agent-converters/claude-sdk';
 ```
 
 ### `parseClaudeTranscriptFile(content, options?)`
 
-Parse a Claude SDK JSONL transcript file into ConversationBlocks.
+Parse a Claude SDK JSONL transcript file into SDK messages.
 
 ```typescript
-const blocks = claudeSdk.parseClaudeTranscriptFile(rawTranscript, {
-  sessionId: 'session-123',
+const messages = parseClaudeTranscriptFile(rawTranscript, {
+  logger: console,
+});
+```
+
+### `parseCombinedClaudeTranscript(content, options?)`
+
+Parse a combined transcript (main + subagents) into ConversationBlocks.
+
+```typescript
+const { blocks, subagents } = parseCombinedClaudeTranscript(combinedTranscript, {
   logger: console,
 });
 ```
@@ -59,23 +75,23 @@ const blocks = claudeSdk.parseClaudeTranscriptFile(rawTranscript, {
 Convert an array of SDK messages to ConversationBlocks.
 
 ```typescript
-const blocks = claudeSdk.convertMessagesToBlocks(sdkMessages, {
-  sessionId: 'session-123',
+const blocks = convertMessagesToBlocks(sdkMessages, {
+  logger: console,
 });
 ```
 
-### `parseStreamEvent(line, options?)`
+### `parseStreamEvent(message, options?)`
 
-Parse a single JSONL line into a StreamEvent.
+Parse an SDK message into StreamEvents.
 
 ```typescript
-const event = claudeSdk.parseStreamEvent(jsonLine, { sessionId: 'session-123' });
+const events = parseStreamEvent(sdkMessage, { logger: console });
 ```
 
 ### Other Exports
 
-- `extractSubagentId(toolUse)` - Extract subagent ID from a tool use block
-- `detectSubagentStatus(blocks)` - Detect if a subagent is running/complete
+- `extractSubagentId(filename)` - Extract subagent ID from a filename
+- `detectSubagentStatus(messages)` - Detect if a subagent is running/complete
 - `sdkMessageToBlocks(message)` - Convert a single SDK message
 - `sdkMessagesToBlocks(messages)` - Convert multiple SDK messages
 - `extractToolResultBlocks(message)` - Extract tool results from a message
@@ -83,10 +99,14 @@ const event = claudeSdk.parseStreamEvent(jsonLine, { sessionId: 'session-123' })
 
 ## OpenCode Converters
 
-Import via the `opencode` namespace:
+Import from the `/opencode` subpath:
 
 ```typescript
-import { opencode } from '@hhopkins/agent-converters';
+import {
+  parseOpenCodeTranscriptFile,
+  createStreamEventParser,
+  parseOpencodeStreamEvent,
+} from '@hhopkins/agent-converters/opencode';
 ```
 
 ### `parseOpenCodeTranscriptFile(content, options?)`
@@ -94,34 +114,33 @@ import { opencode } from '@hhopkins/agent-converters';
 Parse an OpenCode JSON transcript file.
 
 ```typescript
-const { blocks, subagents } = opencode.parseOpenCodeTranscriptFile(rawTranscript, {
-  sessionId: 'session-123',
+const { blocks, subagents } = parseOpenCodeTranscriptFile(rawTranscript, {
   logger: console,
 });
 ```
 
-### `createStreamEventParser(sessionId)`
+### `createStreamEventParser(sessionId, options?)`
 
 Create a stateful stream event parser for real-time parsing.
 
 ```typescript
-const parser = opencode.createStreamEventParser('session-123');
+const parser = createStreamEventParser('session-123');
 
-for (const line of streamLines) {
-  const events = parser.parse(line);
-  for (const event of events) {
-    handleEvent(event);
+for await (const event of eventStream) {
+  const streamEvents = parser.parseEvent(event);
+  for (const streamEvent of streamEvents) {
+    handleEvent(streamEvent);
   }
 }
 ```
 
-### `parseOpencodeStreamEvent(event, options?)`
+### `parseOpencodeStreamEvent(event, sessionId, options?)`
 
-Parse a single OpenCode stream event.
+Parse a single OpenCode stream event (stateless).
 
 ```typescript
-const streamEvent = opencode.parseOpencodeStreamEvent(rawEvent, {
-  sessionId: 'session-123',
+const streamEvents = parseOpencodeStreamEvent(rawEvent, 'session-123', {
+  logger: console,
 });
 ```
 

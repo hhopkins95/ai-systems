@@ -18,8 +18,7 @@ import { StreamEvent } from '../../../../types/session/streamEvents.js';
 import { readStreamToString, streamJSONL } from '../../../helpers/stream.js';
 import { SandboxPrimitive } from '../../../sandbox/base.js';
 import { AgentArchitectureAdapter, TranscriptChangeEvent, WorkspaceFileEvent } from '../base.js';
-import { opencode } from '@hhopkins/agent-converters';
-const { parseOpencodeStreamEvent, parseOpenCodeTranscriptFile } = opencode;
+import { parseOpencodeStreamEvent, parseOpenCodeTranscriptFile } from '@hhopkins/agent-converters/opencode';
 import { WorkspaceFile } from '../../../../../../../packages/types/src/runtime/session.js';
 import { buildConfigJson } from './build-config-json.js';
 

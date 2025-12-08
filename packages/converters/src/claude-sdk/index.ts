@@ -5,14 +5,16 @@
  * SDK messages to ConversationBlocks and StreamEvents.
  */
 
+// Re-export shared types
+export type { ConvertOptions, ParseTranscriptOptions } from '../types.js';
+export type { CombinedClaudeTranscript, ParsedTranscript } from '@ai-systems/shared-types';
+
 // Transcript parsing
 export {
   parseClaudeTranscriptFile,
   extractSubagentId,
   detectSubagentStatus,
   parseCombinedClaudeTranscript,
-  type ParseTranscriptOptions,
-  type CombinedClaudeTranscript,
   type ParsedCombinedTranscript,
 } from './transcript-parser.js';
 
@@ -24,5 +26,4 @@ export {
   sdkMessagesToBlocks,
   extractToolResultBlocks,
   createSubagentBlockFromToolUse,
-  type ConvertOptions,
 } from './block-converter.js';

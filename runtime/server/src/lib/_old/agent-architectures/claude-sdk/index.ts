@@ -6,8 +6,12 @@ import { WorkspaceFile } from "../../../../../../../packages/types/src/runtime/s
 import { StreamEvent } from "../../../../types/session/streamEvents.js";
 import { SandboxPrimitive } from "../../../sandbox/base.js";
 import { ConversationBlock } from "../../../../types/session/blocks.js";
-import { claudeSdk } from "@hhopkins/agent-converters";
-const { parseClaudeTranscriptFile, parseStreamEvent, convertMessagesToBlocks } = claudeSdk;
+import {
+  parseClaudeTranscriptFile,
+  parseStreamEvent,
+  convertMessagesToBlocks,
+  type CombinedClaudeTranscript,
+} from "@hhopkins/agent-converters/claude-sdk";
 import { logger } from "../../../../config/logger.js";
 import { streamJSONL } from "../../../helpers/stream.js";
 import { randomUUID } from "crypto";
@@ -17,16 +21,6 @@ import { buildMcpJson, McpServerConfig } from "./build-mcp-json.js";
 
 export interface ClaudeSDKSessionOptions {
     model?: string,
-}
-
-/**
- * Combined transcript format for Claude SDK.
- * Wraps the main JSONL + all subagent JSONLs into a single JSON blob.
- * This is our abstraction layer - Claude natively uses separate files.
- */
-export interface CombinedClaudeTranscript {
-    main: string;  // raw JSONL
-    subagents: { id: string; transcript: string }[];
 }
 
 export class ClaudeSDKAdapter implements AgentArchitectureAdapter<ClaudeSDKSessionOptions> {

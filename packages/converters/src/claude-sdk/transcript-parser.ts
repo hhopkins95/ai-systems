@@ -12,14 +12,10 @@
  */
 
 import type { SDKMessage } from '@anthropic-ai/claude-agent-sdk';
-import type { ConversationBlock } from '@ai-systems/shared-types';
-import type { Logger } from '../utils.js';
+import type { CombinedClaudeTranscript, ParsedTranscript } from '@ai-systems/shared-types';
 import { noopLogger } from '../utils.js';
+import type { ParseTranscriptOptions } from '../types.js';
 import { convertMessagesToBlocks } from './block-converter.js';
-
-export interface ParseTranscriptOptions {
-  logger?: Logger;
-}
 
 /**
  * Parse JSONL transcript file content into array of SDK messages
@@ -111,26 +107,10 @@ export function detectSubagentStatus(
 // =============================================================================
 
 /**
- * Combined transcript format for Claude SDK.
- * Wraps the main JSONL + all subagent JSONLs into a single JSON blob.
- * This is an abstraction layer - Claude natively uses separate files.
+ * Alias for backward compatibility
+ * @deprecated Use ParsedTranscript from @ai-systems/shared-types
  */
-export interface CombinedClaudeTranscript {
-  /** Raw JSONL content of the main transcript */
-  main: string;
-  /** Subagent transcripts */
-  subagents: { id: string; transcript: string }[];
-}
-
-/**
- * Result of parsing a combined transcript
- */
-export interface ParsedCombinedTranscript {
-  /** Conversation blocks from the main transcript */
-  blocks: ConversationBlock[];
-  /** Subagent conversations */
-  subagents: { id: string; blocks: ConversationBlock[] }[];
-}
+export type ParsedCombinedTranscript = ParsedTranscript;
 
 /**
  * Parse a combined Claude transcript (JSON wrapper format) into conversation blocks.

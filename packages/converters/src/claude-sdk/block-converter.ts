@@ -13,12 +13,8 @@ import type {
   ToolUseBlock,
   StreamEvent,
 } from '@ai-systems/shared-types';
-import type { Logger } from '../utils.js';
-import { generateId, noopLogger } from '../utils.js';
-
-export interface ConvertOptions {
-  logger?: Logger;
-}
+import { generateId, noopLogger, type Logger } from '../utils.js';
+import type { ConvertOptions } from '../types.js';
 
 /**
  * Convert multiple SDK messages to ConversationBlocks

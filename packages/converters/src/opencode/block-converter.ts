@@ -12,13 +12,9 @@ import type {
   ToolExecutionStatus,
   StreamEvent,
 } from '@ai-systems/shared-types';
-import type { Logger } from '../utils.js';
 import { generateId, toISOTimestamp, noopLogger } from '../utils.js';
+import type { ConvertOptions } from '../types.js';
 import { mapToolStatus, getPartTimestamp } from './transcript-parser.js';
-
-export interface ConvertOptions {
-  logger?: Logger;
-}
 
 // ============================================================================
 // Part to Block Converters

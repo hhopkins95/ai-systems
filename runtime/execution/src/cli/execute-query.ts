@@ -24,7 +24,8 @@
 import { Command } from 'commander';
 import * as fs from 'fs';
 import * as path from 'path';
-import { claudeSdk, opencode } from '@hhopkins/agent-converters';
+import { parseStreamEvent } from '@hhopkins/agent-converters/claude-sdk';
+import { createStreamEventParser } from '@hhopkins/agent-converters/opencode';
 import type { ExecuteQueryArgs, AgentArchitecture } from '../types.js';
 import {
   writeStreamEvents,
@@ -108,7 +109,7 @@ async function executeClaudeSdk(args: ExecuteQueryArgs): Promise<void> {
 
   for await (const sdkMessage of generator) {
     // Convert SDK message to StreamEvents using converter
-    const streamEvents = claudeSdk.parseStreamEvent(sdkMessage);
+    const streamEvents = parseStreamEvent(sdkMessage);
     writeStreamEvents(streamEvents);
   }
 }
@@ -141,7 +142,7 @@ async function executeOpencode(args: ExecuteQueryArgs): Promise<void> {
 
   try {
     // Create stateful parser for this session
-    const parser = opencode.createStreamEventParser(args.sessionId);
+    const parser = createStreamEventParser(args.sessionId);
 
     // Check if session exists, create if not
     const existingSession = await client.session.get({ path: { id: args.sessionId } });

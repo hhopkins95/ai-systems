@@ -22,3 +22,6 @@ export * from "./agent-context.js";
 
 // Runtime types (blocks, stream events)
 export * from "./runtime/index.js";
+
+// Transcript types (for converter packages)
+export * from "./transcript.js";
