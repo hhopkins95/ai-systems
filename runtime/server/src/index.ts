@@ -41,12 +41,6 @@ export type {
   AGENT_ARCHITECTURE_TYPE,
 
   // Agent profile types
-  AgentProfile,
-  AgentProfileListData,
-
-  // Block types
-  ConversationBlock,
-
   // Event types
   ServerToClientEvents,
   ClientToServerEvents,

@@ -4,7 +4,7 @@ import { zValidator } from "@hono/zod-validator";
 import { z } from "zod";
 import type { SessionManager } from "../../../core/session-manager";
 import type { EventBus } from "../../../core/event-bus";
-import type { AgentArchitectureSessionOptions } from "../../../lib/_old/agent-architectures/base";
+import type { AgentArchitectureSessionOptions } from "@ai-systems/shared-types"; 
 import { errorResponse } from "../server";
 
 export function createSessionRoutes(
