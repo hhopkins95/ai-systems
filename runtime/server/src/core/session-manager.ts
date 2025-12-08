@@ -13,7 +13,7 @@
  */
 
 import { logger } from '../config/logger.js';
-import type { ModalContext } from '../lib/execution-environments/modal-sandbox/modal/client.js';
+import type { ModalContext } from '../lib/_old/execution-environments/modal-sandbox/modal/client.js';
 import type { PersistenceAdapter } from '../types/persistence-adapter.js';
 import type { RuntimeConfig } from '../types/runtime.js';
 import type {

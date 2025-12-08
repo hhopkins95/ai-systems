@@ -15,7 +15,7 @@
 
 import { randomUUID } from 'crypto';
 import { logger } from '../config/logger.js';
-import type { ModalContext } from '../lib/execution-environments/modal-sandbox/modal/client.js';
+import type { ModalContext } from '../lib/_old/execution-environments/modal-sandbox/modal/client.js';
 import type { PersistenceAdapter } from '../types/persistence-adapter.js';
 import type { AgentProfile } from '@ai-systems/shared-types';
 import type {
@@ -31,8 +31,8 @@ import type {
 import type { ConversationBlock } from '@ai-systems/shared-types';
 import type { EventBus } from './event-bus.js';
 import type { RuntimeConfig } from '../types/runtime.js';
-import { ExecutionEnvironment, WorkspaceFileEvent, TranscriptChangeEvent } from '../lib/execution-environments/base.js';
-import { getExecutionEnvironment } from '../lib/execution-environments/factory.js';
+import { ExecutionEnvironment, WorkspaceFileEvent, TranscriptChangeEvent } from '../lib/_old/execution-environments/base.js';
+import { getExecutionEnvironment } from '../lib/_old/execution-environments/factory.js';
 import { parseTranscript } from '@hhopkins/agent-converters';
 
 /**
