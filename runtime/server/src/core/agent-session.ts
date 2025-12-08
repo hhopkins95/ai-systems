@@ -30,8 +30,7 @@ import type {
 import type { ConversationBlock } from '@ai-systems/shared-types';
 import type { EventBus } from './event-bus.js';
 import type { RuntimeConfig } from '../types/runtime.js';
-import { EnvironmentPrimitive } from '../lib/environment-primitives/base';
-import { getEnvironmentPrimitive } from '../lib/environment-primitives/factory';
+import { ExecutionEnvironment, WorkspaceFileEvent, TranscriptChangeEvent } from './execution-environment.js';
 import { parseTranscript } from '@hhopkins/agent-converters';
 
 /**
@@ -219,14 +218,12 @@ export class AgentSession {
 
     // Step 1: Create the execution environment
     this.emitRuntimeStatus("Creating execution environment...");
-    this.executionEnvironment = await getExecutionEnvironment(
-      this.sessionId,
-      this.executionConfig,
-      {
-        architecture: this.architecture,
-        agentProfile: this.agentProfile,
-      }
-    );
+    this.executionEnvironment = await ExecutionEnvironment.create({
+      sessionId: this.sessionId,
+      architecture: this.architecture,
+      agentProfile: this.agentProfile,
+      environmentOptions: this.executionConfig,
+    });
     this.sandboxId = this.executionEnvironment.getId();
 
     // Step 2: Prepare the session
