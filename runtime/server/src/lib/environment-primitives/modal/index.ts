@@ -1,16 +1,12 @@
 import { Sandbox } from "modal";
-import * as tar from "tar-stream";
-import { AgentProfile } from "@ai-systems/shared-types";
-import { initializeModal, ModalContext } from "./client";
-import { createModalSandbox } from "./create-sandbox";
-import { AGENT_ARCHITECTURE_TYPE } from "@ai-systems/shared-types";
-import { logger } from "../../../config/logger";
-import { copyLocalFilesToSandbox } from "../../helpers/copy-local-files-to-sandbox";
 import path from "path";
+import * as tar from "tar-stream";
 import { fileURLToPath } from "url";
-import { normalizeString } from "../../util/normalize-string";
-import { EnvironmentPrimitive, WatchEvent, WatchEventType, WriteFilesResult } from "../base";
+import { logger } from "../../../config/logger";
 import { RuntimeExecutionEnvironmentOptions } from "../../../types/runtime";
+import { EnvironmentPrimitive, WatchEvent, WatchEventType, WriteFilesResult } from "../base";
+import { initializeModal } from "./client";
+import { createModalSandbox } from "./create-sandbox";
 
 // ES module __dirname equivalent
 const __filename = fileURLToPath(import.meta.url);
@@ -39,11 +35,11 @@ export class ModalSandbox implements EnvironmentPrimitive {
         const sandboxPrimitive = new ModalSandbox(sandbox);
 
         // copy the execution scripts to the sandbox
-        await copyLocalFilesToSandbox({
-            localDirPath: path.join(__dirname, "../../../../../runtime/execution"),
-            targetSandboxDirPath: sandboxPrimitive.getBasePaths().APP_DIR,
-            sandbox: sandboxPrimitive,
-        });
+        // await copyLocalFilesToSandbox({
+        //     localDirPath: path.join(__dirname, "../../../../../runtime/execution"),
+        //     targetSandboxDirPath: sandboxPrimitive.getBasePaths().APP_DIR,
+        //     sandbox: sandboxPrimitive,
+        // });
 
         // copy any local mcp files to the sandbox
         // if (agentProfile.bundledMCPs) {
