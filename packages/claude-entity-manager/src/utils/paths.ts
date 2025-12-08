@@ -107,3 +107,13 @@ export function getPluginManifestPath(pluginDir: string): string {
 export function getMarketplaceManifestPath(marketplaceDir: string): string {
   return join(marketplaceDir, ".claude-plugin", "marketplace.json");
 }
+
+/**
+ * Get the MCP config path for a base directory
+ * Returns path to .claude/.mcp.json (project-level) or .mcp.json (in .claude dir for global)
+ */
+export function getMcpConfigPath(baseDir: string): string {
+  // For project directories, it's at .claude/.mcp.json
+  // For global (~/.claude), it's at ~/.claude/.mcp.json
+  return join(baseDir, ".mcp.json");
+}

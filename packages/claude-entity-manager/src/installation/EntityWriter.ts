@@ -9,6 +9,7 @@ import type {
   HookEvent,
   HookMatcher,
   ClaudeConfig,
+  McpServerConfig,
 } from "../types.js";
 import {
   getSkillsDir,
@@ -16,7 +17,9 @@ import {
   getAgentsDir,
   getHooksDir,
   getProjectClaudeDir,
+  getMcpConfigPath,
 } from "../utils/paths.js";
+import type { McpJsonConfig } from "../loaders/MCPLoader.js";
 
 /**
  * Result of a write operation
@@ -35,6 +38,7 @@ export interface WriteEntitiesOptions {
   agents?: Agent[];
   hooks?: Hook[];
   claudeMd?: string;
+  mcpServers?: McpServerConfig[];
 }
 
 /**
@@ -144,6 +148,43 @@ export class EntityWriter {
   }
 
   /**
+   * Write MCP servers to .claude/.mcp.json
+   * Merges with existing config if present (new servers overwrite by name)
+   */
+  async writeMcpServers(servers: McpServerConfig[]): Promise<WriteResult> {
+    await this.ensureDir(this.claudeDir);
+
+    const mcpPath = getMcpConfigPath(this.claudeDir);
+
+    // Read existing config for merging
+    let existingConfig: McpJsonConfig = { mcpServers: {} };
+    try {
+      const content = await readFile(mcpPath, "utf-8");
+      existingConfig = JSON.parse(content) as McpJsonConfig;
+      if (!existingConfig.mcpServers) {
+        existingConfig.mcpServers = {};
+      }
+    } catch {
+      // File doesn't exist or can't be parsed - start fresh
+    }
+
+    // Merge: new servers overwrite existing by name
+    const mergedServers = { ...existingConfig.mcpServers };
+    for (const server of servers) {
+      mergedServers[server.name] = {
+        command: server.command,
+        args: server.args,
+        env: server.env,
+      };
+    }
+
+    const config: McpJsonConfig = { mcpServers: mergedServers };
+    await writeFile(mcpPath, JSON.stringify(config, null, 2), "utf-8");
+
+    return { path: mcpPath, created: Object.keys(existingConfig.mcpServers || {}).length === 0 };
+  }
+
+  /**
    * Write multiple entities at once
    */
   async writeEntities(options: WriteEntitiesOptions): Promise<{
@@ -152,6 +193,7 @@ export class EntityWriter {
     agents: WriteResult[];
     hooks: WriteResult[];
     claudeMd?: WriteResult;
+    mcpServers?: WriteResult;
   }> {
     const results = {
       skills: [] as WriteResult[],
@@ -159,6 +201,7 @@ export class EntityWriter {
       agents: [] as WriteResult[],
       hooks: [] as WriteResult[],
       claudeMd: undefined as WriteResult | undefined,
+      mcpServers: undefined as WriteResult | undefined,
     };
 
     // Write skills
@@ -196,6 +239,11 @@ export class EntityWriter {
     // Write CLAUDE.md
     if (options.claudeMd) {
       results.claudeMd = await this.writeClaudeMd(options.claudeMd);
+    }
+
+    // Write MCP servers
+    if (options.mcpServers && options.mcpServers.length > 0) {
+      results.mcpServers = await this.writeMcpServers(options.mcpServers);
     }
 
     return results;

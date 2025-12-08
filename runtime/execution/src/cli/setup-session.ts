@@ -32,7 +32,6 @@ import type {
   SetupSessionInput,
   SetupSessionResult,
   McpServerConfig,
-  ClaudeMcpJsonConfig,
 } from '../types.js';
 import { writeSetupResult, logDebug } from './shared/output.js';
 import { setupExceptionHandlers } from './shared/signal-handlers.js';
@@ -64,46 +63,12 @@ async function readStdinJson<T>(): Promise<T> {
 }
 
 // =============================================================================
-// MCP Configuration
+// MCP Configuration (OpenCode-specific)
 // =============================================================================
 
 /**
- * Convert McpServerConfig to Claude SDK .mcp.json format
- */
-function buildClaudeMcpJson(servers: Record<string, McpServerConfig>): ClaudeMcpJsonConfig {
-  const mcpServers: ClaudeMcpJsonConfig['mcpServers'] = {};
-
-  for (const [name, config] of Object.entries(servers)) {
-    mcpServers[name] = {
-      type: 'stdio',
-      command: config.command,
-      args: config.args || [],
-      env: config.env,
-    };
-  }
-
-  return { mcpServers };
-}
-
-/**
- * Write .mcp.json file for Claude SDK
- */
-async function writeClaudeMcpConfig(
-  projectDir: string,
-  servers: Record<string, McpServerConfig>
-): Promise<string> {
-  const claudeDir = join(projectDir, '.claude');
-  await mkdir(claudeDir, { recursive: true });
-
-  const mcpJsonPath = join(claudeDir, '.mcp.json');
-  const config = buildClaudeMcpJson(servers);
-  await writeFile(mcpJsonPath, JSON.stringify(config, null, 2), 'utf-8');
-
-  return mcpJsonPath;
-}
-
-/**
  * Write opencode.config.json for OpenCode architecture
+ * Note: Claude SDK MCP config is handled by EntityWriter
  */
 async function writeOpencodeConfig(
   projectDir: string,
@@ -259,8 +224,15 @@ async function main() {
       });
 
       if (input.architecture === 'claude-sdk') {
-        const mcpPath = await writeClaudeMcpConfig(input.projectDir, input.mcpServers);
-        filesWritten.push(mcpPath);
+        // Use EntityWriter for Claude SDK MCP config
+        const writer = new EntityWriter(input.projectDir);
+        // Convert Record<string, McpServerConfig> to McpServerConfig[] with names
+        const mcpServersArray = Object.entries(input.mcpServers).map(([name, config]) => ({
+          ...config,
+          name,
+        }));
+        const result = await writer.writeMcpServers(mcpServersArray);
+        filesWritten.push(result.path);
       } else if (input.architecture === 'opencode') {
         const configPath = await writeOpencodeConfig(input.projectDir, input.mcpServers);
         filesWritten.push(configPath);

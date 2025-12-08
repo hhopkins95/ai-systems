@@ -22,7 +22,6 @@ import type {
   LoadAgentContextOptions,
   MemoryFile,
   McpServerConfig,
-  PluginMcpServer,
 } from "./types.js";
 import { toMemoryFile, flattenClaudeMdNodes } from "./types.js";
 import { getClaudeDir, getProjectClaudeDir } from "./utils/paths.js";
@@ -31,6 +30,7 @@ import { CommandLoader } from "./loaders/CommandLoader.js";
 import { AgentLoader } from "./loaders/AgentLoader.js";
 import { HookLoader } from "./loaders/HookLoader.js";
 import { ClaudeMdLoader } from "./loaders/ClaudeMdLoader.js";
+import { MCPLoader, type McpServerWithSource } from "./loaders/MCPLoader.js";
 import { PluginDiscovery } from "./discovery/PluginDiscovery.js";
 import { PluginRegistryService } from "./registry/PluginRegistry.js";
 import { MarketplaceRegistryService } from "./registry/MarketplaceRegistry.js";
@@ -53,6 +53,7 @@ export class ClaudeEntityManager {
   private agentLoader: AgentLoader;
   private hookLoader: HookLoader;
   private claudeMdLoader: ClaudeMdLoader;
+  private mcpLoader: MCPLoader;
 
   // Services
   private pluginDiscovery: PluginDiscovery;
@@ -74,6 +75,7 @@ export class ClaudeEntityManager {
     this.agentLoader = new AgentLoader();
     this.hookLoader = new HookLoader();
     this.claudeMdLoader = new ClaudeMdLoader();
+    this.mcpLoader = new MCPLoader();
 
     // Initialize services
     this.pluginDiscovery = new PluginDiscovery(this.claudeDir, this.projectDir);
@@ -336,40 +338,44 @@ export class ClaudeEntityManager {
     const allCommands: Command[] = [];
     const allAgents: Agent[] = [];
     const allHooks: Hook[] = [];
-    const allMcpServers: PluginMcpServer[] = [];
+    const allMcpServers: McpServerWithSource[] = [];
 
     // Load from global ~/.claude
     const globalSource: Omit<EntitySource, "path"> = { type: "global" };
-    const [globalSkills, globalCommands, globalAgents, globalHooks] =
+    const [globalSkills, globalCommands, globalAgents, globalHooks, globalMcps] =
       await Promise.all([
         this.skillLoader.loadSkills(this.claudeDir, globalSource, includeSkillFileContents),
         this.commandLoader.loadCommands(this.claudeDir, globalSource),
         this.agentLoader.loadAgents(this.claudeDir, globalSource),
         this.hookLoader.loadHooks(this.claudeDir, globalSource),
+        this.mcpLoader.loadMcpServers(this.claudeDir, globalSource),
       ]);
 
     allSkills.push(...globalSkills);
     allCommands.push(...globalCommands);
     allAgents.push(...globalAgents);
     allHooks.push(...globalHooks);
+    allMcpServers.push(...globalMcps);
 
     // Load from project .claude (if projectDir is set)
     if (projectDir) {
       const projectClaudeDir = getProjectClaudeDir(projectDir);
       const projectSource: Omit<EntitySource, "path"> = { type: "project" };
 
-      const [projectSkills, projectCommands, projectAgents, projectHooks] =
+      const [projectSkills, projectCommands, projectAgents, projectHooks, projectMcps] =
         await Promise.all([
           this.skillLoader.loadSkills(projectClaudeDir, projectSource, includeSkillFileContents),
           this.commandLoader.loadCommands(projectClaudeDir, projectSource),
           this.agentLoader.loadAgents(projectClaudeDir, projectSource),
           this.hookLoader.loadHooks(projectClaudeDir, projectSource),
+          this.mcpLoader.loadMcpServers(projectClaudeDir, projectSource),
         ]);
 
       allSkills.push(...projectSkills);
       allCommands.push(...projectCommands);
       allAgents.push(...projectAgents);
       allHooks.push(...projectHooks);
+      allMcpServers.push(...projectMcps);
     }
 
     // Load from plugins
@@ -397,14 +403,24 @@ export class ClaudeEntityManager {
       allAgents.push(...agents);
       allHooks.push(...hooks);
 
-      // Load MCP servers from plugin manifest
-      const mcpServers = await this.pluginDiscovery.loadMcpServersFromPlugin(plugin.path);
-      // Add pluginId to each MCP server config for provenance
-      const mcpServersWithSource: PluginMcpServer[] = mcpServers.map(server => ({
-        ...server,
+      // Load MCP servers from plugin (both manifest and .mcp.json)
+      const pluginMcpSource: Omit<EntitySource, "path"> & { pluginId: string } = {
+        type: "plugin",
         pluginId: plugin.id,
-      }));
-      allMcpServers.push(...mcpServersWithSource);
+      };
+      const [manifestMcps, mcpJsonMcps] = await Promise.all([
+        this.mcpLoader.loadMcpServersFromPlugin(plugin.path, pluginMcpSource),
+        this.mcpLoader.loadMcpServersFromPluginMcpJson(plugin.path, pluginMcpSource),
+      ]);
+      // Combine, with .mcp.json taking precedence over manifest by server name
+      const pluginMcpMap = new Map<string, McpServerWithSource>();
+      for (const mcp of manifestMcps) {
+        pluginMcpMap.set(mcp.name, mcp);
+      }
+      for (const mcp of mcpJsonMcps) {
+        pluginMcpMap.set(mcp.name, mcp);
+      }
+      allMcpServers.push(...pluginMcpMap.values());
     }
 
     // Load memory files (CLAUDE.md) and flatten to sorted list
