@@ -14,7 +14,7 @@ export type {
   ClaudeConfig,
   EntitySource,
   // CLAUDE.md context types
-  ClaudeMdScope,
+  MemoryFileScope,
   ClaudeMdFrontmatter,
   ClaudeMdFile,
   ClaudeMdNode,
