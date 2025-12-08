@@ -101,6 +101,8 @@ export class ExecutionEnvironment {
      * - Writes agent profile entities (.claude/ files)
      * - Writes workspace files
      * - Configures MCP servers
+     * -- Copies bundled MCPs into the environment and installs dependencies
+     * -- 
      * - Restores session transcript if resuming
      */
     async prepareSession(args: {
