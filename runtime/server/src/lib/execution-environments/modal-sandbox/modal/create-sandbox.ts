@@ -5,15 +5,15 @@
  */
 
 import type { Sandbox } from 'modal';
-import { env } from '../../../config/env.js';
-import { logger } from '../../../config/logger.js';
+import { env } from '../../../../config/env.js';
+import { logger } from '../../../../config/logger.js';
 import fs from 'fs';
 import path from 'path';
 import { fileURLToPath } from 'url';
 import type { ModalContext } from './client.js';
-import { AgentProfile } from '../../../types/agent-profiles.js';
-import { generateCopyFileCommands, generateSandboxAppInstallCommands } from '../../helpers/generate-docker-commands.js';
-import { normalizeString } from '../../util/normalize-string.js';
+import { AgentProfile } from '@ai-systems/shared-types';
+import { generateSandboxAppInstallCommands } from '../../../helpers/generate-docker-commands.js';
+import { normalizeString } from '../../../util/normalize-string.js';
 
 // ES module __dirname equivalent
 const __filename = fileURLToPath(import.meta.url);

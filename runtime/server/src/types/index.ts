@@ -39,15 +39,6 @@ export type {
   PersistedSessionData
 } from '@ai-systems/shared-types';
 
-// ============================================================================
-// Agent Profile Types
-// ============================================================================
-
-export type {
-  AgentProfileListData,
-  AgentProfile,
-} from './agent-profiles';
-
 
 // ============================================================================
 // Event Types (WebSocket)
