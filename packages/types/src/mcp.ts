@@ -1,3 +1,5 @@
+import type { McpHttpServerConfig, McpStdioServerConfig } from "@anthropic-ai/claude-agent-sdk";
+
 /**
  * MCP (Model Context Protocol) server configuration types
  */
@@ -10,23 +12,12 @@ export type McpEnvVars = Record<string, string>;
 /**
  * Configuration for an MCP server
  */
-export interface McpServerConfig {
-  /** Unique identifier for this server */
-  name: string;
-  /** Command to start the server */
-  command: string;
-  /** Arguments to pass to the command */
-  args?: string[];
-  /** Environment variables */
-  env?: McpEnvVars;
-  /** Working directory for the server */
-  cwd?: string;
-}
+export type McpServerConfig = McpHttpServerConfig | McpStdioServerConfig; 
 
 /**
  * MCP server defined in a plugin manifest
  */
-export interface PluginMcpServer extends McpServerConfig {
+export type PluginMcpServer = McpServerConfig & {
   /** Plugin this server belongs to */
   pluginId?: string;
-}
+};
