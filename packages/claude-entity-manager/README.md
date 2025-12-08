@@ -1,6 +1,6 @@
 # @hhopkins/claude-entity-manager
 
-A unified service for discovering, loading, and managing Claude Code entities (skills, commands, agents, hooks) and plugins.
+A unified service for discovering, loading, and managing Claude Code entities (skills, commands, agents, hooks, MCP servers) and plugins.
 
 ## Installation
 
@@ -28,11 +28,13 @@ console.log(`Found ${config.hooks.length} hooks`);
 ## Features
 
 - **Load entities** from global `~/.claude/`, project `./.claude/`, and enabled plugins
+- **MCP server support** - load and write MCP configurations from all sources
 - **Discover plugins** from marketplaces, cache, and registry
 - **Skills collections support** - marketplaces with skills at root level (like `anthropic-agent-skills`)
 - **Read/write plugin states** (enable/disable via settings.json)
 - **Install plugins/marketplaces** from GitHub, git URLs, or local directories
 - **Aggregate entities** respecting plugin enable/disable states
+- **Entity writing** - write skills, commands, agents, hooks, and MCP servers to project
 
 ## API
 
@@ -119,6 +121,79 @@ await manager.updateAllPlugins();
 await manager.uninstallPlugin("plugin@marketplace");
 ```
 
+### Agent Context (Recommended)
+
+The primary method for getting all entities including MCP servers:
+
+```typescript
+// Load complete agent context
+const context = await manager.loadAgentContext({
+  projectDir: process.cwd(),
+  includeSkillFileContents: true,
+});
+
+console.log(`Skills: ${context.skills.length}`);
+console.log(`Commands: ${context.commands.length}`);
+console.log(`Subagents: ${context.subagents.length}`);
+console.log(`Hooks: ${context.hooks.length}`);
+console.log(`MCP Servers: ${context.mcpServers.length}`);
+console.log(`Memory Files: ${context.memoryFiles.length}`);
+```
+
+### MCP Server Loading
+
+MCP servers are loaded from three sources (in order of precedence):
+
+1. **Global**: `~/.claude/.mcp.json`
+2. **Project**: `.claude/.mcp.json`
+3. **Plugins**: `plugin.json` mcpServers field or `.mcp.json` at plugin root
+
+```typescript
+// MCP servers are included in AgentContext
+const context = await manager.loadAgentContext();
+for (const mcp of context.mcpServers) {
+  console.log(`${mcp.name}: ${mcp.command} ${mcp.args?.join(' ')}`);
+}
+```
+
+### Entity Writing
+
+Write entities to the project's `.claude/` directory:
+
+```typescript
+import { EntityWriter } from "@hhopkins/claude-entity-manager";
+
+const writer = new EntityWriter(projectDir);
+
+// Write individual entities
+await writer.writeSkill(skill);
+await writer.writeCommand(command);
+await writer.writeAgent(agent);
+await writer.writeHook(hook);
+await writer.writeClaudeMd(content);
+await writer.writeMcpServers(mcpServers);
+
+// Write multiple at once
+await writer.writeEntities({
+  skills: [...],
+  commands: [...],
+  agents: [...],
+  hooks: [...],
+  claudeMd: "...",
+  mcpServers: [...],
+});
+```
+
+**MCP Server Writing** merges with existing config (new servers overwrite by name):
+
+```typescript
+// Write MCP servers - merges with existing .claude/.mcp.json
+await writer.writeMcpServers([
+  { name: "github", command: "npx", args: ["-y", "@anthropic/mcp-github"] },
+  { name: "postgres", command: "npx", args: ["-y", "@anthropic/mcp-postgres"] },
+]);
+```
+
 ### Registry Access
 
 ```typescript
@@ -182,6 +257,32 @@ interface Hook {
 }
 ```
 
+### MCP Server
+
+```typescript
+interface McpServerConfig {
+  name: string;
+  command: string;
+  args?: string[];
+  env?: Record<string, string>;
+  cwd?: string;
+}
+```
+
+**MCP Config File Format** (`.mcp.json`):
+
+```json
+{
+  "mcpServers": {
+    "github": {
+      "command": "npx",
+      "args": ["-y", "@anthropic/mcp-github"],
+      "env": { "GITHUB_TOKEN": "..." }
+    }
+  }
+}
+```
+
 ### Plugin
 
 ```typescript
@@ -215,6 +316,10 @@ interface Plugin {
 | `~/.claude/commands/*.md` | Global commands |
 | `~/.claude/agents/*.md` | Global agents |
 | `~/.claude/hooks/*.json` | Global hooks |
+| `~/.claude/.mcp.json` | Global MCP servers |
+| `./.claude/.mcp.json` | Project MCP servers |
+| `{plugin}/.mcp.json` | Plugin MCP servers (standalone) |
+| `{plugin}/.claude-plugin/plugin.json` | Plugin manifest (includes mcpServers) |
 
 ## License
 
