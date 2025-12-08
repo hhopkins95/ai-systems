@@ -5,6 +5,9 @@
  * and defines client-specific types for REST API and configuration.
  */
 
+import { AGENT_ARCHITECTURE_TYPE, AgentArchitectureSessionOptions, ConversationBlock, SessionRuntimeState } from '@ai-systems/shared-types';
+
+
 // ============================================================================
 // Re-export Shared Types from Backend Runtime
 // ============================================================================
@@ -17,43 +20,41 @@ export type {
   SandboxStatus,
   SessionRuntimeState,
   SessionListItem,
-  // Session options types
-  AgentArchitectureSessionOptions,
-  ClaudeSDKSessionOptions,
-  OpenCodeSessionOptions,
+
+  // WebSocket event types
+  ServerToClientEvents,
+  ClientToServerEvents,
+} from '@hhopkins/agent-server/types';
+
+// Re-export block/content/architecture types from shared types
+export type {
   // Block types
-  TextContent,
-  ImageContent,
-  ContentPart,
-  MessageContent,
-  ToolExecutionStatus,
-  BaseBlock,
+  ConversationBlock,
   UserMessageBlock,
   AssistantTextBlock,
   ToolUseBlock,
   ToolResultBlock,
   ThinkingBlock,
   SystemBlock,
-  SubagentStatus,
   SubagentBlock,
+  BaseBlock,
   ErrorBlock,
-  ConversationBlock,
-  // WebSocket event types
-  ServerToClientEvents,
-  ClientToServerEvents,
-} from '@hhopkins/agent-server/types';
 
-// Export type guards
-export {
-  isUserMessageBlock,
-  isAssistantTextBlock,
-  isToolUseBlock,
-  isToolResultBlock,
-  isThinkingBlock,
-  isSystemBlock,
-  isSubagentBlock,
-  isErrorBlock,
-} from '@hhopkins/agent-server/types';
+  // Content types
+  TextContent,
+  ImageContent,
+  ContentPart,
+  MessageContent,
+
+  // Status types
+  ToolExecutionStatus,
+  SubagentStatus,
+  
+  // Architecture session options
+  AgentArchitectureSessionOptions,
+} from '@ai-systems/shared-types';
+
+
 
 // ============================================================================
 // Client-Specific Types
@@ -105,7 +106,7 @@ export type StreamingBlock = StreamingContent;
  */
 export interface SubagentState {
   id: string;
-  blocks: import('@hhopkins/agent-server/types').ConversationBlock[];
+  blocks: ConversationBlock[]
   status: 'running' | 'completed' | 'failed';
   metadata: SessionMetadata;
 }
@@ -116,25 +117,25 @@ export interface SubagentState {
 
 export interface CreateSessionRequest {
   agentProfileRef: string;
-  architecture: import('@hhopkins/agent-server/types').AGENT_ARCHITECTURE_TYPE;
-  sessionOptions?: import('@hhopkins/agent-server/types').AgentArchitectureSessionOptions;
+  architecture: AGENT_ARCHITECTURE_TYPE;
+  sessionOptions?: AgentArchitectureSessionOptions;
 }
 
 export interface CreateSessionResponse {
   sessionId: string;
-  runtime: import('@hhopkins/agent-server/types').SessionRuntimeState;
+  runtime: SessionRuntimeState;
   createdAt: number;
-  sessionOptions?: import('@hhopkins/agent-server/types').AgentArchitectureSessionOptions;
+  sessionOptions?: AgentArchitectureSessionOptions;
 }
 
 export interface UpdateSessionOptionsRequest {
-  sessionOptions: import('@hhopkins/agent-server/types').AgentArchitectureSessionOptions;
+  sessionOptions: AgentArchitectureSessionOptions;
 }
 
 export interface UpdateSessionOptionsResponse {
   success: boolean;
   sessionId: string;
-  sessionOptions: import('@hhopkins/agent-server/types').AgentArchitectureSessionOptions;
+  sessionOptions: AgentArchitectureSessionOptions;
 }
 
 export interface SendMessageRequest {
