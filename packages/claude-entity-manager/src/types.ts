@@ -117,10 +117,10 @@ export interface ClaudeSettingsFile {
  * Plugin installation source specification (parsed from string)
  */
 export type PluginInstallSource =
-  | { type: "github"; owner: string; repo: string }
-  | { type: "git"; url: string }
-  | { type: "directory"; path: string }
-  | { type: "marketplace"; pluginName: string; marketplaceName: string };
+  // | { type: "github"; owner: string; repo: string }
+  // | { type: "git"; url: string }
+  // | { type: "directory"; path: string }
+  PluginSource | { type: "marketplace"; pluginName: string; marketplaceName: string };
 
 /**
  * Installation options
