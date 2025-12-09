@@ -123,8 +123,8 @@ async function main() {
         if (input.architectureType === 'opencode') {
 
             const require = createRequire(import.meta.url);
-            const adapterPackageJson = require('@ai-systems/opencode-claude-adapter');
-            const adapterPath = path.dirname(adapterPackageJson.main);
+            const adapterPackageJson = require.resolve('@ai-systems/opencode-claude-adapter');
+            const adapterPath = path.dirname(adapterPackageJson);
 
             const opencodeConfig : OpencodeSettings = {
                 plugin: [adapterPath],
