@@ -244,10 +244,12 @@ const program = new Command()
   .option('-c, --cwd <path>', 'Working directory', '/workspace')
   .option('-m, --model <model>', 'Model (provider/model for opencode)')
   .option('-t, --tools <json>', 'JSON array of allowed tools')
-  .option('--mcp-servers <json>', 'JSON object of MCP server configs')
-  .parse();
+  .option('--mcp-servers <json>', 'JSON object of MCP server configs');
 
-async function main() {
+export async function executeQuery() {
+  // Parse args when this function is called
+  program.parse();
+
   const opts = program.opts();
   const prompt = program.args[0];
 
@@ -267,6 +269,9 @@ async function main() {
     cwd: args.cwd,
   });
 
+  // Setup default signal handlers
+  setupSignalHandlers();
+
   try {
     if (args.architecture === 'claude-sdk') {
       await executeClaudeSdk(args);
@@ -282,9 +287,3 @@ async function main() {
     process.exit(1);
   }
 }
-
-// Setup default signal handlers
-setupSignalHandlers();
-
-// Run
-main();

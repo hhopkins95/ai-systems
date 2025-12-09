@@ -91,7 +91,7 @@ async function writeOpencodeTranscript(
 // Main
 // =============================================================================
 
-async function main() {
+export async function loadSessionTranscript() {
     const errors: string[] = [];
     try {
 
@@ -123,5 +123,3 @@ async function main() {
         process.exit(1);
     }
 }
-
-main();

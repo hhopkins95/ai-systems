@@ -51,7 +51,7 @@ export type LoadAgentProfileResult = {
 }
 
 
-async function main() {
+export async function loadAgentProfile() {
     try {
         const input = await readStdinJson<LoadAgentProfileInput>();
 
@@ -142,5 +142,3 @@ async function main() {
         process.exit(1);
     }
 }
-
-main();

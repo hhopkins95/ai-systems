@@ -31,8 +31,7 @@ const program = new Command()
     .description('Read and combine session transcript files')
     .argument('<session-id>', 'The session ID')
     .requiredOption('-a, --architecture <arch>', 'Architecture: claude-sdk or opencode')
-    .requiredOption('-p, --project-dir <path>', 'Project directory')
-    .parse();
+    .requiredOption('-p, --project-dir <path>', 'Project directory');
 
 
 
@@ -114,13 +113,17 @@ async function readOpencodeTranscript(sessionId: string, projectDir: string): Pr
 
 
 
-async function main() {
-    const opts = program.opts();
+export async function readSessionTranscript() {
+    // Parse args when this function is called
+    program.parse();
 
+    const opts = program.opts();
     const sessionId = program.args[0];
     const architecture = opts.architecture;
     const projectDir = opts.projectDir;
 
+    // Setup signal handlers
+    setupSignalHandlers();
 
     let transcript: string | null;
     try {
@@ -145,9 +148,3 @@ async function main() {
         process.exit(1);
     }
 }
-
-// Setup default signal handlers
-setupSignalHandlers();
-
-// Run
-main();

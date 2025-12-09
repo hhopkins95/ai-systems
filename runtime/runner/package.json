@@ -6,16 +6,14 @@
   "main": "./dist/index.js",
   "types": "./dist/index.d.ts",
   "bin": {
-    "execute-query": "./dist/execute-query.js",
-    "setup-session": "./dist/setup-session.js"
+    "runner": "./dist/runner.js"
   },
   "exports": {
     ".": {
       "types": "./dist/index.d.ts",
       "import": "./dist/index.js"
     },
-    "./execute-query": "./dist/execute-query.js",
-    "./setup-session": "./dist/setup-session.js"
+    "./runner": "./dist/runner.js"
   },
   "files": [
     "dist/"

@@ -18,6 +18,21 @@ const isWatch = process.argv.includes('--watch');
 /**
  * Common build options for all entry points
  */
+// Node.js built-in modules that must be external
+const nodeBuiltins = [
+  'assert', 'buffer', 'child_process', 'cluster', 'crypto', 'dgram', 'dns',
+  'domain', 'events', 'fs', 'http', 'https', 'net', 'os', 'path', 'punycode',
+  'querystring', 'readline', 'stream', 'string_decoder', 'tls', 'tty', 'url',
+  'util', 'v8', 'vm', 'zlib', 'module', 'worker_threads', 'perf_hooks',
+  'async_hooks', 'inspector', 'trace_events', 'constants', 'process', 'timers',
+];
+
+// Include both bare and node: prefixed versions
+const externalModules = [
+  ...nodeBuiltins,
+  ...nodeBuiltins.map(m => `node:${m}`),
+];
+
 const commonOptions: esbuild.BuildOptions = {
   bundle: true,
   platform: 'node',
@@ -25,11 +40,12 @@ const commonOptions: esbuild.BuildOptions = {
   format: 'esm',
   sourcemap: true,
   minify: false, // Keep readable for debugging in sandbox
-  // Bundle EVERYTHING - no externals for self-contained deployment
-  external: [],
-  // Handle Node.js built-ins
-  define: {
-    'import.meta.url': 'import.meta.url',
+  // Keep Node.js built-ins external (they're always available in Node)
+  external: externalModules,
+  // Inject createRequire for CJS modules that use require() for Node.js built-ins
+  banner: {
+    js: `import { createRequire as __createRequire } from 'module';
+const require = __createRequire(import.meta.url);`,
   },
   // Resolve workspace packages
   alias: {
@@ -43,15 +59,13 @@ const commonOptions: esbuild.BuildOptions = {
 
 /**
  * CLI entry points (with shebang banner for executable scripts)
+ *
+ * Single unified runner bundle that includes all CLI commands.
  */
 const cliEntryPoints = [
   {
-    input: join(__dirname, 'src/cli/execute-query.ts'),
-    output: join(__dirname, 'dist/execute-query.js'),
-  },
-  {
-    input: join(__dirname, 'src/cli/setup-session.ts'),
-    output: join(__dirname, 'dist/setup-session.js'),
+    input: join(__dirname, 'src/cli/runner.ts'),
+    output: join(__dirname, 'dist/runner.js'),
   },
 ];
 
@@ -66,7 +80,7 @@ const libEntryPoint = {
 async function build() {
   console.log('Building agent-runner bundles...');
 
-  // Build CLI scripts with shebang banner
+  // Build CLI scripts with shebang + require polyfill
   for (const entry of cliEntryPoints) {
     console.log(`  Building ${entry.output}...`);
     await esbuild.build({
@@ -74,7 +88,9 @@ async function build() {
       entryPoints: [entry.input],
       outfile: entry.output,
       banner: {
-        js: '#!/usr/bin/env node',
+        js: `#!/usr/bin/env node
+import { createRequire as __createRequire } from 'module';
+const require = __createRequire(import.meta.url);`,
       },
     });
   }
@@ -93,7 +109,7 @@ async function build() {
 async function watch() {
   console.log('Watching for changes...');
 
-  // Create contexts for CLI scripts (with shebang)
+  // Create contexts for CLI scripts (with shebang + require polyfill)
   const cliContexts = await Promise.all(
     cliEntryPoints.map((entry) =>
       esbuild.context({
@@ -101,7 +117,9 @@ async function watch() {
         entryPoints: [entry.input],
         outfile: entry.output,
         banner: {
-          js: '#!/usr/bin/env node',
+          js: `#!/usr/bin/env node
+import { createRequire as __createRequire } from 'module';
+const require = __createRequire(import.meta.url);`,
         },
       })
     )
