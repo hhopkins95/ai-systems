@@ -65,10 +65,8 @@ export interface HookMatcher {
 export interface Hook {
   /** Hook name (derived from filename) */
   name: string;
-  /** Path to the hook file */
-  path: string;
-  /** Where this hook came from */
-  source: EntitySource;
   /** Map of event types to their matchers */
   hooks: Partial<Record<HookEvent, HookMatcher[]>>;
 }
+
+export type HookWithSource = Hook & {source?: EntitySource};

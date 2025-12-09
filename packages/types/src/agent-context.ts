@@ -4,7 +4,7 @@
  */
 
 import type { Agent, Command, Hook, MemoryFile, Skill } from "./entities/index.js";
-import type { McpServerConfig } from "./mcp.js";
+import type { McpServer, McpServerConfig } from "./entities/mcp.js";
 import { PluginSource } from "./plugin.js";
 import { WorkspaceFile } from "./runtime/session.js";
 
@@ -39,7 +39,7 @@ export interface AgentContext {
 
   // Integrations
   /** MCP servers to connect to */
-  mcpServers: McpServerConfig[];
+  mcpServers: McpServer[];
 
   // Memory/context
   /** Memory files (CLAUDE.md) in order of precedence */

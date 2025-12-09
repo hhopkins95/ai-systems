@@ -19,7 +19,7 @@ export interface MemoryFile {
   /** Parsed YAML frontmatter */
   frontmatter?: Record<string, unknown>;
   /** Where this memory file is scoped */
-  scope: MemoryFileScope;
+  scope?: MemoryFileScope;
   /** For nested files, path relative to project root */
   relativePath?: string;
   /** Depth level (0 for global/project, 1+ for nested) */

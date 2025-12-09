@@ -26,14 +26,11 @@ export interface AgentMetadata {
 export interface Agent {
   /** Agent name (derived from filename) */
   name: string;
-  /** Path to the agent file */
-  path: string;
-  /** Where this agent came from */
-  source: EntitySource;
-  /** Agent description */
-  description?: string;
   /** The markdown content (system prompt, after frontmatter) */
   content: string;
   /** Parsed frontmatter metadata */
   metadata: AgentMetadata;
 }
+
+
+export type AgentWithSource = Agent & {source?: EntitySource};

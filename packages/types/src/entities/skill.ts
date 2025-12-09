@@ -5,16 +5,6 @@
 import type { EntitySource } from "../sources.js";
 
 /**
- * A supporting file bundled with a skill
- */
-export interface SkillFile {
-  /** Path relative to the skill directory */
-  relativePath: string;
-  /** File content (optionally loaded) */
-  content?: string;
-}
-
-/**
  * Skill metadata from YAML frontmatter
  */
 export interface SkillMetadata {
@@ -42,14 +32,6 @@ export interface SkillMetadata {
 export interface Skill {
   /** Skill name (derived from directory or frontmatter) */
   name: string;
-  /** Path to the skill directory */
-  path: string;
-  /** Where this skill came from */
-  source: EntitySource;
-  /** Skill description */
-  description: string;
-  /** Semantic version */
-  version?: string;
   /** The markdown content of the skill (after frontmatter) */
   content: string;
   /** Parsed frontmatter metadata */
@@ -59,3 +41,5 @@ export interface Skill {
   /** File contents if loaded (keyed by relative path) */
   fileContents?: Record<string, string>;
 }
+
+export type SkillWithSource = Skill & {source?: EntitySource};

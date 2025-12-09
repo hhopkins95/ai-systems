@@ -9,11 +9,11 @@ export type EntitySourceType = "plugin" | "project" | "global";
  */
 export interface EntitySource {
   /** The type of source */
-  type: EntitySourceType;
+  type?: EntitySourceType;
   /** Plugin ID if type is "plugin" (e.g., "frontend-design@claude-code-plugins") */
   pluginId?: string;
   /** Marketplace name if from a plugin in a marketplace */
   marketplace?: string;
   /** Absolute path to the entity file */
-  path: string;
+  path?: string;
 }

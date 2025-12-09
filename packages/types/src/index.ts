@@ -12,7 +12,7 @@ export * from "./sources.js";
 export * from "./plugin.js";
 
 // MCP types
-export * from "./mcp.js";
+export * from "./entities/mcp.js";
 
 // Entity types
 export * from "./entities/index.js";

@@ -26,14 +26,11 @@ export interface CommandMetadata {
 export interface Command {
   /** Command name (derived from filename) */
   name: string;
-  /** Path to the command file */
-  path: string;
-  /** Where this command came from */
-  source: EntitySource;
-  /** Command description */
-  description?: string;
   /** The markdown content (after frontmatter) */
   content: string;
   /** Parsed frontmatter metadata */
   metadata: CommandMetadata;
 }
+
+
+export type CommandWithSource = Command & {source?: EntitySource};
