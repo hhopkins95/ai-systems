@@ -131,43 +131,60 @@ export class MCPLoader {
       }
 
       const serverConfig = config as Record<string, unknown>;
+      const mcpServer = this.buildServerConfig(name, serverConfig, source);
 
-      // Build McpServerWithSource from the config object
-      const mcpServer: McpServerWithSource = {
-        name,
-        source,
-      };
-
-      // Type field (defaults to 'stdio' if not specified)
-      if (serverConfig.type === "http") {
-        mcpServer.type = "http";
-      } else if (serverConfig.type === "stdio") {
-        mcpServer.type = "stdio";
+      if (mcpServer) {
+        result.push(mcpServer);
       }
-      // If no type specified, infer from fields: url means http, command means stdio
-
-      // Stdio server fields
-      if (typeof serverConfig.command === "string") {
-        mcpServer.command = serverConfig.command;
-      }
-      if (Array.isArray(serverConfig.args)) {
-        mcpServer.args = serverConfig.args as string[];
-      }
-      if (serverConfig.env && typeof serverConfig.env === "object") {
-        mcpServer.env = serverConfig.env as Record<string, string>;
-      }
-
-      // HTTP server fields
-      if (typeof serverConfig.url === "string") {
-        mcpServer.url = serverConfig.url;
-      }
-      if (serverConfig.headers && typeof serverConfig.headers === "object") {
-        mcpServer.headers = serverConfig.headers as Record<string, string>;
-      }
-
-      result.push(mcpServer);
     }
 
     return result;
+  }
+
+  /**
+   * Build a properly typed McpServerWithSource from raw config
+   */
+  private buildServerConfig(
+    name: string,
+    config: Record<string, unknown>,
+    source: EntitySource
+  ): McpServerWithSource | null {
+    const type = config.type as string | undefined;
+    const url = config.url as string | undefined;
+    const command = config.command as string | undefined;
+
+    // HTTP server: has type 'http' or has url without command
+    if (type === "http" || (url && !command)) {
+      if (!url) {
+        console.warn(`MCP server "${name}" is http type but missing url`);
+        return null;
+      }
+      return {
+        name,
+        source,
+        type: "http",
+        url,
+        ...(config.headers && typeof config.headers === "object"
+          ? { headers: config.headers as Record<string, string> }
+          : {}),
+      };
+    }
+
+    // Stdio server: has command (type 'stdio' is optional)
+    if (command) {
+      return {
+        name,
+        source,
+        command,
+        ...(type === "stdio" ? { type: "stdio" as const } : {}),
+        ...(Array.isArray(config.args) ? { args: config.args as string[] } : {}),
+        ...(config.env && typeof config.env === "object"
+          ? { env: config.env as Record<string, string> }
+          : {}),
+      };
+    }
+
+    console.warn(`MCP server "${name}" has no command or url, skipping`);
+    return null;
   }
 }
