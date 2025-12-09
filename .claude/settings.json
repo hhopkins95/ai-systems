@@ -9,7 +9,7 @@
     "claude-opus-4-5-migration@claude-code-plugins": false,
     "security-guidance@claude-code-plugins": false,
     "ralph-wiggum@claude-code-plugins": true,
-    "pr-review-toolkit@claude-code-plugins": false,
+    "pr-review-toolkit@claude-code-plugins": true,
     "plugin-dev@claude-code-plugins": false,
     "learning-output-style@claude-code-plugins": false,
     "hookify@claude-code-plugins": false,
