@@ -26,9 +26,10 @@
 import { mkdir, writeFile } from 'fs/promises';
 import { join } from 'path';
 import { readStdinJson } from './shared/input.js';
-import { logDebug, writeSetupResult } from './shared/output.js';
+import { logDebug } from './shared/output.js';
 import { setupExceptionHandlers } from './shared/signal-handlers.js';
 import { AGENT_ARCHITECTURE_TYPE, AgentProfile } from '@ai-systems/shared-types';
+import { ClaudeEntityManager} from '@hhopkins/claude-entity-manager';
 
 // Set up exception handlers early
 setupExceptionHandlers();
@@ -48,12 +49,29 @@ export type LoadAgentProfileResult = {
 // =============================================================================
 // Main
 // =============================================================================
+const setupClaudeAgentProfile = async (projectDirPath: string, agentProfile: AgentProfile) => {
+}
+
+
+
 
 async function main() {
-    const filesWritten: string[] = [];
-    const errors: string[] = [];
-
     try {
+        const input = await readStdinJson<LoadAgentProfileInput>();
+
+        // always just setup the profile for claude. If opencode, we just need to add the adapter plugin
+        const claudeEntityManager = new ClaudeEntityManager({
+            projectDir : input.projectDirPath,
+        });
+
+
+        // install all of the plugins for the agent profile
+        for (const plugin of input.agentProfile.plugins ?? []) {
+            // await claudeEntityManager.installPlugin({
+
+            // });
+        }
+
 
 
 
@@ -68,7 +86,6 @@ async function main() {
             errors,
         };
 
-        writeSetupResult(result);
         process.exit(1);
     }
 }

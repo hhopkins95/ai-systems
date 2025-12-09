@@ -59,9 +59,9 @@ import type {
 
 // ==================== CLAUDE.MD (INTERNAL) ====================
 
-/**
- * Frontmatter parsed from CLAUDE.md files
- */
+// /**
+//  * Frontmatter parsed from CLAUDE.md files
+//  */
 export interface ClaudeMdFrontmatter {
   title?: string;
   description?: string;
@@ -329,36 +329,3 @@ export interface ClaudeEntityManagerOptions {
   includeDisabled?: boolean;
 }
 
-// ==================== INTERNAL PLUGIN TYPE (LEGACY) ====================
-
-/**
- * Internal plugin representation during discovery
- * Use the Plugin type from shared-types for the public API
- */
-export interface InternalPlugin {
-  /** Unique plugin ID: "plugin-name@marketplace-name" or "plugin-name" */
-  id: string;
-  /** Plugin name */
-  name: string;
-  /** Marketplace name (if from marketplace) */
-  marketplace?: string;
-  /** Plugin description */
-  description?: string;
-  /** Plugin version */
-  version?: string;
-  /** Plugin source info */
-  source: PluginSource;
-  /** Absolute path to plugin directory */
-  path: string;
-  /** Whether plugin is enabled (legacy - use enabledStatus) */
-  enabled: boolean;
-  /** Entity counts */
-  skillCount: number;
-  commandCount: number;
-  agentCount: number;
-  hookCount: number;
-  /** Has MCP servers */
-  hasMcpServers: boolean;
-  /** Installation info from registry */
-  installInfo?: InstalledPluginInfo;
-}
