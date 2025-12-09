@@ -39,11 +39,10 @@ async function main() {
     // Create agent runtime
     const runtime = await createAgentRuntime({
       persistence,
-      modal: {
-        tokenId: config.modal.tokenId!,
-        tokenSecret: config.modal.tokenSecret!,
-        appName: "agent-runtime-example",
+      executionEnvironment: {
+        type : "modal-sandbox", 
       },
+
       idleTimeoutMs: 15 * 60 * 1000, // 15 minutes
       syncIntervalMs: 30 * 1000, // 30 seconds
     });

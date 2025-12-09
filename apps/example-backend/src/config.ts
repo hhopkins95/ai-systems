@@ -1,10 +1,13 @@
-import type { AgentProfile } from "@hhopkins/agent-server";
+import type { AgentProfile } from "@hhopkins/agent-server/types";
 import path from "path";
 import { fileURLToPath } from "url";
 
 // ES module __dirname equivalent
 const __filename = fileURLToPath(import.meta.url);
 const __dirname = path.dirname(__filename);
+
+
+
 
 /**
  * Example agent profile configuration for Claude SDK
@@ -29,22 +32,15 @@ export const exampleAgentProfile: AgentProfile = {
 
 Be concise and helpful in your responses.`,
 
-  // Enable core tools for the agent
-  tools: [
-    "Read",    // Read files
-    "Write",   // Create new files
-    "Edit",    // Edit existing files
-    "Bash",    // Execute shell commands
-    "Grep",    // Search file contents
-    "Glob",    // Find files by pattern
-  ],
-
   // Skills configuration
+ customEntities : { 
   skills: [
     {
       name: "echo-info",
+      metadata : {
       description: "A simple skill that echoes back information to verify skills are working.",
-      skillMd: `# Echo Info Skill
+      },
+      content: `# Echo Info Skill
 
 This is a test skill to verify skills are properly loaded.
 
@@ -55,36 +51,30 @@ When invoked, this skill should:
 
 ## Verification
 If you can read this, the skill system is working correctly.`,
-      supportingFiles: [
-        {
-          relativePath: "examples/sample.txt",
-          content: "Sample supporting file for echo-info skill."
-        }
-      ]
+      files: ["examples/sample.txt"], 
+      fileContents: {
+        "examples/sample.txt": "Sample supporting file for echo-info skill.",
+      }, 
     }
   ],
+},
 
   // Bundled MCP servers
   bundledMCPs: [
     {
       name: "echo-server",
       description: "A simple echo MCP server for testing MCP integration",
-      localProjectPath: path.resolve(__dirname, "../mcps/echo-server"),
+      files: [
+        {
+          path: path.resolve(__dirname, "../mcps/echo-server/src/index.ts"),
+          content: "console.log('Hello, world!');"
+        }
+      ],
       startCommand: "tsx src/index.ts",
       installCommand: "npm install"
     }
   ],
 
-  // Optional: npm packages to install in the sandbox
-  // npmDependencies: ["lodash", "axios"],
-
-  // Optional: pip packages to install in the sandbox
-  // pipDependencies: ["requests", "pandas"],
-
-  // Optional: Environment variables for the sandbox
-  // environmentVariables: {
-  //   API_KEY: "your-api-key",
-  // },
 };
 
 /**
