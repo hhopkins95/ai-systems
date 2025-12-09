@@ -40,7 +40,16 @@ export interface EnvironmentPrimitive {
         
     }
 
-    exec : (command : string[], options? : {cwd? : string}) => Promise<{stdout : ReadableStream, stderr : ReadableStream, wait : () => Promise<number> }>,
+    exec : (command : string[], options? : {cwd? : string}) => Promise<{
+        stdout : ReadableStream,
+        stderr : ReadableStream,
+        stdin: {
+            writeText: (text: string) => Promise<void>;
+            writeBytes: (data: Uint8Array) => Promise<void>;
+            close: () => Promise<void>;
+        },
+        wait : () => Promise<number>
+    }>,
 
     readFile : (path : string) => Promise<string | null>,
 

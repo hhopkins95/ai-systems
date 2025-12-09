@@ -3,8 +3,8 @@
  * for an agent running in a given project context
  */
 
-import type { Agent, AgentWithSource, Command, CommandWithSource, Hook, HookWithSource, MemoryFile, Skill, SkillWithSource } from "./entities/index.js";
-import type { McpServer, McpServerConfig, McpServerWithSource } from "./entities/mcp.js";
+import type { Agent, AgentWithSource, Command, CommandWithSource, HookWithSource, MemoryFile, Skill, SkillWithSource } from "./entities/index.js";
+import type { McpServer, McpServerWithSource } from "./entities/mcp.js";
 import { PluginSource } from "./plugin.js";
 import { WorkspaceFile } from "./runtime/session.js";
 

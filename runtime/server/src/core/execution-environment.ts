@@ -12,6 +12,24 @@ import { getRunnerBundleContent } from "@hhopkins/agent-runner";
 import { join } from "path";
 
 /**
+ * Helper to read a ReadableStream to string
+ */
+async function readStreamToString(stream: ReadableStream): Promise<string> {
+    const reader = stream.getReader();
+    const chunks: string[] = [];
+    try {
+        while (true) {
+            const { done, value } = await reader.read();
+            if (done) break;
+            chunks.push(typeof value === 'string' ? value : new TextDecoder().decode(value));
+        }
+    } finally {
+        reader.releaseLock();
+    }
+    return chunks.join('');
+}
+
+/**
  * Event emitted when a workspace file changes
  */
 export interface WorkspaceFileEvent {
@@ -56,6 +74,7 @@ export class ExecutionEnvironment {
     private readonly architecture: AgentArchitecture;
     private readonly sessionId: string;
     private readonly agentProfile: AgentProfile;
+    private transcriptUpdateCallback?: (event: TranscriptChangeEvent) => void;
 
     private constructor(
         primitives: EnvironmentPrimitive,
@@ -109,7 +128,7 @@ export class ExecutionEnvironment {
      * - Writes workspace files
      * - Configures MCP servers
      * -- Copies bundled MCPs into the environment and installs dependencies
-     * -- 
+     * --
      * - Restores session transcript if resuming
      */
     async prepareSession(args: {
@@ -119,7 +138,59 @@ export class ExecutionEnvironment {
         sessionTranscript?: string;
         sessionOptions?: AgentArchitectureSessionOptions;
     }): Promise<void> {
-        throw new Error("Not implemented - requires runner setup-session script integration");
+        const { APP_DIR, WORKSPACE_DIR } = this.primitives.getBasePaths();
+
+        // 1. Write workspace files
+        if (args.workspaceFiles.length > 0) {
+            await this.primitives.writeFiles(
+                args.workspaceFiles.map(f => ({
+                    path: join(WORKSPACE_DIR, f.path),
+                    content: f.content
+                }))
+            );
+        }
+
+        // 2. Load agent profile via runner
+        const loadProfileInput = {
+            projectDirPath: WORKSPACE_DIR,
+            sessionId: args.sessionId,
+            agentProfile: args.agentProfile,
+            architectureType: this.architecture
+        };
+
+        const profileProcess = await this.primitives.exec(
+            ['node', join(APP_DIR, 'runner.js'), 'load-agent-profile'],
+            { cwd: APP_DIR }
+        );
+        await profileProcess.stdin.writeText(JSON.stringify(loadProfileInput));
+        await profileProcess.stdin.close();
+        const exitCode = await profileProcess.wait();
+        if (exitCode !== 0) {
+            const stderr = await readStreamToString(profileProcess.stderr);
+            throw new Error(`Failed to load agent profile: ${stderr}`);
+        }
+
+        // 3. Load session transcript if resuming
+        if (args.sessionTranscript) {
+            const loadTranscriptInput = {
+                projectDirPath: WORKSPACE_DIR,
+                sessionTranscript: args.sessionTranscript,
+                sessionId: args.sessionId,
+                architectureType: this.architecture
+            };
+
+            const transcriptProcess = await this.primitives.exec(
+                ['node', join(APP_DIR, 'runner.js'), 'load-session-transcript'],
+                { cwd: APP_DIR }
+            );
+            await transcriptProcess.stdin.writeText(JSON.stringify(loadTranscriptInput));
+            await transcriptProcess.stdin.close();
+            const transcriptExit = await transcriptProcess.wait();
+            if (transcriptExit !== 0) {
+                const stderr = await readStreamToString(transcriptProcess.stderr);
+                throw new Error(`Failed to load session transcript: ${stderr}`);
+            }
+        }
     }
 
     /**
@@ -130,7 +201,73 @@ export class ExecutionEnvironment {
         query: string;
         options?: AgentArchitectureSessionOptions;
     }): AsyncGenerator<StreamEvent> {
-        throw new Error("Not implemented - requires runner execute-query script integration");
+        const { APP_DIR, WORKSPACE_DIR } = this.primitives.getBasePaths();
+
+        const cmdArgs = [
+            'node', join(APP_DIR, 'runner.js'), 'execute-query',
+            args.query,
+            '--architecture', this.architecture,
+            '--session-id', this.sessionId,
+            '--cwd', WORKSPACE_DIR
+        ];
+
+        // Add model if provided in options
+        if (args.options?.model) {
+            cmdArgs.push('--model', args.options.model);
+        }
+
+        const process = await this.primitives.exec(cmdArgs, { cwd: APP_DIR });
+        const reader = process.stdout.getReader();
+        let buffer = '';
+
+        try {
+            while (true) {
+                const { done, value } = await reader.read();
+                if (done) break;
+
+                // Convert value to string if it's a Uint8Array
+                const chunk = typeof value === 'string' ? value : new TextDecoder().decode(value);
+                buffer += chunk;
+                const lines = buffer.split('\n');
+                buffer = lines.pop() || '';
+
+                for (const line of lines) {
+                    if (line.trim()) {
+                        try {
+                            yield JSON.parse(line) as StreamEvent;
+                        } catch {
+                            // Skip malformed JSON lines
+                        }
+                    }
+                }
+            }
+
+            // Process any remaining buffer
+            if (buffer.trim()) {
+                try {
+                    yield JSON.parse(buffer) as StreamEvent;
+                } catch {
+                    // Skip malformed JSON
+                }
+            }
+        } finally {
+            reader.releaseLock();
+            await process.wait();
+            // Send transcript update after query completes
+            await this.sendTranscriptUpdate();
+        }
+    }
+
+    /**
+     * Helper to send transcript update to registered callback
+     */
+    private async sendTranscriptUpdate(): Promise<void> {
+        if (this.transcriptUpdateCallback) {
+            const transcript = await this.readSessionTranscript();
+            if (transcript) {
+                this.transcriptUpdateCallback({ content: transcript });
+            }
+        }
     }
 
     /**
@@ -138,7 +275,22 @@ export class ExecutionEnvironment {
      * Returns the raw transcript content or null if not available
      */
     async readSessionTranscript(): Promise<string | null> {
-        throw new Error("Not implemented - requires runner read-transcript script");
+        const { APP_DIR, WORKSPACE_DIR } = this.primitives.getBasePaths();
+
+        const process = await this.primitives.exec([
+            'node', join(APP_DIR, 'runner.js'), 'read-session-transcript',
+            this.sessionId,
+            '--architecture', this.architecture,
+            '--project-dir', WORKSPACE_DIR
+        ], { cwd: APP_DIR });
+
+        const exitCode = await process.wait();
+        if (exitCode !== 0) {
+            return null;
+        }
+
+        const stdout = await readStreamToString(process.stdout);
+        return stdout || null;
     }
 
     /**
@@ -192,11 +344,12 @@ export class ExecutionEnvironment {
 
     /**
      * Watch for session transcript changes
-     * Callback is invoked when the transcript is updated
-     * Promise resolves when watcher is ready
+     * Callback is invoked when the transcript is updated (at end of each executeQuery)
+     * Promise resolves immediately - callback will be invoked after each query completes
      */
     async watchSessionTranscriptChanges(callback: (event: TranscriptChangeEvent) => void): Promise<void> {
-        throw new Error("Not implemented - requires runner transcript watch integration");
+        this.transcriptUpdateCallback = callback;
+        // Callback will be invoked at the end of executeQuery() via sendTranscriptUpdate()
     }
 
     /**
