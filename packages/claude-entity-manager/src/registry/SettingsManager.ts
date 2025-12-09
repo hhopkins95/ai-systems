@@ -1,6 +1,6 @@
 import { readFile, writeFile, mkdir } from "fs/promises";
 import { dirname } from "path";
-import type { ClaudeSettingsFile } from "../types.js";
+import type { ClaudeSettings } from "@ai-systems/shared-types";
 import { getSettingsPath, getProjectSettingsPath } from "../utils/paths.js";
 
 /**
@@ -18,14 +18,14 @@ export class SettingsManager {
   /**
    * Get global settings
    */
-  async getGlobalSettings(): Promise<ClaudeSettingsFile> {
+  async getGlobalSettings(): Promise<ClaudeSettings> {
     return this.readSettings(getSettingsPath(this.claudeDir));
   }
 
   /**
    * Get project settings
    */
-  async getProjectSettings(): Promise<ClaudeSettingsFile> {
+  async getProjectSettings(): Promise<ClaudeSettings> {
     if (!this.projectDir) {
       return {};
     }
@@ -35,7 +35,7 @@ export class SettingsManager {
   /**
    * Get merged settings (global + project, project overrides global)
    */
-  async getSettings(): Promise<ClaudeSettingsFile> {
+  async getSettings(): Promise<ClaudeSettings> {
     const globalSettings = await this.getGlobalSettings();
     const projectSettings = await this.getProjectSettings();
 
@@ -119,10 +119,10 @@ export class SettingsManager {
   /**
    * Read settings from a file
    */
-  private async readSettings(path: string): Promise<ClaudeSettingsFile> {
+  private async readSettings(path: string): Promise<ClaudeSettings> {
     try {
       const content = await readFile(path, "utf-8");
-      return JSON.parse(content) as ClaudeSettingsFile;
+      return JSON.parse(content) as ClaudeSettings;
     } catch {
       return {};
     }
@@ -131,7 +131,7 @@ export class SettingsManager {
   /**
    * Write settings to a file
    */
-  private async writeSettings(path: string, settings: ClaudeSettingsFile): Promise<void> {
+  private async writeSettings(path: string, settings: ClaudeSettings): Promise<void> {
     await mkdir(dirname(path), { recursive: true });
     await writeFile(path, JSON.stringify(settings, null, 2), "utf-8");
   }

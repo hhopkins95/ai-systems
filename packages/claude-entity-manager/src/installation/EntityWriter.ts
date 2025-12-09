@@ -8,6 +8,8 @@ import type {
   Hook,
   HookEvent,
   HookMatcher,
+  ClaudeMcpJsonConfig,
+  McpServerConfig,
 } from "@ai-systems/shared-types";
 import {
   getSkillsDir,
@@ -17,7 +19,6 @@ import {
   getProjectClaudeDir,
   getMcpConfigPath,
 } from "../utils/paths.js";
-import type { McpJsonConfig, McpServerWithSource } from "../loaders/MCPLoader.js";
 
 /**
  * Result of a write operation
@@ -171,10 +172,10 @@ export class EntityWriter {
     const mcpPath = getMcpConfigPath(this.claudeDir);
 
     // Read existing config for merging
-    let existingConfig: McpJsonConfig = { mcpServers: {} };
+    let existingConfig: ClaudeMcpJsonConfig = { mcpServers: {} };
     try {
       const content = await readFile(mcpPath, "utf-8");
-      existingConfig = JSON.parse(content) as McpJsonConfig;
+      existingConfig = JSON.parse(content) as ClaudeMcpJsonConfig;
       if (!existingConfig.mcpServers) {
         existingConfig.mcpServers = {};
       }
@@ -192,7 +193,7 @@ export class EntityWriter {
         // HTTP server
         mergedServers[server.name] = {
           type: "http",
-          url: server.url,
+          url: server.url ?? "",
           headers: server.headers,
         };
       } else {
@@ -211,11 +212,13 @@ export class EntityWriter {
         if (server.type === "stdio") {
           stdioConfig.type = "stdio";
         }
-        mergedServers[server.name] = stdioConfig;
+        if (stdioConfig.type) {
+          mergedServers[server.name] = stdioConfig as McpServerConfig
+        }
       }
     }
 
-    const config: McpJsonConfig = { mcpServers: mergedServers };
+    const config: ClaudeMcpJsonConfig = { mcpServers: mergedServers };
     await writeFile(mcpPath, JSON.stringify(config, null, 2), "utf-8");
 
     return { path: mcpPath, created: Object.keys(existingConfig.mcpServers || {}).length === 0 };
@@ -330,7 +333,7 @@ export class EntityWriter {
       for (const matcher of matchers) {
         const exists = merged[hookEvent]!.some(
           (m) => m.matcher === matcher.matcher &&
-                 JSON.stringify(m.hooks) === JSON.stringify(matcher.hooks)
+            JSON.stringify(m.hooks) === JSON.stringify(matcher.hooks)
         );
         if (!exists) {
           merged[hookEvent]!.push(matcher);
