@@ -21,7 +21,7 @@ import type {
   RuntimeSessionData,
   PersistedSessionListData,
   WorkspaceFile,
-  AGENT_ARCHITECTURE_TYPE,
+  AgentArchitecture,
   SessionRuntimeState,
   SandboxStatus,
   CreateSessionArgs,
@@ -66,7 +66,7 @@ export class AgentSession {
 
   // Agent Details
   private agentProfile: AgentProfile;
-  private architecture: AGENT_ARCHITECTURE_TYPE;
+  private architecture: AgentArchitecture;
 
   // Services
   private readonly eventBus: EventBus;
@@ -177,7 +177,7 @@ export class AgentSession {
       onSandboxTerminated?: OnSandboxTerminatedCallback;
 
       // Session Data
-      architecture: AGENT_ARCHITECTURE_TYPE;
+      architecture: AgentArchitecture;
       sessionId: string;
       blocks: ConversationBlock[];
       subagents: { id: string; blocks: ConversationBlock[] }[];

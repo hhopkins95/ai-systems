@@ -8,7 +8,7 @@
 import { useContext, useCallback, useState, useEffect, useMemo } from 'react';
 import { AgentServiceContext } from '../context/AgentServiceContext';
 import type {
-  AGENT_ARCHITECTURE_TYPE,
+  AgentArchitecture,
   SessionRuntimeState,
   AgentArchitectureSessionOptions,
 } from '../types';
@@ -41,7 +41,7 @@ export interface UseAgentSessionResult {
    */
   createSession: (
     agentProfileRef: string,
-    architecture: AGENT_ARCHITECTURE_TYPE,
+    architecture: AgentArchitecture,
     sessionOptions?: AgentArchitectureSessionOptions
   ) => Promise<string>;
 
@@ -152,7 +152,7 @@ export function useAgentSession(sessionId?: string): UseAgentSessionResult {
   const createSession = useCallback(
     async (
       agentProfileRef: string,
-      architecture: AGENT_ARCHITECTURE_TYPE,
+      architecture: AgentArchitecture,
       sessionOptions?: AgentArchitectureSessionOptions
     ): Promise<string> => {
       setIsLoading(true);

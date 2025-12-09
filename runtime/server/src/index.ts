@@ -38,7 +38,7 @@ export type {
   
   RuntimeSessionData,
   WorkspaceFile,
-  AGENT_ARCHITECTURE_TYPE,
+  AgentArchitecture,
 
   // Agent profile types
   // Event types

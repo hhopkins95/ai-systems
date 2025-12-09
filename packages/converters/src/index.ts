@@ -76,7 +76,7 @@ export * from './types.js';
 // Unified Transcript Parsing
 // =============================================================================
 
-import type { AGENT_ARCHITECTURE_TYPE, ParsedTranscript } from '@ai-systems/shared-types';
+import type { AgentArchitecture, ParsedTranscript } from '@ai-systems/shared-types';
 import { parseCombinedClaudeTranscript } from './claude-sdk/index.js';
 import { parseOpenCodeTranscriptFile } from './opencode/index.js';
 
@@ -91,7 +91,7 @@ import { parseOpenCodeTranscriptFile } from './opencode/index.js';
  * @returns Parsed blocks and subagent conversations
  */
 export function parseTranscript(
-  architecture: AGENT_ARCHITECTURE_TYPE,
+  architecture: AgentArchitecture,
   rawTranscript: string
 ): ParsedTranscript {
   if (!rawTranscript) {
@@ -99,7 +99,7 @@ export function parseTranscript(
   }
 
   switch (architecture) {
-    case 'claude-agent-sdk':
+    case 'claude-sdk':
       return parseCombinedClaudeTranscript(rawTranscript);
     case 'opencode':
       return parseOpenCodeTranscriptFile(rawTranscript);

@@ -28,7 +28,7 @@ import path, { join } from 'path';
 import { readStdinJson } from './shared/input.js';
 import { logDebug, writeError } from './shared/output.js';
 import { setupExceptionHandlers } from './shared/signal-handlers.js';
-import { AGENT_ARCHITECTURE_TYPE, AgentProfile, ClaudeMcpJsonConfig, OpencodeSettings } from '@ai-systems/shared-types';
+import { AgentArchitecture, AgentProfile, ClaudeMcpJsonConfig, OpencodeSettings } from '@ai-systems/shared-types';
 import { ClaudeEntityManager} from '@hhopkins/claude-entity-manager';
 import os from 'os';
 import { exec } from 'child_process';
@@ -41,7 +41,7 @@ export type LoadAgentProfileInput = {
     projectDirPath: string,
     sessionId: string,
     agentProfile: AgentProfile,
-    architectureType: AGENT_ARCHITECTURE_TYPE
+    architectureType: AgentArchitecture
 }
 
 export type LoadAgentProfileResult = {

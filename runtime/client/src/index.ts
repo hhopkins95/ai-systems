@@ -57,7 +57,7 @@ export type {
 // Types
 export type {
   // Architecture & Session
-  AGENT_ARCHITECTURE_TYPE,
+  AgentArchitecture,
   SessionListItem,
   SessionRuntimeState,
   SandboxStatus,
@@ -107,5 +107,6 @@ export type {
 
   // Config
   AgentServiceConfig,
+
 } from './types';
 

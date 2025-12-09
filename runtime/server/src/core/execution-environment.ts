@@ -1,5 +1,5 @@
 import {
-    AGENT_ARCHITECTURE_TYPE,
+    AgentArchitecture,
     AgentArchitectureSessionOptions,
     AgentProfile,
     StreamEvent,
@@ -33,7 +33,7 @@ export interface TranscriptChangeEvent {
  */
 export interface ExecutionEnvironmentConfig {
     sessionId: string;
-    architecture: AGENT_ARCHITECTURE_TYPE;
+    architecture: AgentArchitecture;
     agentProfile: AgentProfile;
     environmentOptions: RuntimeExecutionEnvironmentOptions;
 }
@@ -53,13 +53,13 @@ export interface ExecutionEnvironmentConfig {
  */
 export class ExecutionEnvironment {
     private readonly primitives: EnvironmentPrimitive;
-    private readonly architecture: AGENT_ARCHITECTURE_TYPE;
+    private readonly architecture: AgentArchitecture;
     private readonly sessionId: string;
     private readonly agentProfile: AgentProfile;
 
     private constructor(
         primitives: EnvironmentPrimitive,
-        architecture: AGENT_ARCHITECTURE_TYPE,
+        architecture: AgentArchitecture,
         sessionId: string,
         agentProfile: AgentProfile
     ) {

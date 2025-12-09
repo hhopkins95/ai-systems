@@ -27,7 +27,7 @@ export type {
 // ============================================================================
 
 export type {
-  AGENT_ARCHITECTURE_TYPE,
+  AgentArchitecture,
   WorkspaceFile,
   RuntimeSessionData,
   // New types (preferred)

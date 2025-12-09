@@ -6,13 +6,11 @@
  * a specific agent SDK and streaming normalized output.
  */
 
-import type { ConversationBlock, StreamEvent } from '@ai-systems/shared-types';
+import type { AgentArchitecture, ConversationBlock, StreamEvent } from '@ai-systems/shared-types';
 import type { WriteEntitiesOptions } from '@hhopkins/claude-entity-manager';
 
-/**
- * Supported agent architectures
- */
-export type AgentArchitecture = 'claude-sdk' | 'opencode' | 'gemini';
+// Re-export AgentArchitecture for convenience
+export type { AgentArchitecture };
 
 /**
  * Context provided to execution scripts by the sandbox

@@ -5,7 +5,7 @@
  * and defines client-specific types for REST API and configuration.
  */
 
-import { AGENT_ARCHITECTURE_TYPE, AgentArchitectureSessionOptions, ConversationBlock, SessionRuntimeState } from '@ai-systems/shared-types';
+import { AgentArchitecture, AgentArchitectureSessionOptions, ConversationBlock, SessionRuntimeState } from '@ai-systems/shared-types';
 
 
 // ============================================================================
@@ -14,7 +14,6 @@ import { AGENT_ARCHITECTURE_TYPE, AgentArchitectureSessionOptions, ConversationB
 
 export type {
   // Session types
-  AGENT_ARCHITECTURE_TYPE,
   WorkspaceFile,
   RuntimeSessionData,
   SandboxStatus,
@@ -39,6 +38,7 @@ export type {
   SubagentBlock,
   BaseBlock,
   ErrorBlock,
+  AgentArchitecture,
 
   // Content types
   TextContent,
@@ -117,7 +117,7 @@ export interface SubagentState {
 
 export interface CreateSessionRequest {
   agentProfileRef: string;
-  architecture: AGENT_ARCHITECTURE_TYPE;
+  architecture: AgentArchitecture;
   sessionOptions?: AgentArchitectureSessionOptions;
 }
 

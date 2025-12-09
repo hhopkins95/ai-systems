@@ -1,7 +1,5 @@
-import { AgentArchitectureSessionOptions } from "./architecture.js";
+import { AgentArchitecture, AgentArchitectureSessionOptions } from "./architecture.js";
 import type { ConversationBlock } from "./blocks.js";
-
-export type AGENT_ARCHITECTURE_TYPE = "claude-agent-sdk"  | "opencode"
 
 /**
  * A file in the workspace during the session
@@ -25,7 +23,7 @@ export interface PersistedSessionListData {
      * The id that comes from the agent app (ie Claude Agent SDK, Gemini CLI, etc...) -- not the id from external app that is using this server
      */
     sessionId: string,
-    type: AGENT_ARCHITECTURE_TYPE,
+    type: AgentArchitecture,
     /**
      * Runtime / execution options (like model selection, etc...)
      * 
@@ -122,7 +120,7 @@ export interface RuntimeSessionData extends SessionListItem {
 // Create Session Args 
 export interface CreateSessionArgs { 
     agentProfileRef : string, 
-    architecture : AGENT_ARCHITECTURE_TYPE,
+    architecture : AgentArchitecture,
     command? : string,
     defaultWorkspaceFiles? : WorkspaceFile[]
     sessionOptions? : AgentArchitectureSessionOptions

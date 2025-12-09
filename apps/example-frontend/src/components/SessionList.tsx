@@ -2,7 +2,8 @@
 
 import { useState } from "react";
 import { useAgentSession, useSessionList } from "@hhopkins/agent-client";
-import type { SessionListItem, AGENT_ARCHITECTURE_TYPE, AgentArchitectureSessionOptions } from "@hhopkins/agent-client";
+import type { SessionListItem, AgentArchitectureSessionOptions, AgentArchitecture } from "@hhopkins/agent-client";
+
 import { SUPPORTED_ARCHITECTURES, getModelOptionsForArchitecture, type SupportedArchitecture } from "../lib/constants";
 
 interface SessionListProps {
@@ -85,7 +86,7 @@ export function SessionList({ currentSessionId, onSessionSelect }: SessionListPr
 
       const sessionId = await createSession(
         "example-assistant",
-        selectedArchitecture as AGENT_ARCHITECTURE_TYPE,
+        selectedArchitecture as AgentArchitecture,
         sessionOptions
       );
       onSessionSelect(sessionId);

@@ -3,7 +3,7 @@
 
  */
 
-import { AGENT_ARCHITECTURE_TYPE, CombinedClaudeTranscript } from '@ai-systems/shared-types';
+import { AgentArchitecture, CombinedClaudeTranscript } from '@ai-systems/shared-types';
 import { mkdir, writeFile } from 'fs/promises';
 import os from 'os';
 import { join } from 'path';
@@ -19,7 +19,7 @@ export type LoadSessionTranscriptInput = {
     projectDirPath: string,
     sessionTranscript: string,
     sessionId: string,
-    architectureType: AGENT_ARCHITECTURE_TYPE
+    architectureType: AgentArchitecture
 }
 
 export type LoadSessionTranscriptResult = {
@@ -97,7 +97,7 @@ export async function loadSessionTranscript() {
 
         const input = await readStdinJson<LoadSessionTranscriptInput>();
 
-        if (input.architectureType === 'claude-agent-sdk') {
+        if (input.architectureType === 'claude-sdk') {
             await writeClaudeTranscript(input.projectDirPath, input.sessionId, input.sessionTranscript);
         } else if (input.architectureType === 'opencode') {
             await writeOpencodeTranscript(input.sessionId, input.sessionTranscript);

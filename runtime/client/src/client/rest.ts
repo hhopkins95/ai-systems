@@ -14,7 +14,7 @@ import type {
   SendMessageResponse,
   UpdateSessionOptionsResponse,
   ApiError,
-  AGENT_ARCHITECTURE_TYPE,
+  AgentArchitecture,
   AgentArchitectureSessionOptions,
 } from '../types';
 
@@ -82,7 +82,7 @@ export class RestClient {
    */
   async createSession(
     agentProfileRef: string,
-    architecture: AGENT_ARCHITECTURE_TYPE,
+    architecture: AgentArchitecture,
     sessionOptions?: AgentArchitectureSessionOptions
   ): Promise<CreateSessionResponse> {
     const body: CreateSessionRequest = {
