@@ -5,7 +5,7 @@ import { Prism as SyntaxHighlighterBase } from 'react-syntax-highlighter';
 // Cast to any to avoid React 19 JSX type incompatibility
 const SyntaxHighlighter = SyntaxHighlighterBase as any;
 import { vscDarkPlus } from 'react-syntax-highlighter/dist/esm/styles/prism';
-import type { ClaudeConfig, Skill, Command, Agent, Hook, EntitySource } from '@/types';
+import type { AgentContext, SkillWithSource, CommandWithSource, AgentWithSource, EntitySource } from '@/types';
 import SourceBadge from './SourceBadge';
 import SkillModal from './SkillModal';
 import CommandModal from './CommandModal';
@@ -15,14 +15,14 @@ type DocumentType = 'skills' | 'commands' | 'agents' | 'hooks';
 type SourceType = 'global' | 'project' | 'plugin';
 
 export default function ClaudeConfigTab() {
-  const [config, setConfig] = useState<ClaudeConfig | null>(null);
+  const [config, setConfig] = useState<AgentContext | null>(null);
   const [activeTab, setActiveTab] = useState<DocumentType>('skills');
   const [loading, setLoading] = useState(true);
 
   // Modal state
-  const [selectedSkill, setSelectedSkill] = useState<Skill | null>(null);
-  const [selectedCommand, setSelectedCommand] = useState<Command | null>(null);
-  const [selectedAgent, setSelectedAgent] = useState<Agent | null>(null);
+  const [selectedSkill, setSelectedSkill] = useState<SkillWithSource | null>(null);
+  const [selectedCommand, setSelectedCommand] = useState<CommandWithSource | null>(null);
+  const [selectedAgent, setSelectedAgent] = useState<AgentWithSource | null>(null);
 
   useEffect(() => {
     fetchConfig();
@@ -41,7 +41,7 @@ export default function ClaudeConfigTab() {
   };
 
   // Group items by their source type (now accessed via source.type)
-  const groupBySource = <T extends { source: EntitySource }>(items: T[]) => {
+  const groupBySource = <T extends { source?: EntitySource }>(items: T[]) => {
     const grouped: {
       global: T[];
       project: T[];
@@ -53,7 +53,8 @@ export default function ClaudeConfigTab() {
     };
 
     items.forEach(item => {
-      grouped[item.source.type].push(item);
+      const sourceType: SourceType = item.source?.type ?? 'project';
+      grouped[sourceType].push(item);
     });
 
     return grouped;
@@ -85,9 +86,9 @@ export default function ClaudeConfigTab() {
                       <h4 className="font-semibold">{skill.name}</h4>
                       <SourceBadge source={skill.source} />
                     </div>
-                    {skill.description && (
+                    {skill.metadata?.description && (
                       <p className="text-sm text-gray-600 dark:text-gray-400 mt-1">
-                        {skill.description}
+                        {skill.metadata.description}
                       </p>
                     )}
                     <p className="text-xs text-gray-500 mt-2">
@@ -129,9 +130,9 @@ export default function ClaudeConfigTab() {
                       <h4 className="font-semibold">/{command.name}</h4>
                       <SourceBadge source={command.source} />
                     </div>
-                    {command.description && (
+                    {command.metadata?.description && (
                       <p className="text-sm text-gray-600 dark:text-gray-400 mt-1">
-                        {command.description}
+                        {command.metadata.description}
                       </p>
                     )}
                   </button>
@@ -147,7 +148,7 @@ export default function ClaudeConfigTab() {
   const renderAgents = () => {
     if (!config) return null;
 
-    const grouped = groupBySource(config.agents);
+    const grouped = groupBySource(config.subagents);
     const sources: Array<SourceType> = ['global', 'project', 'plugin'];
 
     return (
@@ -170,9 +171,9 @@ export default function ClaudeConfigTab() {
                       <h4 className="font-semibold">{agent.name}</h4>
                       <SourceBadge source={agent.source} />
                     </div>
-                    {agent.description && (
+                    {agent.metadata?.description && (
                       <p className="text-sm text-gray-600 dark:text-gray-400 mt-1">
-                        {agent.description}
+                        {agent.metadata.description}
                       </p>
                     )}
                   </button>
@@ -271,7 +272,7 @@ export default function ClaudeConfigTab() {
               {tab.label}
               {config && (
                 <span className="ml-2 text-xs">
-                  ({config[tab.id].length})
+                  ({tab.id === 'agents' ? config.subagents.length : config[tab.id as Exclude<DocumentType, 'agents'>].length})
                 </span>
               )}
             </button>

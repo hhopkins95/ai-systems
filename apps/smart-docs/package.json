@@ -51,6 +51,7 @@
   "license": "MIT",
   "dependencies": {
     "@hhopkins/claude-entity-manager": "workspace:*",
+    "@ai-systems/shared-types": "workspace:*",
     "@tailwindcss/typography": "^0.5.19",
     "@types/node": "^22",
     "@types/react": "^19",

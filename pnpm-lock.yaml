@@ -85,6 +85,9 @@ importers:
 
   apps/smart-docs:
     dependencies:
+      '@ai-systems/shared-types':
+        specifier: workspace:*
+        version: link:../../packages/types
       '@hhopkins/claude-entity-manager':
         specifier: workspace:*
         version: link:../../packages/claude-entity-manager

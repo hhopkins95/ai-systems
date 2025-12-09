@@ -43,19 +43,20 @@ export default function McpServerModal({ isOpen, onClose, onSave, server }: McpS
   // Initialize form when server changes
   useEffect(() => {
     if (server) {
-      // Determine type from server data
-      const serverType: ServerType = server.type === 'http' || (!server.command && server.url) ? 'http' : 'stdio';
+      // Determine type from server data - check using 'in' operator for type narrowing
+      const isHttp = server.type === 'http' || (!('command' in server) && 'url' in server);
+      const serverType: ServerType = isHttp ? 'http' : 'stdio';
 
       setFormData({
         name: server.name,
         type: serverType,
-        command: server.command || '',
-        args: server.args?.join(' ') || '',
-        env: server.env
+        command: 'command' in server ? (server.command || '') : '',
+        args: 'args' in server && server.args ? server.args.join(' ') : '',
+        env: 'env' in server && server.env
           ? Object.entries(server.env).map(([key, value]) => ({ key, value }))
           : [],
-        url: server.url || '',
-        headers: server.headers
+        url: 'url' in server ? (server.url || '') : '',
+        headers: 'headers' in server && server.headers
           ? Object.entries(server.headers).map(([key, value]) => ({ key, value }))
           : [],
       });

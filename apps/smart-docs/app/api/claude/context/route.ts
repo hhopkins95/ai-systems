@@ -1,14 +1,14 @@
 import { NextResponse } from 'next/server';
 import { getServices } from '@/server/services';
-import type { ClaudeMdNode } from '@/types';
+import type { MemoryFile } from '@/types';
 
 export async function GET() {
   try {
     const { entityManager } = getServices();
 
-    const nodes: ClaudeMdNode[] = await entityManager.loadClaudeMdFiles();
+    const files: MemoryFile[] = await entityManager.loadClaudeMdFiles();
 
-    return NextResponse.json(nodes);
+    return NextResponse.json(files);
   } catch (error) {
     console.error('Error getting CLAUDE.md files:', error);
     return NextResponse.json(

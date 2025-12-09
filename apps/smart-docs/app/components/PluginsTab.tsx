@@ -5,7 +5,7 @@ import { Prism as SyntaxHighlighterBase } from 'react-syntax-highlighter';
 // Cast to any to avoid React 19 JSX type incompatibility
 const SyntaxHighlighter = SyntaxHighlighterBase as any;
 import { vscDarkPlus } from 'react-syntax-highlighter/dist/esm/styles/prism';
-import type { Plugin, ClaudeConfig, Skill, Command, Agent, MarketplacePlugin } from '@/types';
+import type { Plugin, AgentContext, SkillWithSource, CommandWithSource, AgentWithSource, MarketplacePlugin } from '@/types';
 import SkillModal from './SkillModal';
 import CommandModal from './CommandModal';
 import AgentModal from './AgentModal';
@@ -27,7 +27,7 @@ interface AvailablePluginsData {
 export default function PluginsTab() {
   const [plugins, setPlugins] = useState<Plugin[]>([]);
   const [loading, setLoading] = useState(true);
-  const [expandedPlugins, setExpandedPlugins] = useState<Record<string, ClaudeConfig>>({});
+  const [expandedPlugins, setExpandedPlugins] = useState<Record<string, AgentContext>>({});
   const [loadingContents, setLoadingContents] = useState<Record<string, boolean>>({});
   const [activeEntityTab, setActiveEntityTab] = useState<Record<string, EntityType>>({});
   const [activeMarketplace, setActiveMarketplace] = useState<string>(ALL_MARKETPLACES);
@@ -38,9 +38,9 @@ export default function PluginsTab() {
   const [expandedAvailable, setExpandedAvailable] = useState<Record<string, boolean>>({});
 
   // Modal state
-  const [selectedSkill, setSelectedSkill] = useState<Skill | null>(null);
-  const [selectedCommand, setSelectedCommand] = useState<Command | null>(null);
-  const [selectedAgent, setSelectedAgent] = useState<Agent | null>(null);
+  const [selectedSkill, setSelectedSkill] = useState<SkillWithSource | null>(null);
+  const [selectedCommand, setSelectedCommand] = useState<CommandWithSource | null>(null);
+  const [selectedAgent, setSelectedAgent] = useState<AgentWithSource | null>(null);
 
   // Marketplace management state
   const [showAddMarketplace, setShowAddMarketplace] = useState(false);
@@ -589,7 +589,7 @@ export default function PluginsTab() {
                                         Commands ({expandedPlugins[plugin.id].commands.length})
                                       </button>
                                     )}
-                                    {expandedPlugins[plugin.id].agents.length > 0 && (
+                                    {expandedPlugins[plugin.id].subagents.length > 0 && (
                                       <button
                                         className={`px-3 py-1.5 text-sm font-medium ${
                                           activeEntityTab[plugin.id] === 'agents'
@@ -598,7 +598,7 @@ export default function PluginsTab() {
                                         }`}
                                         onClick={() => setActiveEntityTab({ ...activeEntityTab, [plugin.id]: 'agents' })}
                                       >
-                                        Agents ({expandedPlugins[plugin.id].agents.length})
+                                        Agents ({expandedPlugins[plugin.id].subagents.length})
                                       </button>
                                     )}
                                   </div>
@@ -614,8 +614,8 @@ export default function PluginsTab() {
                                     >
                                       <div className="text-sm">
                                         <span className="font-medium text-blue-600 dark:text-blue-400">{skill.name}</span>
-                                        {skill.description && (
-                                          <p className="text-gray-600 dark:text-gray-400 mt-0.5">{skill.description}</p>
+                                        {skill.metadata?.description && (
+                                          <p className="text-gray-600 dark:text-gray-400 mt-0.5">{skill.metadata.description}</p>
                                         )}
                                       </div>
                                     </button>
@@ -629,14 +629,14 @@ export default function PluginsTab() {
                                     >
                                       <div className="text-sm">
                                         <span className="font-medium text-blue-600 dark:text-blue-400">/{command.name}</span>
-                                        {command.description && (
-                                          <p className="text-gray-600 dark:text-gray-400 mt-0.5">{command.description}</p>
+                                        {command.metadata?.description && (
+                                          <p className="text-gray-600 dark:text-gray-400 mt-0.5">{command.metadata.description}</p>
                                         )}
                                       </div>
                                     </button>
                                   ))}
 
-                                  {activeEntityTab[plugin.id] === 'agents' && expandedPlugins[plugin.id].agents.map((agent, idx) => (
+                                  {activeEntityTab[plugin.id] === 'agents' && expandedPlugins[plugin.id].subagents.map((agent, idx) => (
                                     <button
                                       key={idx}
                                       className="w-full text-left p-2 rounded hover:bg-gray-100 dark:hover:bg-gray-700 transition-colors"
@@ -644,8 +644,8 @@ export default function PluginsTab() {
                                     >
                                       <div className="text-sm">
                                         <span className="font-medium text-blue-600 dark:text-blue-400">{agent.name}</span>
-                                        {agent.description && (
-                                          <p className="text-gray-600 dark:text-gray-400 mt-0.5">{agent.description}</p>
+                                        {agent.metadata?.description && (
+                                          <p className="text-gray-600 dark:text-gray-400 mt-0.5">{agent.metadata.description}</p>
                                         )}
                                       </div>
                                     </button>

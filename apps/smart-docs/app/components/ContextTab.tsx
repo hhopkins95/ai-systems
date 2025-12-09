@@ -9,23 +9,23 @@ import { Prism as SyntaxHighlighterBase } from 'react-syntax-highlighter';
 const SyntaxHighlighter = SyntaxHighlighterBase as any;
 import { vscDarkPlus } from 'react-syntax-highlighter/dist/esm/styles/prism';
 import remarkGfm from 'remark-gfm';
-import type { ClaudeMdNode, ClaudeMdFile } from '@/types';
+import type { MemoryFile } from '@/types';
 import Mermaid from './Mermaid';
 import { io } from 'socket.io-client';
 
 export default function ContextTab() {
-  const [tree, setTree] = useState<ClaudeMdNode[]>([]);
-  const [selectedFile, setSelectedFile] = useState<ClaudeMdFile | null>(null);
+  const [files, setFiles] = useState<MemoryFile[]>([]);
+  const [selectedFile, setSelectedFile] = useState<MemoryFile | null>(null);
   const [loading, setLoading] = useState(true);
 
   useEffect(() => {
-    fetchTree();
+    fetchFiles();
 
     // Set up socket for real-time updates
     const socket = io();
     socket.on('file-change', (event: any) => {
       if (event.area === 'claude' && event.path.includes('CLAUDE.md')) {
-        fetchTree();
+        fetchFiles();
       }
     });
 
@@ -34,54 +34,44 @@ export default function ContextTab() {
     };
   }, []);
 
-  const fetchTree = async () => {
+  const fetchFiles = async () => {
     try {
       const response = await fetch('/api/claude/context');
       const data = await response.json();
-      setTree(data);
+      setFiles(data);
     } catch (error) {
-      console.error('Failed to fetch CLAUDE.md tree:', error);
+      console.error('Failed to fetch CLAUDE.md files:', error);
     } finally {
       setLoading(false);
     }
   };
 
-  const getScopeBadgeStyle = (scope: 'global' | 'project' | 'nested') => {
+  const getScopeBadgeStyle = (scope?: 'global' | 'project' | 'nested') => {
     const styles = {
       global: 'bg-blue-100 text-blue-800 dark:bg-blue-900 dark:text-blue-200',
       project: 'bg-green-100 text-green-800 dark:bg-green-900 dark:text-green-200',
       nested: 'bg-amber-100 text-amber-800 dark:bg-amber-900 dark:text-amber-200',
     };
-    return styles[scope];
+    return scope ? styles[scope] : styles.project;
   };
 
-  const renderTree = (node: ClaudeMdNode, depth: number = 0) => {
-    if (node.type === 'file' && node.file) {
-      return (
-        <div
-          key={node.path}
-          className={`cursor-pointer px-3 py-1 hover:bg-gray-100 dark:hover:bg-gray-800 flex items-center gap-2 ${
-            selectedFile?.path === node.path ? 'bg-blue-100 dark:bg-blue-900' : ''
-          }`}
-          onClick={() => setSelectedFile(node.file!)}
-        >
-          <span>📋 {node.name}</span>
-          <span className={`text-xs px-2 py-0.5 rounded ${getScopeBadgeStyle(node.file.scope)}`}>
-            {node.file.scope}
-          </span>
-        </div>
-      );
-    }
-
+  const renderFileItem = (file: MemoryFile) => {
+    const fileName = file.relativePath || file.path.split('/').pop() || 'CLAUDE.md';
     return (
-      <details key={node.path} open>
-        <summary className="cursor-pointer px-3 py-1 hover:bg-gray-100 dark:hover:bg-gray-800">
-          📁 {node.name}
-        </summary>
-        <div className="ml-4">
-          {node.children?.map(child => renderTree(child, depth + 1))}
-        </div>
-      </details>
+      <div
+        key={file.path}
+        className={`cursor-pointer px-3 py-2 hover:bg-gray-100 dark:hover:bg-gray-800 flex items-center gap-2 ${
+          selectedFile?.path === file.path ? 'bg-blue-100 dark:bg-blue-900' : ''
+        }`}
+        onClick={() => setSelectedFile(file)}
+      >
+        <span>📋 {fileName}</span>
+        {file.scope && (
+          <span className={`text-xs px-2 py-0.5 rounded ${getScopeBadgeStyle(file.scope)}`}>
+            {file.scope}
+          </span>
+        )}
+      </div>
     );
   };
 
@@ -98,8 +88,8 @@ export default function ContextTab() {
           <p className="text-xs text-gray-500 dark:text-gray-400 mb-4">
             Project context and instructions for Claude
           </p>
-          {tree.length > 0 ? (
-            tree.map(node => renderTree(node))
+          {files.length > 0 ? (
+            files.map(file => renderFileItem(file))
           ) : (
             <div className="text-gray-500 text-sm">
               No CLAUDE.md files found.
@@ -124,18 +114,15 @@ export default function ContextTab() {
             <div className="mb-6 p-4 bg-gray-100 dark:bg-gray-800 rounded">
               <div className="flex items-center gap-2 mb-2">
                 <h2 className="text-xl font-bold mt-0 mb-0">CLAUDE.md</h2>
-                <span className={`text-xs px-2 py-1 rounded ${getScopeBadgeStyle(selectedFile.scope)}`}>
-                  {selectedFile.scope}
-                </span>
+                {selectedFile.scope && (
+                  <span className={`text-xs px-2 py-1 rounded ${getScopeBadgeStyle(selectedFile.scope)}`}>
+                    {selectedFile.scope}
+                  </span>
+                )}
               </div>
               <p className="text-sm text-gray-600 dark:text-gray-400 mb-0">
-                📂 {selectedFile.relativePath}
+                📂 {selectedFile.relativePath || selectedFile.path}
               </p>
-              {selectedFile.directoryPath && (
-                <p className="text-xs text-gray-500 dark:text-gray-500 mt-1 mb-0">
-                  Applies to: {selectedFile.directoryPath}
-                </p>
-              )}
             </div>
 
             {/* Frontmatter display */}
@@ -144,26 +131,26 @@ export default function ContextTab() {
                 <h3 className="text-sm font-bold text-blue-900 dark:text-blue-100 mt-0 mb-2">
                   Metadata
                 </h3>
-                {selectedFile.frontmatter.title && (
+                {selectedFile.frontmatter.title ? (
                   <div className="mb-2">
                     <span className="text-sm font-semibold text-blue-800 dark:text-blue-200">
                       Title:
                     </span>{' '}
                     <span className="text-sm text-blue-700 dark:text-blue-300">
-                      {selectedFile.frontmatter.title}
+                      {String(selectedFile.frontmatter.title)}
                     </span>
                   </div>
-                )}
-                {selectedFile.frontmatter.description && (
+                ) : null}
+                {selectedFile.frontmatter.description ? (
                   <div className="mb-2">
                     <span className="text-sm font-semibold text-blue-800 dark:text-blue-200">
                       Description:
                     </span>{' '}
                     <span className="text-sm text-blue-700 dark:text-blue-300">
-                      {selectedFile.frontmatter.description}
+                      {String(selectedFile.frontmatter.description)}
                     </span>
                   </div>
-                )}
+                ) : null}
                 {Object.entries(selectedFile.frontmatter).map(([key, value]) => {
                   if (key !== 'title' && key !== 'description') {
                     return (

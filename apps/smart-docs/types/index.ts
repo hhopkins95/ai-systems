@@ -1,39 +1,48 @@
 // ========== Re-exports from claude-entity-manager ==========
 export type {
-  // Entity types
-  Skill,
-  SkillMetadata,
-  Command,
-  CommandMetadata,
-  Agent,
-  AgentMetadata,
-  Hook,
-  HookEvent,
-  HookConfig,
-  HookMatcher,
-  ClaudeConfig,
-  EntitySource,
-  // CLAUDE.md context types
-  MemoryFileScope,
-  ClaudeMdFrontmatter,
-  ClaudeMdFile,
-  ClaudeMdNode,
   // Plugin types
-  Plugin,
   PluginManifest,
-  PluginSource,
   MarketplaceManifest,
   MarketplacePlugin,
-  McpServerConfig,
-  // MCP types
-  McpServerWithSource,
   // Registry types
   PluginRegistry,
   InstalledPluginInfo,
   KnownMarketplace,
   KnownMarketplacesRegistry,
-  Settings,
 } from '@hhopkins/claude-entity-manager';
+
+// ========== Re-exports from shared-types ==========
+export type {
+  // Entity types
+  Skill,
+  SkillMetadata,
+  SkillWithSource,
+  Command,
+  CommandMetadata,
+  CommandWithSource,
+  Agent,
+  AgentMetadata,
+  AgentWithSource,
+  Hook,
+  HookEvent,
+  HookConfig,
+  HookMatcher,
+  HookWithSource,
+  EntitySource,
+  // Memory file types
+  MemoryFile,
+  MemoryFileScope,
+  // MCP types
+  McpServerWithSource,
+  McpServerConfig,
+  // Config types
+  ClaudeSettings,
+  // Plugin types
+  Plugin,
+  PluginSource,
+  // Agent context (replaces ClaudeConfig)
+  AgentContext,
+} from '@ai-systems/shared-types';
 
 // ========== Smart-docs specific types ==========
 

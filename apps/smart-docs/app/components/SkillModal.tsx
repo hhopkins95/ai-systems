@@ -5,12 +5,12 @@ import { Prism as SyntaxHighlighterBase } from 'react-syntax-highlighter';
 // Cast to any to avoid React 19 JSX type incompatibility
 const SyntaxHighlighter = SyntaxHighlighterBase as any;
 import { vscDarkPlus } from 'react-syntax-highlighter/dist/esm/styles/prism';
-import type { Skill } from '@/types';
+import type { SkillWithSource } from '@/types';
 import Modal from './Modal';
 import SourceBadge from './SourceBadge';
 
 interface SkillModalProps {
-  skill: Skill | null;
+  skill: SkillWithSource | null;
   isOpen: boolean;
   onClose: () => void;
 }
@@ -72,9 +72,9 @@ export default function SkillModal({ skill, isOpen, onClose }: SkillModalProps) 
           <div className="flex items-center gap-2 mb-2">
             <SourceBadge source={skill.source} />
           </div>
-          {skill.description && (
+          {skill.metadata?.description && (
             <p className="text-sm text-gray-600 dark:text-gray-400">
-              {skill.description}
+              {skill.metadata.description}
             </p>
           )}
         </div>

@@ -9,7 +9,7 @@ import { Prism as SyntaxHighlighterBase } from 'react-syntax-highlighter';
 const SyntaxHighlighter = SyntaxHighlighterBase as any;
 import { vscDarkPlus } from 'react-syntax-highlighter/dist/esm/styles/prism';
 import remarkGfm from 'remark-gfm';
-import type { ClaudeConfig, Skill, Command, Agent, Hook, EntitySource, ClaudeMdNode, ClaudeMdFile, McpServerWithSource } from '@/types';
+import type { AgentContext, Skill, SkillWithSource, Command, CommandWithSource, Agent, AgentWithSource, Hook, HookWithSource, EntitySource, MemoryFile, McpServerWithSource } from '@/types';
 import SourceBadge from './SourceBadge';
 import SkillModal from './SkillModal';
 import CommandModal from './CommandModal';
@@ -31,7 +31,7 @@ interface GroupedEntities<T> {
 }
 
 export default function AgentProfileTab() {
-  const [config, setConfig] = useState<ClaudeConfig | null>(null);
+  const [config, setConfig] = useState<AgentContext | null>(null);
   const [activeTab, setActiveTab] = useState<DocumentType>('skills');
   const [loading, setLoading] = useState(true);
 
@@ -39,13 +39,13 @@ export default function AgentProfileTab() {
   const [expandedPlugins, setExpandedPlugins] = useState<Record<string, boolean>>({});
 
   // Modal state
-  const [selectedSkill, setSelectedSkill] = useState<Skill | null>(null);
-  const [selectedCommand, setSelectedCommand] = useState<Command | null>(null);
-  const [selectedAgent, setSelectedAgent] = useState<Agent | null>(null);
+  const [selectedSkill, setSelectedSkill] = useState<SkillWithSource | null>(null);
+  const [selectedCommand, setSelectedCommand] = useState<CommandWithSource | null>(null);
+  const [selectedAgent, setSelectedAgent] = useState<AgentWithSource | null>(null);
 
   // Memory Files state (from ContextTab)
-  const [memoryTree, setMemoryTree] = useState<ClaudeMdNode[]>([]);
-  const [selectedMemoryFile, setSelectedMemoryFile] = useState<ClaudeMdFile | null>(null);
+  const [memoryTree, setMemoryTree] = useState<MemoryFile[]>([]);
+  const [selectedMemoryFile, setSelectedMemoryFile] = useState<MemoryFile | null>(null);
 
   // MCP Servers state
   const [mcpServers, setMcpServers] = useState<McpServerWithSource[]>([]);
@@ -133,7 +133,7 @@ export default function AgentProfileTab() {
   };
 
   // Group items by their source type, with nested plugin grouping
-  const groupBySource = <T extends { source: EntitySource }>(items: T[]): GroupedEntities<T> => {
+  const groupBySource = <T extends { name: string; source?: EntitySource; description?: string }>(items: T[]): GroupedEntities<T> => {
     const grouped: GroupedEntities<T> = {
       global: [],
       project: [],
@@ -142,10 +142,11 @@ export default function AgentProfileTab() {
     };
 
     items.forEach(item => {
-      grouped[item.source.type].push(item);
+      const sourceType: SourceType = item.source?.type ?? 'project';
+      grouped[sourceType].push(item);
 
       // Also group plugin items by their pluginId
-      if (item.source.type === 'plugin' && item.source.pluginId) {
+      if (item.source?.type === 'plugin' && item.source.pluginId) {
         if (!grouped.pluginsBySource[item.source.pluginId]) {
           grouped.pluginsBySource[item.source.pluginId] = [];
         }
@@ -165,7 +166,7 @@ export default function AgentProfileTab() {
   };
 
   // Generic render function for entity items
-  const renderEntityItem = <T extends { name: string; source: EntitySource; description?: string }>(
+  const renderEntityItem = <T extends { name: string; source?: EntitySource; description?: string }>(
     item: T,
     onClick: () => void,
     extra?: React.ReactNode
@@ -176,7 +177,7 @@ export default function AgentProfileTab() {
     >
       <div className="flex items-center gap-2 mb-2">
         <h4 className="font-semibold">{item.name}</h4>
-        <SourceBadge source={item.source} />
+        {item.source && <SourceBadge source={item.source} />}
       </div>
       {item.description && (
         <p className="text-sm text-gray-600 dark:text-gray-400 mt-1">
@@ -188,7 +189,7 @@ export default function AgentProfileTab() {
   );
 
   // Render plugin section with collapsible groups
-  const renderPluginSection = <T extends { name: string; source: EntitySource; description?: string }>(
+  const renderPluginSection = <T extends { name: string; source?: EntitySource; description?: string }>(
     pluginsBySource: Record<string, T[]>,
     renderItem: (item: T) => React.ReactNode,
     entityType: string
@@ -238,7 +239,7 @@ export default function AgentProfileTab() {
   const renderSkills = () => {
     if (!config) return null;
 
-    const grouped = groupBySource(config.skills);
+    const grouped = groupBySource(config.skills) as GroupedEntities<SkillWithSource>;
 
     return (
       <div className="space-y-6">
@@ -289,10 +290,10 @@ export default function AgentProfileTab() {
   const renderCommands = () => {
     if (!config) return null;
 
-    const grouped = groupBySource(config.commands);
+    const grouped = groupBySource(config.commands) as GroupedEntities<CommandWithSource>;
 
     // Custom render for commands (shows /{name})
-    const renderCommandItem = (command: Command) => (
+    const renderCommandItem = (command: CommandWithSource) => (
       <button
         className="w-full border border-gray-200 dark:border-gray-700 rounded p-4 hover:bg-gray-50 dark:hover:bg-gray-800 transition-colors text-left"
         onClick={() => setSelectedCommand(command)}
@@ -301,9 +302,9 @@ export default function AgentProfileTab() {
           <h4 className="font-semibold">/{command.name}</h4>
           <SourceBadge source={command.source} />
         </div>
-        {command.description && (
+        {command.metadata?.description && (
           <p className="text-sm text-gray-600 dark:text-gray-400 mt-1">
-            {command.description}
+            {command.metadata.description}
           </p>
         )}
       </button>
@@ -348,7 +349,7 @@ export default function AgentProfileTab() {
   const renderAgents = () => {
     if (!config) return null;
 
-    const grouped = groupBySource(config.agents);
+    const grouped = groupBySource(config.subagents) as GroupedEntities<AgentWithSource>;
 
     return (
       <div className="space-y-6">
@@ -393,10 +394,10 @@ export default function AgentProfileTab() {
   const renderHooks = () => {
     if (!config) return null;
 
-    const grouped = groupBySource(config.hooks);
+    const grouped = groupBySource(config.hooks) as GroupedEntities<HookWithSource>;
 
     // Custom render for hooks (shows configuration)
-    const renderHookItem = (hook: Hook) => (
+    const renderHookItem = (hook: HookWithSource) => (
       <div className="border border-gray-200 dark:border-gray-700 rounded p-4">
         <div className="flex items-center gap-2 mb-2">
           <h4 className="font-semibold">{hook.name}</h4>
@@ -459,7 +460,7 @@ export default function AgentProfileTab() {
 
     // Determine if server is HTTP type
     const isHttpServer = (server: McpServerWithSource) =>
-      server.type === 'http' || (!server.command && server.url);
+      server.type === 'http' || (!('command' in server) && 'url' in server);
 
     const renderMcpItem = (server: McpServerWithSource, canModify: boolean) => {
       const isHttp = isHttpServer(server);
@@ -633,42 +634,32 @@ export default function AgentProfileTab() {
   };
 
   // Memory Files rendering (from ContextTab)
-  const getScopeBadgeStyle = (scope: 'global' | 'project' | 'nested') => {
+  const getScopeBadgeStyle = (scope?: 'global' | 'project' | 'nested') => {
     const styles = {
       global: 'bg-blue-100 text-blue-800 dark:bg-blue-900 dark:text-blue-200',
       project: 'bg-green-100 text-green-800 dark:bg-green-900 dark:text-green-200',
       nested: 'bg-amber-100 text-amber-800 dark:bg-amber-900 dark:text-amber-200',
     };
-    return styles[scope];
+    return scope ? styles[scope] : styles.project;
   };
 
-  const renderMemoryTree = (node: ClaudeMdNode, depth: number = 0) => {
-    if (node.type === 'file' && node.file) {
-      return (
-        <div
-          key={node.path}
-          className={`cursor-pointer px-3 py-1 hover:bg-gray-100 dark:hover:bg-gray-800 flex items-center gap-2 ${
-            selectedMemoryFile?.path === node.path ? 'bg-blue-100 dark:bg-blue-900' : ''
-          }`}
-          onClick={() => setSelectedMemoryFile(node.file!)}
-        >
-          <span>📋 {node.name}</span>
-          <span className={`text-xs px-2 py-0.5 rounded ${getScopeBadgeStyle(node.file.scope)}`}>
-            {node.file.scope}
-          </span>
-        </div>
-      );
-    }
-
+  const renderMemoryFileItem = (file: MemoryFile) => {
+    const fileName = file.relativePath || file.path.split('/').pop() || 'CLAUDE.md';
     return (
-      <details key={node.path} open>
-        <summary className="cursor-pointer px-3 py-1 hover:bg-gray-100 dark:hover:bg-gray-800">
-          📁 {node.name}
-        </summary>
-        <div className="ml-4">
-          {node.children?.map(child => renderMemoryTree(child, depth + 1))}
-        </div>
-      </details>
+      <div
+        key={file.path}
+        className={`cursor-pointer px-3 py-2 hover:bg-gray-100 dark:hover:bg-gray-800 flex items-center gap-2 ${
+          selectedMemoryFile?.path === file.path ? 'bg-blue-100 dark:bg-blue-900' : ''
+        }`}
+        onClick={() => setSelectedMemoryFile(file)}
+      >
+        <span>📋 {fileName}</span>
+        {file.scope && (
+          <span className={`text-xs px-2 py-0.5 rounded ${getScopeBadgeStyle(file.scope)}`}>
+            {file.scope}
+          </span>
+        )}
+      </div>
     );
   };
 
@@ -683,7 +674,7 @@ export default function AgentProfileTab() {
               Project context and instructions for Claude
             </p>
             {memoryTree.length > 0 ? (
-              memoryTree.map(node => renderMemoryTree(node))
+              memoryTree.map(file => renderMemoryFileItem(file))
             ) : (
               <div className="text-gray-500 text-sm">
                 No CLAUDE.md files found.
@@ -708,18 +699,15 @@ export default function AgentProfileTab() {
               <div className="mb-6 p-4 bg-gray-100 dark:bg-gray-800 rounded">
                 <div className="flex items-center gap-2 mb-2">
                   <h2 className="text-xl font-bold mt-0 mb-0">CLAUDE.md</h2>
-                  <span className={`text-xs px-2 py-1 rounded ${getScopeBadgeStyle(selectedMemoryFile.scope)}`}>
-                    {selectedMemoryFile.scope}
-                  </span>
+                  {selectedMemoryFile.scope && (
+                    <span className={`text-xs px-2 py-1 rounded ${getScopeBadgeStyle(selectedMemoryFile.scope)}`}>
+                      {selectedMemoryFile.scope}
+                    </span>
+                  )}
                 </div>
                 <p className="text-sm text-gray-600 dark:text-gray-400 mb-0">
-                  📂 {selectedMemoryFile.relativePath}
+                  📂 {selectedMemoryFile.relativePath || selectedMemoryFile.path}
                 </p>
-                {selectedMemoryFile.directoryPath && (
-                  <p className="text-xs text-gray-500 dark:text-gray-500 mt-1 mb-0">
-                    Applies to: {selectedMemoryFile.directoryPath}
-                  </p>
-                )}
               </div>
 
               {/* Frontmatter display */}
@@ -728,26 +716,26 @@ export default function AgentProfileTab() {
                   <h3 className="text-sm font-bold text-blue-900 dark:text-blue-100 mt-0 mb-2">
                     Metadata
                   </h3>
-                  {selectedMemoryFile.frontmatter.title && (
+                  {selectedMemoryFile.frontmatter.title ? (
                     <div className="mb-2">
                       <span className="text-sm font-semibold text-blue-800 dark:text-blue-200">
                         Title:
                       </span>{' '}
                       <span className="text-sm text-blue-700 dark:text-blue-300">
-                        {selectedMemoryFile.frontmatter.title}
+                        {String(selectedMemoryFile.frontmatter.title)}
                       </span>
                     </div>
-                  )}
-                  {selectedMemoryFile.frontmatter.description && (
+                  ) : null}
+                  {selectedMemoryFile.frontmatter.description ? (
                     <div className="mb-2">
                       <span className="text-sm font-semibold text-blue-800 dark:text-blue-200">
                         Description:
                       </span>{' '}
                       <span className="text-sm text-blue-700 dark:text-blue-300">
-                        {selectedMemoryFile.frontmatter.description}
+                        {String(selectedMemoryFile.frontmatter.description)}
                       </span>
                     </div>
-                  )}
+                  ) : null}
                   {Object.entries(selectedMemoryFile.frontmatter).map(([key, value]) => {
                     if (key !== 'title' && key !== 'description') {
                       return (
@@ -854,7 +842,7 @@ export default function AgentProfileTab() {
   const tabs: Array<{ id: DocumentType; label: string; count?: number }> = [
     { id: 'skills', label: 'Skills', count: config?.skills.length },
     { id: 'commands', label: 'Commands', count: config?.commands.length },
-    { id: 'agents', label: 'Agents', count: config?.agents.length },
+    { id: 'agents', label: 'Agents', count: config?.subagents.length },
     { id: 'hooks', label: 'Hooks', count: config?.hooks.length },
     { id: 'memory', label: 'Memory Files', count: memoryTree.length },
     { id: 'mcp', label: 'MCP Servers', count: mcpServers.length },
