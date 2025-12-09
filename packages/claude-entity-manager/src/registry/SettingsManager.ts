@@ -1,6 +1,6 @@
 import { readFile, writeFile, mkdir } from "fs/promises";
 import { dirname } from "path";
-import type { Settings } from "../types.js";
+import type { ClaudeSettingsFile } from "../types.js";
 import { getSettingsPath, getProjectSettingsPath } from "../utils/paths.js";
 
 /**
@@ -18,14 +18,14 @@ export class SettingsManager {
   /**
    * Get global settings
    */
-  async getGlobalSettings(): Promise<Settings> {
+  async getGlobalSettings(): Promise<ClaudeSettingsFile> {
     return this.readSettings(getSettingsPath(this.claudeDir));
   }
 
   /**
    * Get project settings
    */
-  async getProjectSettings(): Promise<Settings> {
+  async getProjectSettings(): Promise<ClaudeSettingsFile> {
     if (!this.projectDir) {
       return {};
     }
@@ -35,7 +35,7 @@ export class SettingsManager {
   /**
    * Get merged settings (global + project, project overrides global)
    */
-  async getSettings(): Promise<Settings> {
+  async getSettings(): Promise<ClaudeSettingsFile> {
     const globalSettings = await this.getGlobalSettings();
     const projectSettings = await this.getProjectSettings();
 
@@ -119,10 +119,10 @@ export class SettingsManager {
   /**
    * Read settings from a file
    */
-  private async readSettings(path: string): Promise<Settings> {
+  private async readSettings(path: string): Promise<ClaudeSettingsFile> {
     try {
       const content = await readFile(path, "utf-8");
-      return JSON.parse(content) as Settings;
+      return JSON.parse(content) as ClaudeSettingsFile;
     } catch {
       return {};
     }
@@ -131,7 +131,7 @@ export class SettingsManager {
   /**
    * Write settings to a file
    */
-  private async writeSettings(path: string, settings: Settings): Promise<void> {
+  private async writeSettings(path: string, settings: ClaudeSettingsFile): Promise<void> {
     await mkdir(dirname(path), { recursive: true });
     await writeFile(path, JSON.stringify(settings, null, 2), "utf-8");
   }

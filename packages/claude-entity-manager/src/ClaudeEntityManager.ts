@@ -13,7 +13,7 @@ import type {
   MemoryFile,
   McpServerConfig,
 } from "@ai-systems/shared-types";
-import type { ClaudeEntityManagerOptions, InstallOptions, InstallResult, InstallSource, KnownMarketplacesRegistry, MarketplaceManifest, PluginRegistry, Settings } from "./types.js"
+import type { ClaudeEntityManagerOptions, PluginInstallOptions, PluginInstallResult, PluginInstallSource, KnownMarketplacesRegistry, MarketplaceManifest, PluginRegistry, ClaudeSettingsFile } from "./types.js"
 import { getClaudeDir, getProjectClaudeDir } from "./utils/paths.js";
 import { SkillLoader } from "./loaders/SkillLoader.js";
 import { CommandLoader } from "./loaders/CommandLoader.js";
@@ -571,7 +571,7 @@ export class ClaudeEntityManager {
   /**
    * Parse an install source string
    */
-  parseInstallSource(source: string): InstallSource {
+  parseInstallSource(source: string): PluginInstallSource {
     return this.sourceParser.parse(source);
   }
 
@@ -579,9 +579,9 @@ export class ClaudeEntityManager {
    * Install a plugin
    */
   async installPlugin(
-    source: string | InstallSource,
-    options?: InstallOptions
-  ): Promise<InstallResult> {
+    source: string | PluginInstallSource,
+    options?: PluginInstallOptions
+  ): Promise<PluginInstallResult> {
     return this.pluginInstaller.install(source, options);
   }
 
@@ -591,7 +591,7 @@ export class ClaudeEntityManager {
   async installMarketplace(
     source: string | PluginSource,
     name: string
-  ): Promise<InstallResult> {
+  ): Promise<PluginInstallResult> {
     return this.pluginInstaller.installMarketplace(source, name);
   }
 
@@ -605,16 +605,16 @@ export class ClaudeEntityManager {
   /**
    * Update a plugin
    */
-  async updatePlugin(pluginId: string): Promise<InstallResult> {
+  async updatePlugin(pluginId: string): Promise<PluginInstallResult> {
     return this.pluginInstaller.update(pluginId);
   }
 
   /**
    * Update all plugins
    */
-  async updateAllPlugins(): Promise<InstallResult[]> {
+  async updateAllPlugins(): Promise<PluginInstallResult[]> {
     const plugins = await this.discoverPlugins();
-    const results: InstallResult[] = [];
+    const results: PluginInstallResult[] = [];
 
     for (const plugin of plugins) {
       if (plugin.installInfo && !plugin.installInfo.isLocal) {
@@ -638,14 +638,14 @@ export class ClaudeEntityManager {
   /**
    * Get settings
    */
-  async getSettings(): Promise<Settings> {
+  async getSettings(): Promise<ClaudeSettingsFile> {
     return this.settingsManager.getSettings();
   }
 
   /**
    * Update settings
    */
-  async updateSettings(settings: Partial<Settings>): Promise<void> {
+  async updateSettings(settings: Partial<ClaudeSettingsFile>): Promise<void> {
     const current = await this.settingsManager.getSettings();
     const updated = { ...current, ...settings };
 

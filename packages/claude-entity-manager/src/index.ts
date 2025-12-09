@@ -32,11 +32,11 @@ export type {
   InstalledPluginInfo,
   KnownMarketplace,
   KnownMarketplacesRegistry,
-  Settings,
+  ClaudeSettingsFile as Settings,
   // Installation types
-  InstallSource,
-  InstallOptions,
-  InstallResult,
+  PluginInstallSource as InstallSource,
+  PluginInstallOptions as InstallOptions,
+  PluginInstallResult as InstallResult,
   // Service options
   ClaudeEntityManagerOptions,
 } from "./types.js";

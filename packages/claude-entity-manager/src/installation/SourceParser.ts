@@ -1,5 +1,5 @@
 import { resolve, isAbsolute } from "path";
-import type { InstallSource } from "../types.js";
+import type { PluginInstallSource } from "../types.js";
 
 /**
  * Parser for plugin installation source strings
@@ -17,7 +17,7 @@ export class SourceParser {
   /**
    * Parse an install source string into structured InstallSource
    */
-  parse(source: string): InstallSource {
+  parse(source: string): PluginInstallSource {
     source = source.trim();
 
     // Check for marketplace format: plugin@marketplace
@@ -84,7 +84,7 @@ export class SourceParser {
   /**
    * Convert an InstallSource to a git URL
    */
-  toGitUrl(source: InstallSource): string | null {
+  toGitUrl(source: PluginInstallSource): string | null {
     switch (source.type) {
       case "github":
         return `https://github.com/${source.owner}/${source.repo}.git`;
@@ -99,7 +99,7 @@ export class SourceParser {
   /**
    * Get a human-readable description of a source
    */
-  describe(source: InstallSource): string {
+  describe(source: PluginInstallSource): string {
     switch (source.type) {
       case "github":
         return `GitHub: ${source.owner}/${source.repo}`;

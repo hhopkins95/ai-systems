@@ -105,7 +105,7 @@ export type KnownMarketplacesRegistry = Record<string, KnownMarketplace>;
 /**
  * Settings structure from settings.json
  */
-export interface Settings {
+export interface ClaudeSettingsFile {
   $schema?: string;
   enabledPlugins?: Record<string, boolean>;
   [key: string]: unknown;
@@ -116,7 +116,7 @@ export interface Settings {
 /**
  * Plugin installation source specification (parsed from string)
  */
-export type InstallSource =
+export type PluginInstallSource =
   | { type: "github"; owner: string; repo: string }
   | { type: "git"; url: string }
   | { type: "directory"; path: string }
@@ -125,7 +125,7 @@ export type InstallSource =
 /**
  * Installation options
  */
-export interface InstallOptions {
+export interface PluginInstallOptions {
   /** Force reinstall if already installed */
   force?: boolean;
   /** Update to latest if already installed */
@@ -135,7 +135,7 @@ export interface InstallOptions {
 /**
  * Installation result
  */
-export interface InstallResult {
+export interface PluginInstallResult {
   success: boolean;
   pluginId: string;
   installPath: string;

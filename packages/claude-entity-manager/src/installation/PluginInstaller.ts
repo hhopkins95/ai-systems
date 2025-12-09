@@ -2,9 +2,9 @@ import { simpleGit, type SimpleGit } from "simple-git";
 import { mkdir, rm, access, cp, readFile } from "fs/promises";
 import { join, basename } from "path";
 import type {
-  InstallSource,
-  InstallResult,
-  InstallOptions,
+  PluginInstallSource,
+  PluginInstallResult,
+  PluginInstallOptions,
   PluginSource,
   MarketplaceManifest,
 } from "../types.js";
@@ -37,9 +37,9 @@ export class PluginInstaller {
    * Install a plugin from various sources
    */
   async install(
-    source: string | InstallSource,
-    options: InstallOptions = {}
-  ): Promise<InstallResult> {
+    source: string | PluginInstallSource,
+    options: PluginInstallOptions = {}
+  ): Promise<PluginInstallResult> {
     const parsedSource =
       typeof source === "string" ? this.sourceParser.parse(source) : source;
 
@@ -69,8 +69,8 @@ export class PluginInstaller {
   private async installFromGitHub(
     owner: string,
     repo: string,
-    options: InstallOptions
-  ): Promise<InstallResult> {
+    options: PluginInstallOptions
+  ): Promise<PluginInstallResult> {
     const url = `https://github.com/${owner}/${repo}.git`;
     return this.installFromGitUrl(url, options, `${owner}/${repo}`);
   }
@@ -80,9 +80,9 @@ export class PluginInstaller {
    */
   private async installFromGitUrl(
     url: string,
-    options: InstallOptions,
+    options: PluginInstallOptions,
     identifier?: string
-  ): Promise<InstallResult> {
+  ): Promise<PluginInstallResult> {
     const repoName = basename(url, ".git");
     const pluginId = identifier || repoName;
     const installPath = join(getCacheDir(this.claudeDir), repoName);
@@ -144,8 +144,8 @@ export class PluginInstaller {
    */
   private async installFromDirectory(
     sourcePath: string,
-    options: InstallOptions
-  ): Promise<InstallResult> {
+    options: PluginInstallOptions
+  ): Promise<PluginInstallResult> {
     const pluginName = basename(sourcePath);
     const pluginId = pluginName;
     const installPath = sourcePath;
@@ -180,8 +180,8 @@ export class PluginInstaller {
   private async installFromMarketplace(
     pluginName: string,
     marketplaceName: string,
-    options: InstallOptions
-  ): Promise<InstallResult> {
+    options: PluginInstallOptions
+  ): Promise<PluginInstallResult> {
     const pluginId = `${pluginName}@${marketplaceName}`;
 
     // Get marketplace info
@@ -272,7 +272,7 @@ export class PluginInstaller {
   private async updateFromGit(
     installPath: string,
     pluginId: string
-  ): Promise<InstallResult> {
+  ): Promise<PluginInstallResult> {
     try {
       const localGit = simpleGit(installPath);
       await localGit.pull();
@@ -308,7 +308,7 @@ export class PluginInstaller {
   async installMarketplace(
     source: string | PluginSource,
     name: string
-  ): Promise<InstallResult> {
+  ): Promise<PluginInstallResult> {
     let parsedSource: PluginSource;
 
     if (typeof source === "string") {
@@ -413,7 +413,7 @@ export class PluginInstaller {
   /**
    * Update a plugin
    */
-  async update(pluginId: string): Promise<InstallResult> {
+  async update(pluginId: string): Promise<PluginInstallResult> {
     const info = await this.pluginRegistry.getPluginInfo(pluginId);
     if (!info) {
       return {
