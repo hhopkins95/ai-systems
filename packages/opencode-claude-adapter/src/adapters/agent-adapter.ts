@@ -10,7 +10,7 @@
  * - Preserves description and body content
  */
 
-import type { Agent } from "@hhopkins/claude-entity-manager";
+import type { Agent } from "@ai-systems/shared-types";
 import { mkdir, writeFile } from "fs/promises";
 import { join } from "path";
 import matter from "gray-matter";

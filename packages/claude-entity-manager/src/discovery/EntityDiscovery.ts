@@ -1,13 +1,12 @@
-import { readdir, stat, readFile } from "fs/promises";
-import { join } from "path";
 import fg from "fast-glob";
+import { readdir, readFile } from "fs/promises";
 import type { PluginManifest } from "../types.js";
 import {
-  getSkillsDir,
-  getCommandsDir,
   getAgentsDir,
+  getCommandsDir,
   getHooksDir,
   getPluginManifestPath,
+  getSkillsDir,
 } from "../utils/paths.js";
 
 /**

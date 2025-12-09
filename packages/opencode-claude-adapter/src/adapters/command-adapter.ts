@@ -9,7 +9,7 @@
  * - Preserves body content
  */
 
-import type { Command } from "@hhopkins/claude-entity-manager";
+import type { Command } from "@ai-systems/shared-types";
 import { mkdir, writeFile } from "fs/promises";
 import { join } from "path";
 import matter from "gray-matter";

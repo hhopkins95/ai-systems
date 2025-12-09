@@ -10,7 +10,7 @@
  * - Merges with existing OpenCode config if present
  */
 
-import type { McpServerConfig } from "@hhopkins/claude-entity-manager";
+import type { McpServerConfig } from "@ai-systems/shared-types";
 import { readFile, writeFile } from "fs/promises";
 import { join } from "path";
 
@@ -26,13 +26,20 @@ export interface SyncResult {
 interface OpencodeConfig {
   mcp?: Record<
     string,
-    {
-      command: string;
-      args?: string[];
-      env?: Record<string, string>;
-    }
-  >;
+    OpencodeMcpServer>,
   [key: string]: unknown;
+}
+
+type OpencodeMcpServer = {
+  type: "local",
+  command: string[];
+  enabled?: boolean
+  environment?: Record<string, string>;
+} | {
+  type: "remote",
+  url: string;
+  headers?: Record<string, string>;
+  enabled?: boolean;
 }
 
 /**
@@ -64,16 +71,23 @@ async function writeOpencodeConfig(
 /**
  * Transform Claude MCP server config to OpenCode format
  */
-function transformMcpServer(server: McpServerConfig): {
-  command: string;
-  args?: string[];
-  env?: Record<string, string>;
-} {
-  return {
-    command: server.command,
-    args: server.args,
-    env: server.env,
-  };
+function transformMcpServer(server: McpServerConfig): OpencodeMcpServer | undefined {
+
+  if (server.type === "stdio") {
+    return {
+      type: "local",
+      command: [server.command, ...(server.args || [])],
+      environment: server.env,
+    };
+  }
+  if (server.type === "http") {
+    return {
+      type: "remote",
+      url: server.url,
+      headers: server.headers,
+    };
+  }
+  return undefined
 }
 
 /**
@@ -104,7 +118,10 @@ export async function syncMcpServers(
 
     // Deduplicate and add MCP servers (later sources override earlier)
     for (const server of mcpServers) {
-      config.mcp[server.name] = transformMcpServer(server);
+      const transformed = transformMcpServer(server);
+      if (transformed) {
+        config.mcp[server.] = transformed;
+      }
       result.written.push(server.name);
     }
 
