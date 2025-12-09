@@ -27,11 +27,6 @@ export interface AgentContextSources {
  * all the capabilities, context, and configuration available to it.
  */
 export interface AgentContext {
-  /** Unique identifier for this context */
-  id: string;
-  /** Display name */
-  name: string;
-
   // Entities from all enabled sources
   /** Skills available to the agent */
   skills: Skill[];

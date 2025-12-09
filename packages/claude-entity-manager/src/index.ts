@@ -14,7 +14,6 @@ export type {
   HookEvent,
   HookConfig,
   HookMatcher,
-  ClaudeConfig,
   EntitySource,
   // Agent context types
   AgentContext,

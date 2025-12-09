@@ -1,7 +1,6 @@
 import { join } from "path";
 import type {
   ClaudeEntityManagerOptions,
-  ClaudeConfig,
   Skill,
   Command,
   Agent,
@@ -92,44 +91,54 @@ export class ClaudeEntityManager {
    * Load all entities from enabled sources: global ~/.claude, project .claude, and enabled plugins.
    * This represents the "active" configuration for an agent session.
    */
-  async loadEntitiesFromEnabledSources(includeContents = false): Promise<ClaudeConfig> {
+  async loadEntitiesFromEnabledSources(includeContents = false): Promise<{
+    skills: Skill[];
+    commands: Command[];
+    subagents: Agent[];
+    hooks: Hook[];
+  }> {
     const allSkills: Skill[] = [];
     const allCommands: Command[] = [];
-    const allAgents: Agent[] = [];
+    const allSubagents: Agent[] = [];
     const allHooks: Hook[] = [];
+    const allMcpServers: McpServerWithSource[] = [];
 
     // Load from global ~/.claude
     const globalSource: Omit<EntitySource, "path"> = { type: "global" };
-    const [globalSkills, globalCommands, globalAgents, globalHooks] =
+    const [globalSkills, globalCommands, globalAgents, globalHooks, globalMcps] =
       await Promise.all([
         this.skillLoader.loadSkills(this.claudeDir, globalSource, includeContents),
         this.commandLoader.loadCommands(this.claudeDir, globalSource),
         this.agentLoader.loadAgents(this.claudeDir, globalSource),
         this.hookLoader.loadHooks(this.claudeDir, globalSource),
+        this.mcpLoader.loadMcpServers(this.claudeDir, globalSource),
       ]);
 
     allSkills.push(...globalSkills);
     allCommands.push(...globalCommands);
-    allAgents.push(...globalAgents);
+    allSubagents.push(...globalAgents);
     allHooks.push(...globalHooks);
+    allMcpServers.push(...globalMcps);
 
     // Load from project .claude (if projectDir is set)
     if (this.projectDir) {
       const projectClaudeDir = getProjectClaudeDir(this.projectDir);
       const projectSource: Omit<EntitySource, "path"> = { type: "project" };
 
-      const [projectSkills, projectCommands, projectAgents, projectHooks] =
+      const [projectSkills, projectCommands, projectAgents, projectHooks, projectMcps] =
         await Promise.all([
           this.skillLoader.loadSkills(projectClaudeDir, projectSource, includeContents),
           this.commandLoader.loadCommands(projectClaudeDir, projectSource),
           this.agentLoader.loadAgents(projectClaudeDir, projectSource),
           this.hookLoader.loadHooks(projectClaudeDir, projectSource),
+          this.mcpLoader.loadMcpServers(projectClaudeDir, projectSource),
         ]);
 
       allSkills.push(...projectSkills);
       allCommands.push(...projectCommands);
-      allAgents.push(...projectAgents);
+      allSubagents.push(...projectAgents);
       allHooks.push(...projectHooks);
+      allMcpServers.push(...projectMcps);
     }
 
     // Load from enabled plugins only
@@ -139,14 +148,14 @@ export class ClaudeEntityManager {
       const pluginConfig = await this.loadPluginEntities(plugin.id, includeContents);
       allSkills.push(...pluginConfig.skills);
       allCommands.push(...pluginConfig.commands);
-      allAgents.push(...pluginConfig.agents);
+      allSubagents.push(...pluginConfig.subagents);
       allHooks.push(...pluginConfig.hooks);
     }
 
     return {
       skills: allSkills,
       commands: allCommands,
-      agents: allAgents,
+      subagents: allSubagents,
       hooks: allHooks,
     };
   }
@@ -157,10 +166,15 @@ export class ClaudeEntityManager {
   async loadPluginEntities(
     pluginId: string,
     includeContents = false
-  ): Promise<ClaudeConfig> {
+  ): Promise<{
+    skills: Skill[];
+    commands: Command[];
+    subagents: Agent[];
+    hooks: Hook[];
+  }> {
     const plugin = await this.pluginDiscovery.getPlugin(pluginId);
     if (!plugin) {
-      return { skills: [], commands: [], agents: [], hooks: [] };
+      return { skills: [], commands: [], subagents: [], hooks: [] };
     }
 
     const pluginSource: Omit<EntitySource, "path"> = {
@@ -208,7 +222,7 @@ export class ClaudeEntityManager {
         : this.hookLoader.loadHooks(plugin.path, pluginSource),
     ]);
 
-    return { skills, commands, agents, hooks };
+    return { skills, commands, subagents: agents, hooks };
   }
 
   /**
@@ -217,7 +231,12 @@ export class ClaudeEntityManager {
   async loadEntitiesFromDirectory(
     dirPath: string,
     includeContents = false
-  ): Promise<ClaudeConfig> {
+  ): Promise<{
+    skills: Skill[];
+    commands: Command[];
+    subagents: Agent[];
+    hooks: Hook[];
+  }> {
     const source: Omit<EntitySource, "path"> = { type: "global" };
 
     const [skills, commands, agents, hooks] = await Promise.all([
@@ -227,7 +246,7 @@ export class ClaudeEntityManager {
       this.hookLoader.loadHooks(dirPath, source),
     ]);
 
-    return { skills, commands, agents, hooks };
+    return { skills, commands, subagents: agents, hooks };
   }
 
   /**
@@ -285,10 +304,10 @@ export class ClaudeEntityManager {
   async loadAgents(options?: { pluginId?: string }): Promise<Agent[]> {
     if (options?.pluginId) {
       const config = await this.loadPluginEntities(options.pluginId);
-      return config.agents;
+      return config.subagents;
     }
     const config = await this.loadEntitiesFromEnabledSources();
-    return config.agents;
+    return config.subagents;
   }
 
   /**
@@ -435,18 +454,10 @@ export class ClaudeEntityManager {
       enabledPlugins: enabledPluginIds,
     };
 
-    // Generate context ID and name
-    const contextId = `ctx-${Date.now()}`;
-    const contextName = projectDir
-      ? `Agent Context for ${projectDir.split("/").pop()}`
-      : "Global Agent Context";
-
     return {
-      id: contextId,
-      name: contextName,
       skills: allSkills,
       commands: allCommands,
-      subagents: allAgents, // AgentContext uses "subagents" field name
+      subagents: allAgents,
       hooks: allHooks,
       // Cast to satisfy AgentContext type - McpServerWithSource includes additional source tracking
       mcpServers: allMcpServers as unknown as McpServerConfig[],

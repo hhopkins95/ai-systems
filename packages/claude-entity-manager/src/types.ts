@@ -164,19 +164,6 @@ export function flattenClaudeMdNodes(nodes: ClaudeMdNode[]): ClaudeMdFile[] {
   return files;
 }
 
-// ==================== AGGREGATED CONFIG (LEGACY) ====================
-
-/**
- * Complete Claude Code configuration with all entities
- * @deprecated Use AgentContext from shared-types
- */
-export interface ClaudeConfig {
-  skills: import("../../types/dist/index.js").Skill[];
-  commands: import("../../types/dist/index.js").Command[];
-  agents: import("../../types/dist/index.js").Agent[];
-  hooks: import("../../types/dist/index.js").Hook[];
-}
-
 // ==================== PLUGIN MANIFEST ====================
 
 /**

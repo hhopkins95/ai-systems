@@ -8,7 +8,6 @@ import type {
   Hook,
   HookEvent,
   HookMatcher,
-  ClaudeConfig,
 } from "../types.js";
 import {
   getSkillsDir,
