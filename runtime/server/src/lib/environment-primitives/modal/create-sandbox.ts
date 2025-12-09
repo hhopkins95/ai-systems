@@ -50,16 +50,16 @@ export async function createModalSandbox(
     }));
 
 
-    // For each mcp in the agent profile, build the app commands
-    if (agentProfile?.bundledMCPs) {
-    for (const localmcp of agentProfile.bundledMCPs) { 
-      const sandboxPath = path.join("/mcps", normalizeString(localmcp.name));
-      customCommands.push(...generateSandboxAppInstallCommands({
-        localDirPath: localmcp.localProjectPath,
-        targetSandboxDirPath: sandboxPath,
-      }));
-    }
-  }
+  //   // For each mcp in the agent profile, build the app commands
+  //   if (agentProfile?.bundledMCPs) {
+  //   for (const localmcp of agentProfile.bundledMCPs) { 
+  //     const sandboxPath = path.join("/mcps", normalizeString(localmcp.name));
+  //     customCommands.push(...generateSandboxAppInstallCommands({
+  //       localDirPath: localmcp.localProjectPath,
+  //       targetSandboxDirPath: sandboxPath,
+  //     }));
+  //   }
+  // }
 
     // Build custom image with Node.js 22 and sandbox application
     // This image is cached by Modal and reused across sandboxes

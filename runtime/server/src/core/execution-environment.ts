@@ -8,6 +8,8 @@ import {
 import { EnvironmentPrimitive, WatchEvent } from "../lib/environment-primitives/base";
 import { getEnvironmentPrimitive } from "../lib/environment-primitives/factory";
 import { RuntimeExecutionEnvironmentOptions } from "../types/runtime";
+import { getRunnerBundleContent } from "@hhopkins/agent-runner";
+import { join } from "path";
 
 /**
  * Event emitted when a workspace file changes
@@ -72,6 +74,11 @@ export class ExecutionEnvironment {
      */
     static async create(config: ExecutionEnvironmentConfig): Promise<ExecutionEnvironment> {
         const primitives = await getEnvironmentPrimitive(config.environmentOptions);
+
+        // Install runner bundle into the execution environment
+        const { APP_DIR } = primitives.getBasePaths();
+        const runnerContent = getRunnerBundleContent();
+        await primitives.writeFile(join(APP_DIR, 'runner.js'), runnerContent);
 
         return new ExecutionEnvironment(
             primitives,
