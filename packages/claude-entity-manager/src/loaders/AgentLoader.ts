@@ -1,6 +1,6 @@
 import { readFile, readdir } from "fs/promises";
 import { join, basename } from "path";
-import type { Agent, EntitySource, AgentMetadata } from "../types.js";
+import type { Agent, EntitySource, AgentMetadata } from "@ai-systems/shared-types";
 import {
   parseFrontmatter,
   extractFirstLine,

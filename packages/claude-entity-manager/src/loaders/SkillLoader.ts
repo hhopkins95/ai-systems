@@ -1,7 +1,7 @@
 import { readFile, readdir, stat } from "fs/promises";
 import { join, dirname, basename } from "path";
 import fg from "fast-glob";
-import type { Skill, EntitySource, SkillMetadata } from "../types.js";
+import type { Skill, EntitySource, SkillMetadata } from "@ai-systems/shared-types";
 import { parseFrontmatter, extractFirstParagraph } from "../utils/frontmatter.js";
 import { getSkillsDir } from "../utils/paths.js";
 

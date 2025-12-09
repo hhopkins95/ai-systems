@@ -1,6 +1,6 @@
 import { readFile, readdir, access } from "fs/promises";
 import { join, relative } from "path";
-import type { MemoryFile, MemoryFileScope } from "../../../types/dist/index.js";
+import type { MemoryFile, MemoryFileScope } from "@ai-systems/shared-types";
 import { parseFrontmatter } from "../utils/frontmatter.js";
 import { getClaudeDir } from "../utils/paths.js";
 

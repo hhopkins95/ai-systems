@@ -1,6 +1,6 @@
 import { readFile, readdir } from "fs/promises";
 import { join, basename } from "path";
-import type { Hook, EntitySource, HookEvent, HookMatcher } from "../types.js";
+import type { Hook, EntitySource, HookEvent, HookMatcher } from "@ai-systems/shared-types";
 import { getHooksDir } from "../utils/paths.js";
 
 /**

@@ -1,6 +1,6 @@
 import { readFile, readdir } from "fs/promises";
 import { join, basename } from "path";
-import type { Command, EntitySource, CommandMetadata } from "../types.js";
+import type { Command, EntitySource, CommandMetadata } from "@ai-systems/shared-types";
 import {
   parseFrontmatter,
   extractFirstLine,
