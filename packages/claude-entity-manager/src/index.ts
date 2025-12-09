@@ -19,13 +19,6 @@ export type {
   AgentContext,
   AgentContextSources,
   LoadAgentContextOptions,
-  // Memory file types
-  MemoryFile,
-  MemoryFileScope,
-  // CLAUDE.md context types (internal)
-  ClaudeMdFrontmatter,
-  ClaudeMdFile,
-  ClaudeMdNode,
   // Plugin types
   Plugin,
   PluginManifest,
@@ -47,9 +40,6 @@ export type {
   // Service options
   ClaudeEntityManagerOptions,
 } from "./types.js";
-
-// Helper function exports
-export { toMemoryFile, flattenClaudeMdNodes } from "./types.js";
 
 // Service exports for advanced usage
 export { SkillLoader } from "./loaders/SkillLoader.js";

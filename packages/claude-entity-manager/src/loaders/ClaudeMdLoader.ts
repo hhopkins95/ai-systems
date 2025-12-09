@@ -1,11 +1,6 @@
 import { readFile, readdir, access } from "fs/promises";
-import { join, relative, dirname, basename } from "path";
-import type {
-  ClaudeMdFile,
-  ClaudeMdNode,
-  MemoryFileScope,
-  ClaudeMdFrontmatter,
-} from "../types.js";
+import { join, relative } from "path";
+import type { MemoryFile, MemoryFileScope } from "../../../types/dist/index.js";
 import { parseFrontmatter } from "../utils/frontmatter.js";
 import { getClaudeDir } from "../utils/paths.js";
 
@@ -33,13 +28,13 @@ export class ClaudeMdLoader {
    * Load all CLAUDE.md files from global, project, and nested locations
    * @param homeDir - User home directory (for global CLAUDE.md)
    * @param projectDir - Project root directory
-   * @returns Hierarchical tree of CLAUDE.md nodes
+   * @returns Sorted array of MemoryFile objects (global → project → nested)
    */
   async loadClaudeMdFiles(
     homeDir: string,
     projectDir?: string
-  ): Promise<ClaudeMdNode[]> {
-    const nodes: ClaudeMdNode[] = [];
+  ): Promise<MemoryFile[]> {
+    const files: MemoryFile[] = [];
 
     // 1. Check for global CLAUDE.md at ~/.claude/CLAUDE.md
     const globalClaudeDir = getClaudeDir(join(homeDir, ".claude"));
@@ -48,23 +43,11 @@ export class ClaudeMdLoader {
       globalClaudePath,
       "global",
       0,
-      "~/.claude"
+      "~/.claude/CLAUDE.md"
     );
 
     if (globalFile) {
-      nodes.push({
-        type: "directory",
-        name: "Global (~/.claude)",
-        path: globalClaudeDir,
-        children: [
-          {
-            type: "file",
-            name: "CLAUDE.md",
-            path: globalClaudePath,
-            file: globalFile,
-          },
-        ],
-      });
+      files.push(globalFile);
     }
 
     // 2. Check for project CLAUDE.md at project root
@@ -73,44 +56,25 @@ export class ClaudeMdLoader {
       const projectFile = await this.readClaudeMdFile(
         projectClaudePath,
         "project",
-        1,
+        0,
         "./CLAUDE.md"
       );
 
       if (projectFile) {
-        nodes.push({
-          type: "directory",
-          name: "Project Root",
-          path: projectDir,
-          children: [
-            {
-              type: "file",
-              name: "CLAUDE.md",
-              path: projectClaudePath,
-              file: projectFile,
-            },
-          ],
-        });
+        files.push(projectFile);
       }
 
       // 3. Recursively search for nested CLAUDE.md files throughout project
-      const nestedNodes = await this.findNestedClaudeMdFiles(
+      const nestedFiles = await this.findNestedClaudeMdFiles(
         projectDir,
         projectDir,
-        2
+        1
       );
-
-      if (nestedNodes.length > 0) {
-        nodes.push({
-          type: "directory",
-          name: "Nested Context",
-          path: projectDir,
-          children: nestedNodes,
-        });
-      }
+      files.push(...nestedFiles);
     }
 
-    return nodes;
+    // Sort by scope priority: global first, then project, then nested (by depth, then path)
+    return this.sortMemoryFiles(files);
   }
 
   /**
@@ -119,23 +83,21 @@ export class ClaudeMdLoader {
   private async readClaudeMdFile(
     filePath: string,
     scope: MemoryFileScope,
-    level: number,
-    displayPath: string
-  ): Promise<ClaudeMdFile | null> {
+    depth: number,
+    relativePath: string
+  ): Promise<MemoryFile | null> {
     try {
       const rawContent = await readFile(filePath, "utf-8");
-      const parsed = parseFrontmatter<ClaudeMdFrontmatter>(rawContent);
+      const parsed = parseFrontmatter<Record<string, unknown>>(rawContent);
 
       return {
-        name: "CLAUDE.md",
         path: filePath,
-        relativePath: displayPath,
-        scope,
-        level,
         content: parsed.content,
         frontmatter:
-          Object.keys(parsed.data).length > 0 ? parsed.data : null,
-        directoryPath: dirname(filePath),
+          Object.keys(parsed.data).length > 0 ? parsed.data : undefined,
+        scope,
+        relativePath: scope === "nested" ? relativePath : undefined,
+        depth,
       };
     } catch {
       return null;
@@ -148,9 +110,9 @@ export class ClaudeMdLoader {
   private async findNestedClaudeMdFiles(
     dirPath: string,
     projectRoot: string,
-    level: number
-  ): Promise<ClaudeMdNode[]> {
-    const nodes: ClaudeMdNode[] = [];
+    depth: number
+  ): Promise<MemoryFile[]> {
+    const files: MemoryFile[] = [];
 
     try {
       const entries = await readdir(dirPath, { withFileTypes: true });
@@ -176,57 +138,54 @@ export class ClaudeMdLoader {
             const file = await this.readClaudeMdFile(
               claudeMdPath,
               "nested",
-              level,
+              depth,
               relativePath
             );
 
             if (file) {
-              nodes.push({
-                type: "directory",
-                name: entry.name,
-                path: fullPath,
-                children: [
-                  {
-                    type: "file",
-                    name: "CLAUDE.md",
-                    path: claudeMdPath,
-                    file,
-                  },
-                ],
-              });
+              files.push(file);
             }
           } catch {
             // No CLAUDE.md in this directory, continue
           }
 
           // Recursively search subdirectories
-          const childNodes = await this.findNestedClaudeMdFiles(
+          const childFiles = await this.findNestedClaudeMdFiles(
             fullPath,
             projectRoot,
-            level + 1
+            depth + 1
           );
-
-          if (childNodes.length > 0) {
-            // If we already added this directory (because it has CLAUDE.md), add children to it
-            const existingNode = nodes.find((n) => n.path === fullPath);
-            if (existingNode && existingNode.children) {
-              existingNode.children.push(...childNodes);
-            } else {
-              // Otherwise create a new directory node
-              nodes.push({
-                type: "directory",
-                name: entry.name,
-                path: fullPath,
-                children: childNodes,
-              });
-            }
-          }
+          files.push(...childFiles);
         }
       }
     } catch {
       // Directory doesn't exist or can't be read
     }
 
-    return nodes;
+    return files;
+  }
+
+  /**
+   * Sort memory files by precedence: global → project → nested (by depth, then path)
+   */
+  private sortMemoryFiles(files: MemoryFile[]): MemoryFile[] {
+    const scopeOrder: Record<MemoryFileScope, number> = {
+      global: 0,
+      project: 1,
+      nested: 2,
+    };
+
+    return files.sort((a, b) => {
+      const orderDiff = scopeOrder[a.scope] - scopeOrder[b.scope];
+      if (orderDiff !== 0) return orderDiff;
+      // For nested files, sort by depth then path
+      if (a.scope === "nested" && b.scope === "nested") {
+        const depthA = a.depth ?? 0;
+        const depthB = b.depth ?? 0;
+        if (depthA !== depthB) return depthA - depthB;
+        return a.path.localeCompare(b.path);
+      }
+      return 0;
+    });
   }
 }

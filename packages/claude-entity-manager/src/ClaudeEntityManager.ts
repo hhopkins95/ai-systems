@@ -13,7 +13,7 @@ import type {
   MemoryFile,
   McpServerConfig,
 } from "@ai-systems/shared-types";
-import { toMemoryFile, flattenClaudeMdNodes } from "./types.js";
+import type { ClaudeEntityManagerOptions, InstallOptions, InstallResult, InstallSource, KnownMarketplacesRegistry, MarketplaceManifest, PluginRegistry, Settings } from "./types.js"
 import { getClaudeDir, getProjectClaudeDir } from "./utils/paths.js";
 import { SkillLoader } from "./loaders/SkillLoader.js";
 import { CommandLoader } from "./loaders/CommandLoader.js";
@@ -354,9 +354,9 @@ export class ClaudeEntityManager {
 
   /**
    * Load all CLAUDE.md context files from global, project, and nested locations
-   * @returns Hierarchical tree of CLAUDE.md nodes
+   * @returns Sorted array of MemoryFile objects (global → project → nested)
    */
-  async loadClaudeMdFiles(): Promise<ClaudeMdNode[]> {
+  async loadClaudeMdFiles(): Promise<MemoryFile[]> {
     // Extract home directory from claudeDir (which is ~/.claude)
     const homeDir = join(this.claudeDir, "..");
     return this.claudeMdLoader.loadClaudeMdFiles(homeDir, this.projectDir);
@@ -470,10 +470,8 @@ export class ClaudeEntityManager {
       allMcpServers.push(...pluginMcpMap.values());
     }
 
-    // Load memory files (CLAUDE.md) and flatten to sorted list
-    const claudeMdNodes = await this.loadClaudeMdFiles();
-    const claudeMdFiles = flattenClaudeMdNodes(claudeMdNodes);
-    const memoryFiles: MemoryFile[] = claudeMdFiles.map(toMemoryFile);
+    // Load memory files (CLAUDE.md)
+    const memoryFiles = await this.loadClaudeMdFiles();
 
     // Build sources metadata
     const sources: AgentContextSources = {
