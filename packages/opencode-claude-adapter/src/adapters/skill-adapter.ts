@@ -13,7 +13,7 @@
 
 import { tool } from "@opencode-ai/plugin";
 import type { PluginInput, ToolDefinition } from "@opencode-ai/plugin";
-import type { Skill } from "@hhopkins/claude-entity-manager";
+import type { Skill, SkillWithSource } from "@ai-systems/shared-types";
 import { readFile, mkdir, copyFile, readdir, stat } from "fs/promises";
 import { join, dirname, relative } from "path";
 import { generateFileTree } from "../utils/file-tree";
@@ -96,7 +96,7 @@ async function listFiles(dir: string, base: string = ""): Promise<string[]> {
  * Sync skills to .opencode/skills/ directory
  */
 export async function syncSkills(
-  skills: Skill[],
+  skills: SkillWithSource[],
   projectDir: string
 ): Promise<{ syncResult: SyncResult; syncedSkills: SyncedSkill[] }> {
   const result: SyncResult = {
@@ -117,14 +117,14 @@ export async function syncSkills(
   await mkdir(targetDir, { recursive: true });
 
   // Deduplicate skills by name (later sources override earlier)
-  const skillMap = new Map<string, Skill>();
+  const skillMap = new Map<string, SkillWithSource>();
   for (const skill of skills) {
     skillMap.set(skill.name, skill);
   }
 
   // Copy each skill directory
   for (const [name, skill] of skillMap) {
-    const sourceDir = dirname(skill.path);
+    const sourceDir = dirname(skill.source?.path ?? "");
     const destDir = join(targetDir, name);
 
     try {
@@ -136,7 +136,7 @@ export async function syncSkills(
 
       syncedSkills.push({
         name: skill.name,
-        description: skill.description,
+        description: skill.metadata.description ?? "",
         content: skill.content,
         files,
         dir: destDir,

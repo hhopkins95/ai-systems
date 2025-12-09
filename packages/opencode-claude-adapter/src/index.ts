@@ -40,9 +40,9 @@ export const ClaudeAdapterPlugin: Plugin = async (ctx) => {
   });
 
   // Log what we found
-  const skillSources = countBySources(agentContext.skills.map((s) => s.source.type));
-  const commandSources = countBySources(agentContext.commands.map((c) => c.source.type));
-  const agentSources = countBySources(agentContext.subagents.map((a) => a.source.type));
+  const skillSources = countBySources(agentContext.skills.map((s) => s.source?.type ?? "global"));
+  const commandSources = countBySources(agentContext.commands.map((c) => c.source?.type ?? "global"));
+  const agentSources = countBySources(agentContext.subagents.map((a) => a.source?.type ?? "global"));
 
   console.log(
     `[claude-adapter] Found ${agentContext.skills.length} skills (${formatSources(skillSources)})`

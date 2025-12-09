@@ -10,47 +10,26 @@
  * - Merges with existing OpenCode config if present
  */
 
-import type { McpServerConfig } from "@ai-systems/shared-types";
+import type { McpServer, McpServerConfig, OpencodeMcpServerConfig, OpencodeSettings } from "@ai-systems/shared-types";
 import { readFile, writeFile } from "fs/promises";
 import { join } from "path";
 
-export interface SyncResult {
+interface SyncResult {
   written: string[];
   skipped: string[];
   errors: Array<{ file: string; error: string }>;
 }
 
-/**
- * OpenCode config format
- */
-interface OpencodeConfig {
-  mcp?: Record<
-    string,
-    OpencodeMcpServer>,
-  [key: string]: unknown;
-}
-
-type OpencodeMcpServer = {
-  type: "local",
-  command: string[];
-  enabled?: boolean
-  environment?: Record<string, string>;
-} | {
-  type: "remote",
-  url: string;
-  headers?: Record<string, string>;
-  enabled?: boolean;
-}
 
 /**
  * Read existing opencode.config.json if present
  */
-async function readOpencodeConfig(projectDir: string): Promise<OpencodeConfig> {
+async function readOpencodeConfig(projectDir: string): Promise<OpencodeSettings> {
   const configPath = join(projectDir, "opencode.json");
 
   try {
     const content = await readFile(configPath, "utf-8");
-    return JSON.parse(content) as OpencodeConfig;
+    return JSON.parse(content) as OpencodeSettings;
   } catch {
     // File doesn't exist or can't be parsed - start fresh
     return {};
@@ -62,7 +41,7 @@ async function readOpencodeConfig(projectDir: string): Promise<OpencodeConfig> {
  */
 async function writeOpencodeConfig(
   projectDir: string,
-  config: OpencodeConfig
+  config: OpencodeSettings
 ): Promise<void> {
   const configPath = join(projectDir, "opencode.json");
   await writeFile(configPath, JSON.stringify(config, null, 2), "utf-8");
@@ -71,7 +50,7 @@ async function writeOpencodeConfig(
 /**
  * Transform Claude MCP server config to OpenCode format
  */
-function transformMcpServer(server: McpServerConfig): OpencodeMcpServer | undefined {
+function transformMcpServer(server: McpServerConfig): OpencodeMcpServerConfig | undefined {
 
   if (server.type === "stdio") {
     return {
@@ -94,7 +73,7 @@ function transformMcpServer(server: McpServerConfig): OpencodeMcpServer | undefi
  * Sync MCP servers to opencode.json
  */
 export async function syncMcpServers(
-  mcpServers: McpServerConfig[],
+  mcpServers: McpServer[],
   projectDir: string
 ): Promise<SyncResult> {
   const result: SyncResult = {
@@ -120,7 +99,7 @@ export async function syncMcpServers(
     for (const server of mcpServers) {
       const transformed = transformMcpServer(server);
       if (transformed) {
-        config.mcp[server.] = transformed;
+        config.mcp[server.name] = transformed;
       }
       result.written.push(server.name);
     }
