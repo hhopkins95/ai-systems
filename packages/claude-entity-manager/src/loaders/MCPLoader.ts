@@ -1,6 +1,6 @@
 import { readFile } from "fs/promises";
 import { join } from "path";
-import type { EntitySource } from "../types.js";
+import type { EntitySource } from "@ai-systems/shared-types";
 import { getMcpConfigPath } from "../utils/paths.js";
 
 /**

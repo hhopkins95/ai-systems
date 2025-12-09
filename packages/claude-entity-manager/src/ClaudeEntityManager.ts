@@ -1,27 +1,18 @@
 import { join } from "path";
 import type {
-  ClaudeEntityManagerOptions,
   Skill,
   Command,
   Agent,
   Hook,
   Plugin,
-  PluginRegistry,
-  Settings,
-  KnownMarketplacesRegistry,
-  MarketplaceManifest,
-  InstallSource,
-  InstallOptions,
-  InstallResult,
   PluginSource,
   EntitySource,
-  ClaudeMdNode,
   AgentContext,
   AgentContextSources,
   LoadAgentContextOptions,
   MemoryFile,
   McpServerConfig,
-} from "./types.js";
+} from "@ai-systems/shared-types";
 import { toMemoryFile, flattenClaudeMdNodes } from "./types.js";
 import { getClaudeDir, getProjectClaudeDir } from "./utils/paths.js";
 import { SkillLoader } from "./loaders/SkillLoader.js";

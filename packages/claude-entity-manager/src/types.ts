@@ -1,56 +1,5 @@
-/**
- * Type definitions for claude-entity-manager
- *
- * Core entity types are imported from @ai-systems/shared-types.
- * This file contains manager-specific types for manifests, registries, and installation.
- */
-
-// Re-export all shared types
-export type {
-  // Sources
-  EntitySource,
-  EntitySourceType,
-
-  // Entities
-  Skill,
-  SkillMetadata,
-  SkillFile,
-  Command,
-  CommandMetadata,
-  Agent,
-  AgentMetadata,
-  Hook,
-  HookEvent,
-  HookConfig,
-  CommandHookConfig,
-  PromptHookConfig,
-  HookMatcher,
-  MemoryFile,
-  MemoryFileScope,
-
-  // Plugin
-  Plugin,
-  PluginInstallationStatus,
-  PluginEnabledStatus,
-  PluginSource,
-  PluginInstallInfo,
-  EntityCounts,
-  Marketplace,
-
-  // MCP
-  McpServerConfig,
-  McpEnvVars,
-  PluginMcpServer,
-
-  // Agent context
-  AgentContext,
-  AgentContextSources,
-  LoadAgentContextOptions,
-} from "../../types/dist/index.js";
-
 // Import types we need for local types
 import type {
-  EntitySource,
   MemoryFile,
   PluginSource,
   MemoryFileScope,
