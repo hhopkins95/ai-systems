@@ -3,8 +3,8 @@
  * for an agent running in a given project context
  */
 
-import type { Agent, Command, Hook, MemoryFile, Skill } from "./entities/index.js";
-import type { McpServer, McpServerConfig } from "./entities/mcp.js";
+import type { Agent, AgentWithSource, Command, CommandWithSource, Hook, HookWithSource, MemoryFile, Skill, SkillWithSource } from "./entities/index.js";
+import type { McpServer, McpServerConfig, McpServerWithSource } from "./entities/mcp.js";
 import { PluginSource } from "./plugin.js";
 import { WorkspaceFile } from "./runtime/session.js";
 
@@ -29,17 +29,17 @@ export interface AgentContextSources {
 export interface AgentContext {
   // Entities from all enabled sources
   /** Skills available to the agent */
-  skills: Skill[];
+  skills: SkillWithSource[];
   /** Slash commands available */
-  commands: Command[];
+  commands: CommandWithSource[];
   /** Subagents that can be spawned */
-  subagents: Agent[];
+  subagents: AgentWithSource[];
   /** Hooks for event handling */
-  hooks: Hook[];
+  hooks: HookWithSource[];
 
   // Integrations
   /** MCP servers to connect to */
-  mcpServers: McpServer[];
+  mcpServers: McpServerWithSource[];
 
   // Memory/context
   /** Memory files (CLAUDE.md) in order of precedence */
@@ -47,7 +47,7 @@ export interface AgentContext {
 
   // Provenance
   /** Information about where entities came from */
-  sources: AgentContextSources;
+  sources?: AgentContextSources;
 }
 
 /**
