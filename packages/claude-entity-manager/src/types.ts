@@ -100,17 +100,6 @@ export interface KnownMarketplace {
  */
 export type KnownMarketplacesRegistry = Record<string, KnownMarketplace>;
 
-// ==================== SETTINGS ====================
-
-/**
- * Settings structure from settings.json
- */
-export interface ClaudeSettingsFile {
-  $schema?: string;
-  enabledPlugins?: Record<string, boolean>;
-  [key: string]: unknown;
-}
-
 // ==================== INSTALLATION ====================
 
 /**

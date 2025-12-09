@@ -25,3 +25,7 @@ export * from "./runtime/index.js";
 
 // Transcript types (for converter packages)
 export * from "./transcript.js";
+
+// Config files
+export * from "./config-files/claude.js";
+export * from "./config-files/opencode.js";

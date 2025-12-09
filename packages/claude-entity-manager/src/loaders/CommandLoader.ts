@@ -1,6 +1,6 @@
 import { readFile, readdir } from "fs/promises";
 import { join, basename } from "path";
-import type { Command, EntitySource, CommandMetadata } from "@ai-systems/shared-types";
+import type { Command, EntitySource, CommandMetadata, CommandWithSource } from "@ai-systems/shared-types";
 import {
   parseFrontmatter,
   extractFirstLine,
@@ -82,16 +82,14 @@ export class CommandLoader {
   async loadCommand(
     filePath: string,
     source: Omit<EntitySource, "path">
-  ): Promise<Command | null> {
+  ): Promise<CommandWithSource | null> {
     try {
       const rawContent = await readFile(filePath, "utf-8");
       const { data, content } = parseFrontmatter<CommandMetadata>(rawContent);
 
       return {
         name: basename(filePath, ".md"),
-        path: filePath,
         source: { ...source, path: filePath },
-        description: data.description || extractFirstLine(content),
         content,
         metadata: data,
       };

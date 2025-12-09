@@ -1,50 +1,7 @@
 import { readFile } from "fs/promises";
 import { join } from "path";
-import type { EntitySource } from "@ai-systems/shared-types";
+import type { ClaudeMcpJsonConfig, EntitySource, McpServerWithSource } from "@ai-systems/shared-types";
 import { getMcpConfigPath } from "../utils/paths.js";
-
-/**
- * MCP configuration file format (.mcp.json)
- * Follows Claude Code's standard format
- */
-export interface McpJsonConfig {
-  mcpServers?: Record<
-    string,
-    {
-      type?: "stdio" | "http";
-      command?: string;
-      args?: string[];
-      env?: Record<string, string>;
-      url?: string;
-      headers?: Record<string, string>;
-    }
-  >;
-}
-
-/**
- * MCP server with source tracking and name
- * Includes fields from both stdio and http server types
- */
-export interface McpServerWithSource {
-  /** Server name (from JSON key) */
-  name: string;
-  /** Source tracking */
-  source: EntitySource;
-  /** Server type: 'stdio' (default) or 'http' */
-  type?: "stdio" | "http";
-  // Stdio server fields
-  /** Command to start the server (stdio) */
-  command?: string;
-  /** Arguments to pass to the command (stdio) */
-  args?: string[];
-  /** Environment variables (stdio) */
-  env?: Record<string, string>;
-  // HTTP server fields
-  /** URL of the HTTP server */
-  url?: string;
-  /** Headers to send with HTTP requests */
-  headers?: Record<string, string>;
-}
 
 /**
  * Loader for MCP server configurations
@@ -68,7 +25,7 @@ export class MCPLoader {
 
     try {
       const content = await readFile(mcpPath, "utf-8");
-      const config = JSON.parse(content) as McpJsonConfig;
+      const config = JSON.parse(content) as ClaudeMcpJsonConfig;
 
       if (!config.mcpServers) {
         return [];
@@ -136,7 +93,7 @@ export class MCPLoader {
 
     try {
       const content = await readFile(mcpJsonPath, "utf-8");
-      const config = JSON.parse(content) as McpJsonConfig | Record<string, unknown>;
+      const config = JSON.parse(content) as ClaudeMcpJsonConfig | Record<string, unknown>;
 
       // Support both { mcpServers: {...} } and direct { serverName: config } format
       const serversRecord = "mcpServers" in config && config.mcpServers

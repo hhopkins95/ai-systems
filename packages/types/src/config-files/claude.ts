@@ -2,6 +2,7 @@
  * Claude Code settings.json schema types
  */
 
+import { McpServerConfig } from "@anthropic-ai/claude-agent-sdk";
 import type { HookEvent, HookMatcher } from "../entities/hook.js";
 
 /**
@@ -21,13 +22,6 @@ export interface ClaudePermissions {
 }
 
 /**
- * MCP server reference for allowlist
- */
-export interface McpServerRef {
-  serverName: string;
-}
-
-/**
  * Claude Code settings.json configuration
  */
 export interface ClaudeSettings {
@@ -38,7 +32,13 @@ export interface ClaudeSettings {
   /** Output style for system prompt adjustments */
   outputStyle?: string;
   /** Allowlist of MCP servers users can configure */
-  allowedMcpServers?: McpServerRef[];
+  allowedMcpServers?: {serverName : string}[];
   /** Enabled/disabled plugins by "plugin@marketplace" key */
   enabledPlugins?: Record<string, boolean>;
 }
+
+
+/**
+ * Schema for the .mcp.json file
+ */
+export type ClaudeMcpJsonConfig ={mcpServers : Record<string, McpServerConfig>}

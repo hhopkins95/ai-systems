@@ -1,7 +1,7 @@
 import { readFile, readdir, stat } from "fs/promises";
 import { join, dirname, basename } from "path";
 import fg from "fast-glob";
-import type { Skill, EntitySource, SkillMetadata } from "@ai-systems/shared-types";
+import type { Skill, EntitySource, SkillMetadata, SkillWithSource } from "@ai-systems/shared-types";
 import { parseFrontmatter, extractFirstParagraph } from "../utils/frontmatter.js";
 import { getSkillsDir } from "../utils/paths.js";
 
@@ -98,7 +98,7 @@ export class SkillLoader {
     skillDir: string,
     source: Omit<EntitySource, "path">,
     includeContents = false
-  ): Promise<Skill | null> {
+  ): Promise<SkillWithSource | null> {
     // Try to find SKILL.md (case-insensitive)
     const possibleNames = ["SKILL.md", "skill.md", "Skill.md"];
     let skillPath: string | null = null;
@@ -133,10 +133,7 @@ export class SkillLoader {
 
       return {
         name: data.name || basename(skillDir),
-        path: skillPath,
         source: { ...source, path: skillPath },
-        description: data.description || extractFirstParagraph(content),
-        version: data.version,
         content,
         metadata: data,
         files,

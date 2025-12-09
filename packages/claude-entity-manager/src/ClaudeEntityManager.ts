@@ -12,8 +12,9 @@ import type {
   LoadAgentContextOptions,
   MemoryFile,
   McpServerConfig,
+  ClaudeSettings
 } from "@ai-systems/shared-types";
-import type { ClaudeEntityManagerOptions, PluginInstallOptions, PluginInstallResult, PluginInstallSource, KnownMarketplacesRegistry, MarketplaceManifest, PluginRegistry, ClaudeSettingsFile } from "./types.js"
+import type { ClaudeEntityManagerOptions, PluginInstallOptions, PluginInstallResult, PluginInstallSource, KnownMarketplacesRegistry, MarketplaceManifest, PluginRegistry} from "./types.js"
 import { getClaudeDir, getProjectClaudeDir } from "./utils/paths.js";
 import { SkillLoader } from "./loaders/SkillLoader.js";
 import { CommandLoader } from "./loaders/CommandLoader.js";
@@ -485,8 +486,7 @@ export class ClaudeEntityManager {
       commands: allCommands,
       subagents: allAgents,
       hooks: allHooks,
-      // Cast to satisfy AgentContext type - McpServerWithSource includes additional source tracking
-      mcpServers: allMcpServers as unknown as McpServerConfig[],
+      mcpServers: allMcpServers,
       memoryFiles,
       sources,
     };
@@ -638,14 +638,14 @@ export class ClaudeEntityManager {
   /**
    * Get settings
    */
-  async getSettings(): Promise<ClaudeSettingsFile> {
+  async getSettings(): Promise<ClaudeSettings> {
     return this.settingsManager.getSettings();
   }
 
   /**
    * Update settings
    */
-  async updateSettings(settings: Partial<ClaudeSettingsFile>): Promise<void> {
+  async updateSettings(settings: Partial<ClaudeSettings>): Promise<void> {
     const current = await this.settingsManager.getSettings();
     const updated = { ...current, ...settings };
 

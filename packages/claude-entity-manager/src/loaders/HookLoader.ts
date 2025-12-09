@@ -1,6 +1,6 @@
 import { readFile, readdir } from "fs/promises";
 import { join, basename } from "path";
-import type { Hook, EntitySource, HookEvent, HookMatcher } from "@ai-systems/shared-types";
+import type { Hook, EntitySource, HookEvent, HookMatcher, HookWithSource } from "@ai-systems/shared-types";
 import { getHooksDir } from "../utils/paths.js";
 
 /**
@@ -86,7 +86,7 @@ export class HookLoader {
   async loadHookFile(
     filePath: string,
     source: Omit<EntitySource, "path">
-  ): Promise<Hook | null> {
+  ): Promise<HookWithSource | null> {
     try {
       const rawContent = await readFile(filePath, "utf-8");
       const hookConfig = JSON.parse(rawContent) as Partial<
@@ -95,7 +95,6 @@ export class HookLoader {
 
       return {
         name: basename(filePath, ".json"),
-        path: filePath,
         source: { ...source, path: filePath },
         hooks: hookConfig,
       };

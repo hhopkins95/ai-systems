@@ -176,7 +176,7 @@ export class ClaudeMdLoader {
     };
 
     return files.sort((a, b) => {
-      const orderDiff = scopeOrder[a.scope] - scopeOrder[b.scope];
+      const orderDiff = scopeOrder[a.scope ?? "global"] - scopeOrder[b.scope ?? "global"];
       if (orderDiff !== 0) return orderDiff;
       // For nested files, sort by depth then path
       if (a.scope === "nested" && b.scope === "nested") {

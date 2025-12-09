@@ -1,6 +1,6 @@
 import { readFile, readdir } from "fs/promises";
 import { join, basename } from "path";
-import type { Agent, EntitySource, AgentMetadata } from "@ai-systems/shared-types";
+import type { Agent, EntitySource, AgentMetadata, AgentWithSource } from "@ai-systems/shared-types";
 import {
   parseFrontmatter,
   extractFirstLine,
@@ -79,16 +79,14 @@ export class AgentLoader {
   async loadAgent(
     filePath: string,
     source: Omit<EntitySource, "path">
-  ): Promise<Agent | null> {
+  ): Promise<AgentWithSource | null> {
     try {
       const rawContent = await readFile(filePath, "utf-8");
       const { data, content } = parseFrontmatter<AgentMetadata>(rawContent);
 
       return {
         name: basename(filePath, ".md"),
-        path: filePath,
         source: { ...source, path: filePath },
-        description: data.description || extractFirstLine(content),
         content,
         metadata: data,
       };
