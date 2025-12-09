@@ -96,6 +96,7 @@ export class ClaudeEntityManager {
     commands: Command[];
     subagents: Agent[];
     hooks: Hook[];
+    mcpServers: McpServerWithSource[];
   }> {
     const allSkills: Skill[] = [];
     const allCommands: Command[] = [];
@@ -150,6 +151,7 @@ export class ClaudeEntityManager {
       allCommands.push(...pluginConfig.commands);
       allSubagents.push(...pluginConfig.subagents);
       allHooks.push(...pluginConfig.hooks);
+      allMcpServers.push(...pluginConfig.mcpServers);
     }
 
     return {
@@ -157,6 +159,7 @@ export class ClaudeEntityManager {
       commands: allCommands,
       subagents: allSubagents,
       hooks: allHooks,
+      mcpServers: allMcpServers,
     };
   }
 
@@ -171,10 +174,11 @@ export class ClaudeEntityManager {
     commands: Command[];
     subagents: Agent[];
     hooks: Hook[];
+    mcpServers: McpServerWithSource[];
   }> {
     const plugin = await this.pluginDiscovery.getPlugin(pluginId);
     if (!plugin) {
-      return { skills: [], commands: [], subagents: [], hooks: [] };
+      return { skills: [], commands: [], subagents: [], hooks: [], mcpServers: [] };
     }
 
     const pluginSource: Omit<EntitySource, "path"> = {
@@ -222,7 +226,26 @@ export class ClaudeEntityManager {
         : this.hookLoader.loadHooks(plugin.path, pluginSource),
     ]);
 
-    return { skills, commands, subagents: agents, hooks };
+    // Load MCP servers from plugin (both manifest and .mcp.json)
+    const pluginMcpSource: Omit<EntitySource, "path"> & { pluginId: string } = {
+      type: "plugin",
+      pluginId: plugin.id,
+    };
+    const [manifestMcps, mcpJsonMcps] = await Promise.all([
+      this.mcpLoader.loadMcpServersFromPlugin(plugin.path, pluginMcpSource),
+      this.mcpLoader.loadMcpServersFromPluginMcpJson(plugin.path, pluginMcpSource),
+    ]);
+    // Combine, with .mcp.json taking precedence over manifest by server name
+    const pluginMcpMap = new Map<string, McpServerWithSource>();
+    for (const mcp of manifestMcps) {
+      pluginMcpMap.set(mcp.name, mcp);
+    }
+    for (const mcp of mcpJsonMcps) {
+      pluginMcpMap.set(mcp.name, mcp);
+    }
+    const mcpServers = [...pluginMcpMap.values()];
+
+    return { skills, commands, subagents: agents, hooks, mcpServers };
   }
 
   /**
@@ -236,17 +259,19 @@ export class ClaudeEntityManager {
     commands: Command[];
     subagents: Agent[];
     hooks: Hook[];
+    mcpServers: McpServerWithSource[];
   }> {
     const source: Omit<EntitySource, "path"> = { type: "global" };
 
-    const [skills, commands, agents, hooks] = await Promise.all([
+    const [skills, commands, agents, hooks, mcpServers] = await Promise.all([
       this.skillLoader.loadSkills(dirPath, source, includeContents, true), // searchRootLevel
       this.commandLoader.loadCommands(dirPath, source),
       this.agentLoader.loadAgents(dirPath, source),
       this.hookLoader.loadHooks(dirPath, source),
+      this.mcpLoader.loadMcpServers(dirPath, source),
     ]);
 
-    return { skills, commands, subagents: agents, hooks };
+    return { skills, commands, subagents: agents, hooks, mcpServers };
   }
 
   /**
@@ -320,6 +345,18 @@ export class ClaudeEntityManager {
     }
     const config = await this.loadEntitiesFromEnabledSources();
     return config.hooks;
+  }
+
+  /**
+   * Load all MCP servers from enabled sources
+   */
+  async loadMcpServers(options?: { pluginId?: string }): Promise<McpServerWithSource[]> {
+    if (options?.pluginId) {
+      const config = await this.loadPluginEntities(options.pluginId);
+      return config.mcpServers;
+    }
+    const config = await this.loadEntitiesFromEnabledSources();
+    return config.mcpServers;
   }
 
   // ==================== CLAUDE.MD CONTEXT FILES ====================

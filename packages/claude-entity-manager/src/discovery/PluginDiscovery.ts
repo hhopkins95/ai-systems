@@ -436,7 +436,7 @@ export class PluginDiscovery {
     // Use the key as the name if not explicitly set in the config
     return Object.entries(manifest.mcpServers).map(([name, config]) => ({
       ...config,
-      name: config.name || name,
+      name: name,
     }));
   }
 
