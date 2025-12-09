@@ -1,26 +1,6 @@
 #!/usr/bin/env tsx
 /**
- * Setup Session - Prepares sandbox environment
- *
- * Writes entity files and MCP configuration to the project directory.
- * Input is received via stdin as JSON.
- *
- * Usage:
- *   echo '{"projectDir":"/workspace",...}' | setup-session
- *   cat setup-input.json | setup-session
- *
- * Input (JSON via stdin):
- *   {
- *     "projectDir": "/workspace",
- *     "entities": { skills: [...], commands: [...], agents: [...], hooks: [...], claudeMd: "..." },
- *     "sessionTranscript": "...",
- *     "sessionId": "session-xxx",
- *     "mcpServers": { "server-name": { command: "...", args: [...] } },
- *     "architecture": "claude-sdk" | "opencode"
- *   }
- *
- * Output:
- *   JSON result to stdout: { success: boolean, filesWritten: string[], errors?: string[] }
+
  */
 
 import { AGENT_ARCHITECTURE_TYPE, CombinedClaudeTranscript } from '@ai-systems/shared-types';
@@ -30,6 +10,7 @@ import { join } from 'path';
 import { readStdinJson } from './shared/input.js';
 import { setupExceptionHandlers } from './shared/signal-handlers.js';
 import { writeJson } from './shared/output.js';
+import { getClaudeTranscriptDir } from '../helpers/getClaudeTranscriptDir.js';
 
 // Set up exception handlers early
 setupExceptionHandlers();
@@ -55,12 +36,7 @@ async function writeClaudeTranscript(
   transcript: string
 ): Promise<string> {
 
-
-  const homeDir = os.homedir()
-  const projectId = projectDir.replace('/', '-').replace(' ', '-');
-  const transcriptDir = join(homeDir, '.claude', 'projects', projectId);
-  await mkdir(transcriptDir, { recursive: true });
-
+  const transcriptDir = await getClaudeTranscriptDir(projectDir);
 
   // read the transcript file as the combined json 
   let transcriptJson = JSON.parse(transcript) as CombinedClaudeTranscript
