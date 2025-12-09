@@ -95,11 +95,14 @@ export interface AgentProfile extends AgentProfileListData {
   bundledMCPs?: {
     name: string,
     description: string,
-    localProjectPath: string,
+    files: {
+      path : string,
+      content: string,
+    }[],
     startCommand: string,
     installCommand: string
   }[]
-  externalMCPs?: McpServerConfig[],
+  externalMCPs?: McpServer[],
   
   defaultWorkspaceFiles?: WorkspaceFile[],
 }
