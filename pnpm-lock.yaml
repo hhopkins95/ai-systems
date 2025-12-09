@@ -263,6 +263,9 @@ importers:
 
   runtime/runner:
     dependencies:
+      '@ai-systems/opencode-claude-adapter':
+        specifier: workspace:*
+        version: link:../../packages/opencode-claude-adapter
       '@ai-systems/shared-types':
         specifier: workspace:*
         version: link:../../packages/types

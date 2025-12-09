@@ -28,10 +28,11 @@ import path, { join } from 'path';
 import { readStdinJson } from './shared/input.js';
 import { logDebug, writeError } from './shared/output.js';
 import { setupExceptionHandlers } from './shared/signal-handlers.js';
-import { AGENT_ARCHITECTURE_TYPE, AgentProfile, ClaudeMcpJsonConfig } from '@ai-systems/shared-types';
+import { AGENT_ARCHITECTURE_TYPE, AgentProfile, ClaudeMcpJsonConfig, OpencodeSettings } from '@ai-systems/shared-types';
 import { ClaudeEntityManager} from '@hhopkins/claude-entity-manager';
 import os from 'os';
 import { exec } from 'child_process';
+import { createRequire } from 'module';
 
 // Set up exception handlers early
 setupExceptionHandlers();
@@ -120,6 +121,16 @@ async function main() {
 
         // if opencode, we need to add the adapter plugin
         if (input.architectureType === 'opencode') {
+
+            const require = createRequire(import.meta.url);
+            const adapterPackageJson = require('@ai-systems/opencode-claude-adapter');
+            const adapterPath = path.dirname(adapterPackageJson.main);
+
+            const opencodeConfig : OpencodeSettings = {
+                plugin: [adapterPath],
+            }
+
+            await writeFile(path.join(input.projectDirPath, 'opencode.json'), JSON.stringify(opencodeConfig, null, 2));
 
             
         }

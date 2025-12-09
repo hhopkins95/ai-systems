@@ -78,6 +78,8 @@ export interface OpencodeProvider {
  * OpenCode opencode.json configuration
  */
 export interface OpencodeSettings {
+  /** Plugin paths */
+  plugin?: string[];
   /** Tool permissions */
   permission?: OpencodePermissions;
   /** Tool enable/disable flags */
