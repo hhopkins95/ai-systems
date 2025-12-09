@@ -1,7 +1,7 @@
 import { readdir, stat, readFile } from "fs/promises";
 import { join } from "path";
 import fg from "fast-glob";
-import type { PluginManifest, McpServerConfig } from "../types.js";
+import type { PluginManifest } from "../types.js";
 import {
   getSkillsDir,
   getCommandsDir,

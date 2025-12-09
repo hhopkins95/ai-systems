@@ -74,11 +74,11 @@ export class SourceParser {
       if (sshMatch[1] === "github.com") {
         return { type: "github", owner: sshMatch[2], repo: sshMatch[3] };
       }
-      return { type: "git", url: source };
+      return { type: "url", url: source };
     }
 
     // Assume it's a git URL
-    return { type: "git", url: source };
+    return { type: "url", url: source };
   }
 
   /**
@@ -88,7 +88,7 @@ export class SourceParser {
     switch (source.type) {
       case "github":
         return `https://github.com/${source.owner}/${source.repo}.git`;
-      case "git":
+      case "url":
         return source.url;
       case "directory":
       case "marketplace":
@@ -103,7 +103,7 @@ export class SourceParser {
     switch (source.type) {
       case "github":
         return `GitHub: ${source.owner}/${source.repo}`;
-      case "git":
+      case "url":
         return `Git: ${source.url}`;
       case "directory":
         return `Directory: ${source.path}`;

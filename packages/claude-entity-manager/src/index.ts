@@ -3,30 +3,11 @@ export { ClaudeEntityManager } from "./ClaudeEntityManager.js";
 
 // Type exports
 export type {
-  // Entity types
-  Skill,
-  SkillMetadata,
-  Command,
-  CommandMetadata,
-  Agent,
-  AgentMetadata,
-  Hook,
-  HookEvent,
-  HookConfig,
-  HookMatcher,
-  EntitySource,
-  // Agent context types
-  AgentContext,
-  AgentContextSources,
-  LoadAgentContextOptions,
   // Plugin types
-  Plugin,
   PluginManifest,
-  PluginSource,
   MarketplaceManifest,
   MarketplacePlugin,
-  McpServerConfig,
-  PluginMcpServer,
+
   // Registry types
   PluginRegistry,
   InstalledPluginInfo,

@@ -1,13 +1,9 @@
 import { readFile, readdir, stat, access } from "fs/promises";
 import { join, basename } from "path";
 import type {
-  Plugin,
   PluginManifest,
   MarketplaceManifest,
-  PluginSource,
   KnownMarketplace,
-  PluginEnabledStatus,
-  McpServerConfig,
 } from "../types.js";
 import { EntityDiscovery } from "./EntityDiscovery.js";
 import { PluginRegistryService } from "../registry/PluginRegistry.js";
@@ -18,6 +14,7 @@ import {
   getMarketplaceManifestPath,
   getCacheDir,
 } from "../utils/paths.js";
+import { McpServerConfig, Plugin, PluginEnabledStatus, PluginSource } from "@ai-systems/shared-types";
 
 /**
  * Service for discovering plugins from marketplaces and cache
@@ -154,7 +151,7 @@ export class PluginDiscovery {
         }
       } else if (
         typeof pluginEntry.source === "object" &&
-        pluginEntry.source.source === "url"
+        pluginEntry.source.type === "url"
       ) {
         // URL-based plugin - check cache
         pluginPath = join(getCacheDir(this.claudeDir), pluginEntry.name);
@@ -272,7 +269,7 @@ export class PluginDiscovery {
           marketplace: marketplaceName,
           description: manifest.description,
           version: manifest.version,
-          source: { source: "directory", path: pluginPath },
+          source: { type: "directory", path: pluginPath },
           path: pluginPath,
           enabled: enabledStates[pluginId] !== false,
           installationStatus: "installed",
@@ -375,7 +372,7 @@ export class PluginDiscovery {
           description: installInfo
             ? `Installed from ${marketplaceName}`
             : undefined,
-          source: { source: "directory", path: searchPath },
+          source: { type: "directory", path: searchPath },
           path: searchPath,
           enabled: enabledStates[pluginId] !== false,
           installationStatus: "installed",
@@ -464,9 +461,9 @@ export class PluginDiscovery {
   ): PluginSource {
     if (typeof source === "string") {
       if (source.startsWith("./")) {
-        return { source: "directory", path: join(baseDir, source) };
+        return { type: "directory", path: join(baseDir, source) };
       }
-      return { source: "url", url: source };
+      return { type: "url", url: source };
     }
     return source;
   }

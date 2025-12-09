@@ -5,7 +5,6 @@ import type {
   PluginInstallSource,
   PluginInstallResult,
   PluginInstallOptions,
-  PluginSource,
   MarketplaceManifest,
 } from "../types.js";
 import { SourceParser } from "./SourceParser.js";
@@ -16,6 +15,7 @@ import {
   getMarketplacesDir,
   getMarketplaceManifestPath,
 } from "../utils/paths.js";
+import { PluginSource } from "@ai-systems/shared-types";
 
 /**
  * Service for installing plugins from various sources
@@ -50,7 +50,7 @@ export class PluginInstaller {
           parsedSource.repo,
           options
         );
-      case "git":
+      case "url":
         return this.installFromGitUrl(parsedSource.url, options);
       case "directory":
         return this.installFromDirectory(parsedSource.path, options);
@@ -242,13 +242,13 @@ export class PluginInstaller {
       return { success: true, pluginId, installPath };
     } else if (
       typeof pluginEntry.source === "object" &&
-      pluginEntry.source.source === "url"
+      pluginEntry.source.type === "url"
     ) {
       // URL-based plugin - clone to cache
       return this.installFromGitUrl(pluginEntry.source.url, options, pluginId);
     } else if (
       typeof pluginEntry.source === "object" &&
-      pluginEntry.source.source === "github"
+      pluginEntry.source.type === "github"
     ) {
       const repo = pluginEntry.source.repo;
       const [owner, repoName] = repo.split("/");
@@ -315,11 +315,11 @@ export class PluginInstaller {
       const parsed = this.sourceParser.parse(source);
       // Convert InstallSource to PluginSource
       if (parsed.type === "github") {
-        parsedSource = { source: "github", repo: parsed.repo, owner: parsed.owner };
-      } else if (parsed.type === "git") {
-        parsedSource = { source: "url", url: parsed.url };
+        parsedSource = { type: "github", repo: parsed.repo, owner: parsed.owner };
+      } else if (parsed.type === "url") {
+        parsedSource = { type: "url", url: parsed.url };
       } else if (parsed.type === "directory") {
-        parsedSource = { source: "directory", path: parsed.path };
+        parsedSource = { type: "directory", path: parsed.path };
       } else {
         return {
           success: false,
@@ -338,7 +338,7 @@ export class PluginInstaller {
       // Ensure marketplaces directory exists
       await mkdir(getMarketplacesDir(this.claudeDir), { recursive: true });
 
-      if (parsedSource.source === "directory") {
+      if (parsedSource.type === "directory") {
         // Local directory - register without copying
         await this.marketplaceRegistry.setMarketplace(
           name,
@@ -355,7 +355,7 @@ export class PluginInstaller {
 
       // Git-based marketplace
       const url =
-        parsedSource.source === "github"
+        parsedSource.type === "github"
           ? `https://github.com/${parsedSource.repo}.git`
           : parsedSource.url;
 

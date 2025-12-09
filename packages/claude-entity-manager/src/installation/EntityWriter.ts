@@ -8,7 +8,7 @@ import type {
   Hook,
   HookEvent,
   HookMatcher,
-} from "../types.js";
+} from "@ai-systems/shared-types";
 import {
   getSkillsDir,
   getCommandsDir,

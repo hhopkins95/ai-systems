@@ -51,9 +51,9 @@ export interface PluginInstallInfo {
  * Plugin source - where the plugin can be installed from
  */
 export type PluginSource =
-  | { source: "github"; repo: string; owner: string }
-  | { source: "url"; url: string }
-  | { source: "directory"; path: string };
+  | { type: "github"; repo: string; owner: string }
+  | { type: "url"; url: string }
+  | { type: "directory"; path: string };
 
 /**
  * A discovered plugin with all computed states

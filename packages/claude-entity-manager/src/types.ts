@@ -2,7 +2,7 @@
 import type {
   PluginSource,
   McpServerConfig,
-} from "../../types/dist/index.js";
+} from "@ai-systems/shared-types";
 
 // ==================== PLUGIN MANIFEST ====================
 
@@ -121,6 +121,7 @@ export type PluginInstallSource =
   // | { type: "git"; url: string }
   // | { type: "directory"; path: string }
   PluginSource | { type: "marketplace"; pluginName: string; marketplaceName: string };
+
 
 /**
  * Installation options

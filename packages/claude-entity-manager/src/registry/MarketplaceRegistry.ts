@@ -3,8 +3,8 @@ import { dirname } from "path";
 import type {
   KnownMarketplace,
   KnownMarketplacesRegistry,
-  PluginSource,
 } from "../types.js";
+import type { PluginSource } from "@ai-systems/shared-types";
 import { getKnownMarketplacesPath } from "../utils/paths.js";
 
 /**
