@@ -4,12 +4,9 @@
  */
 
 import { Command } from 'commander';
-import * as fs from 'fs';
 import * as path from 'path';
-import { CombinedClaudeTranscript, parseStreamEvent } from '@hhopkins/agent-converters/claude-sdk';
-import { createStreamEventParser } from '@hhopkins/agent-converters/opencode';
+import { CombinedClaudeTranscript } from '@hhopkins/agent-converters/claude-sdk';
 import {
-    writeStreamEvents,
     writeError,
     logDebug,
 } from './shared/output.js';
@@ -19,8 +16,8 @@ import {
 } from './shared/signal-handlers.js';
 import { getClaudeTranscriptDir } from '../helpers/getClaudeTranscriptDir.js';
 import { readdir, readFile , } from 'fs/promises';
-import { exec } from 'child_process';
-import { readStreamToString } from './shared/stream.js';
+import { execFile } from 'child_process';
+import { promisify } from 'util';
 
 // Set up exception handlers early
 setupExceptionHandlers();
@@ -30,8 +27,8 @@ setupExceptionHandlers();
 // =============================================================================
 
 const program = new Command()
-    .name('execute-query')
-    .description('Execute agent query with unified StreamEvent output')
+    .name('read-session-transcript')
+    .description('Read and combine session transcript files')
     .argument('<session-id>', 'The session ID')
     .requiredOption('-a, --architecture <arch>', 'Architecture: claude-sdk or opencode')
     .requiredOption('-p, --project-dir <path>', 'Project directory')
@@ -51,8 +48,11 @@ async function readClaudeSdkTranscript(sessionId: string, projectDir: string): P
                 return null;
             }
 
-            // List all files in storage directory (pattern to find agent-*.jsonl)
-            const files = await readdir(transcriptDir, 'agent-*.jsonl');
+            // List all files in storage directory and filter for agent-*.jsonl
+            const allFiles = await readdir(transcriptDir);
+            const files = allFiles
+                .filter(f => f.startsWith('agent-') && f.endsWith('.jsonl'))
+                .map(f => path.join(transcriptDir, f));
 
             // Read all subagent transcripts
             const subagents: { id: string, transcript: string }[] = [];
@@ -92,35 +92,24 @@ async function readClaudeSdkTranscript(sessionId: string, projectDir: string): P
 }
 
 
+const execFileAsync = promisify(execFile);
+
 async function readOpencodeTranscript(sessionId: string, projectDir: string): Promise<string | null> {
-//     const result = await this.sandbox.exec(['opencode', 'export', this.sessionId]);
-//     const exitCode = await result.wait();
+    try {
+        const { stdout } = await execFileAsync('opencode', ['export', sessionId], {
+            cwd: projectDir,
+        });
 
-//     // Read all stdout content using universal stream helper
-//     const stdout = await readStreamToString(result.stdout);
+        if (!stdout) {
+            console.error('No stdout from opencode export command');
+            return null;
+        }
 
-//     if (exitCode !== 0) {
-//       const stderr = await readStreamToString(result.stderr);
-//       logger.error({ exitCode, stderr, sessionId: this.sessionId }, 'OpenCode export command failed');
-//       return null;
-//     }
-//     return stdout || null;
-
-const result = await exec(`opencode export ${sessionId}`);
-const exitCode = result.exitCode;
-
-if (exitCode !== 0) {
-    console.error(`OpenCode export command failed: ${exitCode}`);
-    return null;
-}
-
-if (!result.stdout) {
-    console.error(`No stdout found for OpenCode export command`);
-    return null;
-}
-
-const stdout = await readStreamToString(result.stdout as ReadableStream<string>);
-    return ''
+        return stdout;
+    } catch (error) {
+        console.error(`OpenCode export command failed:`, error);
+        return null;
+    }
 }
 
 
