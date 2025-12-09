@@ -11,8 +11,8 @@ import type {
   AgentContextSources,
   LoadAgentContextOptions,
   MemoryFile,
-  McpServerConfig,
-  ClaudeSettings
+  ClaudeSettings,
+  McpServerWithSource
 } from "@ai-systems/shared-types";
 import type { ClaudeEntityManagerOptions, PluginInstallOptions, PluginInstallResult, PluginInstallSource, KnownMarketplacesRegistry, MarketplaceManifest, PluginRegistry} from "./types.js"
 import { getClaudeDir, getProjectClaudeDir } from "./utils/paths.js";
@@ -21,7 +21,7 @@ import { CommandLoader } from "./loaders/CommandLoader.js";
 import { AgentLoader } from "./loaders/AgentLoader.js";
 import { HookLoader } from "./loaders/HookLoader.js";
 import { ClaudeMdLoader } from "./loaders/ClaudeMdLoader.js";
-import { MCPLoader, type McpServerWithSource } from "./loaders/MCPLoader.js";
+import { MCPLoader } from "./loaders/MCPLoader.js";
 import { PluginDiscovery } from "./discovery/PluginDiscovery.js";
 import { PluginRegistryService } from "./registry/PluginRegistry.js";
 import { MarketplaceRegistryService } from "./registry/MarketplaceRegistry.js";
