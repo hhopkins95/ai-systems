@@ -7,7 +7,7 @@
       "outputs": ["dist/**", ".next/**", "!.next/cache/**"]
     },
     "dev": {
-      "dependsOn": ["^dev"],
+      "dependsOn": ["^build"],
       "cache": false,
       "persistent": true
     },
@@ -24,26 +24,6 @@
     "opencode-claude-adapter#build": {
       "dependsOn": ["@hhopkins/claude-entity-manager#build"],
       "outputs": ["dist/**"]
-    },
-    "@example/backend#dev": {
-      "dependsOn": [
-        "@ai-systems/shared-types#dev",
-        "@hhopkins/agent-converters#dev",
-        "@hhopkins/claude-entity-manager#dev",
-        "@ai-systems/opencode-claude-adapter#dev",
-        "@hhopkins/agent-runner#dev",
-        "@hhopkins/agent-server#dev"
-      ],
-      "cache": false,
-      "persistent": true
-    },
-    "@example/frontend#dev": {
-      "dependsOn": [
-        "@ai-systems/shared-types#dev",
-        "@hhopkins/agent-client#dev"
-      ],
-      "cache": false,
-      "persistent": true
     }
   }
 }
