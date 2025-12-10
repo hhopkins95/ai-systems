@@ -3,8 +3,10 @@ import {
     AgentArchitectureSessionOptions,
     AgentProfile,
     StreamEvent,
-    WorkspaceFile
+    WorkspaceFile,
+    SystemBlock
 } from "@ai-systems/shared-types";
+import { logger } from '../config/logger.js';
 import { EnvironmentPrimitive, WatchEvent } from "../lib/environment-primitives/base";
 import { getEnvironmentPrimitive } from "../lib/environment-primitives/factory";
 import { RuntimeExecutionEnvironmentOptions } from "../types/runtime";
@@ -164,7 +166,13 @@ export class ExecutionEnvironment {
         );
         await profileProcess.stdin.writeText(JSON.stringify(loadProfileInput));
         await profileProcess.stdin.close();
-        const exitCode = await profileProcess.wait();
+
+        // Capture logs while waiting for process
+        const [exitCode] = await Promise.all([
+            profileProcess.wait(),
+            this.captureRunnerLogs(profileProcess)
+        ]);
+
         if (exitCode !== 0) {
             const stderr = await readStreamToString(profileProcess.stderr);
             throw new Error(`Failed to load agent profile: ${stderr}`);
@@ -185,7 +193,13 @@ export class ExecutionEnvironment {
             );
             await transcriptProcess.stdin.writeText(JSON.stringify(loadTranscriptInput));
             await transcriptProcess.stdin.close();
-            const transcriptExit = await transcriptProcess.wait();
+
+            // Capture logs while waiting for process
+            const [transcriptExit] = await Promise.all([
+                transcriptProcess.wait(),
+                this.captureRunnerLogs(transcriptProcess)
+            ]);
+
             if (transcriptExit !== 0) {
                 const stderr = await readStreamToString(transcriptProcess.stderr);
                 throw new Error(`Failed to load session transcript: ${stderr}`);
@@ -234,7 +248,19 @@ export class ExecutionEnvironment {
                 for (const line of lines) {
                     if (line.trim()) {
                         try {
-                            yield JSON.parse(line) as StreamEvent;
+                            const event = JSON.parse(line) as StreamEvent;
+
+                            // Log runner log events to server console
+                            if (event.type === 'block_complete' &&
+                                event.block.type === 'system' &&
+                                (event.block as SystemBlock).subtype === 'log') {
+                                const block = event.block as SystemBlock;
+                                const { level, ...rest } = (block.metadata || {}) as { level?: string };
+                                const logFn = level === 'error' ? logger.error : level === 'warn' ? logger.warn : logger.info;
+                                logFn.call(logger, { runnerLog: true, ...rest }, `[Runner] ${block.message}`);
+                            }
+
+                            yield event;
                         } catch {
                             // Skip malformed JSON lines
                         }
@@ -267,6 +293,47 @@ export class ExecutionEnvironment {
             if (transcript) {
                 this.transcriptUpdateCallback({ content: transcript });
             }
+        }
+    }
+
+    /**
+     * Capture and log runner log events from a process's stdout
+     * Used to capture logs from prepareSession scripts
+     */
+    private async captureRunnerLogs(process: { stdout: ReadableStream }): Promise<void> {
+        const reader = process.stdout.getReader();
+        let buffer = '';
+
+        try {
+            while (true) {
+                const { done, value } = await reader.read();
+                if (done) break;
+
+                const chunk = typeof value === 'string' ? value : new TextDecoder().decode(value);
+                buffer += chunk;
+                const lines = buffer.split('\n');
+                buffer = lines.pop() || '';
+
+                for (const line of lines) {
+                    if (line.trim()) {
+                        try {
+                            const event = JSON.parse(line) as StreamEvent;
+                            if (event.type === 'block_complete' &&
+                                event.block.type === 'system' &&
+                                (event.block as SystemBlock).subtype === 'log') {
+                                const block = event.block as SystemBlock;
+                                const { level, ...rest } = (block.metadata || {}) as { level?: string };
+                                const logFn = level === 'error' ? logger.error : level === 'warn' ? logger.warn : logger.info;
+                                logFn.call(logger, { runnerLog: true, ...rest }, `[Runner] ${block.message}`);
+                            }
+                        } catch {
+                            // Not JSON, ignore
+                        }
+                    }
+                }
+            }
+        } finally {
+            reader.releaseLock();
         }
     }
 

@@ -26,7 +26,7 @@
 import { mkdir, writeFile } from 'fs/promises';
 import path, { join } from 'path';
 import { readStdinJson } from './shared/input.js';
-import { logDebug, writePlainError } from './shared/output.js';
+import { logDebug, writePlainError, writeLog } from './shared/output.js';
 import { setupExceptionHandlers } from './shared/signal-handlers.js';
 import { AgentArchitecture, AgentProfile, ClaudeMcpJsonConfig, OpencodeSettings } from '@ai-systems/shared-types';
 import { ClaudeEntityManager} from '@hhopkins/claude-entity-manager';
@@ -55,6 +55,11 @@ export async function loadAgentProfile() {
     try {
         const input = await readStdinJson<LoadAgentProfileInput>();
 
+        writeLog('info', 'Loading agent profile', {
+            sessionId: input.sessionId,
+            architecture: input.architectureType,
+        });
+
         // always just setup the profile for claude. If opencode, we just need to add the adapter plugin
         const claudeEntityManager = new ClaudeEntityManager({
             projectDir : input.projectDirPath,
@@ -62,8 +67,12 @@ export async function loadAgentProfile() {
 
 
         // install all of the plugins for the agent profile
-        for (const plugin of input.agentProfile.plugins ?? []) {
+        const plugins = input.agentProfile.plugins ?? [];
+        for (const plugin of plugins) {
             await claudeEntityManager.installPlugin(plugin);
+        }
+        if (plugins.length > 0) {
+            writeLog('info', 'Plugins installed', { count: plugins.length });
         }
         // add all of the other entities 
         for (const skill of input.agentProfile.customEntities.skills ?? []) {
@@ -134,9 +143,10 @@ export async function loadAgentProfile() {
 
             await writeFile(path.join(input.projectDirPath, 'opencode.json'), JSON.stringify(opencodeConfig, null, 2));
 
-            
+
         }
 
+        writeLog('info', 'Agent profile loaded');
 
     } catch (error) {
         const errorMessage = error instanceof Error ? error.message : String(error);

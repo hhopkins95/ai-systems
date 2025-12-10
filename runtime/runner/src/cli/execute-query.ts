@@ -282,6 +282,12 @@ export async function executeQuery() {
   // Parse args when this function is called
   program.parse();
 
+  writeLog('info', 'Executing query', {
+    architecture: program.opts().architecture,
+    sessionId: program.opts().sessionId,
+    cwd: program.opts().cwd,
+  });
+
   const opts = program.opts();
   const prompt = program.args[0];
 

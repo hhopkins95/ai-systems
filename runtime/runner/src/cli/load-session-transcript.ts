@@ -9,7 +9,7 @@ import os from 'os';
 import { join } from 'path';
 import { readStdinJson } from './shared/input.js';
 import { setupExceptionHandlers } from './shared/signal-handlers.js';
-import { writeJson } from './shared/output.js';
+import { writeJson, writeLog } from './shared/output.js';
 import { getClaudeTranscriptDir } from '../helpers/getClaudeTranscriptDir.js';
 
 // Set up exception handlers early
@@ -97,11 +97,18 @@ export async function loadSessionTranscript() {
 
         const input = await readStdinJson<LoadSessionTranscriptInput>();
 
+        writeLog('info', 'Loading session transcript', {
+            sessionId: input.sessionId,
+            architecture: input.architectureType,
+        });
+
         if (input.architectureType === 'claude-sdk') {
             await writeClaudeTranscript(input.projectDirPath, input.sessionId, input.sessionTranscript);
         } else if (input.architectureType === 'opencode') {
             await writeOpencodeTranscript(input.sessionId, input.sessionTranscript);
         }
+
+        writeLog('info', 'Session transcript loaded');
 
         const result: LoadSessionTranscriptResult = {
             success: true,
