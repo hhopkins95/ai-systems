@@ -1,4 +1,5 @@
 import type { AgentProfile } from "@hhopkins/agent-server/types";
+import { bundleMcpDirectory } from "@hhopkins/agent-server";
 import path from "path";
 import { fileURLToPath } from "url";
 
@@ -18,13 +19,25 @@ const __dirname = path.dirname(__filename);
  * - Example skill (echo-info)
  * - Example bundled MCP server (echo-server)
  */
-export const exampleAgentProfile: AgentProfile = {
-  id: "example-assistant",
-  name: "Example Assistant",
-  description: "A helpful AI assistant for general tasks and coding",
+export async function createExampleAgentProfile(): Promise<AgentProfile> {
+  // Bundle the echo-server MCP from its directory
+  const echoServerBundle = await bundleMcpDirectory(
+    path.resolve(__dirname, "../mcps/echo-server"),
+    {
+      name: "echo-server",
+      description: "A simple echo MCP server for testing MCP integration",
+      startCommand: "tsx src/index.ts",
+      installCommand: "npm install"
+    }
+  );
 
-  // System prompt that defines the agent's behavior
-  systemPrompt: `You are a helpful AI assistant. You can help users with:
+  return {
+    id: "example-assistant",
+    name: "Example Assistant",
+    description: "A helpful AI assistant for general tasks and coding",
+
+    // System prompt that defines the agent's behavior
+    systemPrompt: `You are a helpful AI assistant. You can help users with:
 - Writing and editing code
 - Running bash commands
 - Searching through files
@@ -32,15 +45,15 @@ export const exampleAgentProfile: AgentProfile = {
 
 Be concise and helpful in your responses.`,
 
-  // Skills configuration
- customEntities : { 
-  skills: [
-    {
-      name: "echo-info",
-      metadata : {
-      description: "A simple skill that echoes back information to verify skills are working.",
-      },
-      content: `# Echo Info Skill
+    // Skills configuration
+    customEntities: {
+      skills: [
+        {
+          name: "echo-info",
+          metadata: {
+            description: "A simple skill that echoes back information to verify skills are working.",
+          },
+          content: `# Echo Info Skill
 
 This is a test skill to verify skills are properly loaded.
 
@@ -51,31 +64,18 @@ When invoked, this skill should:
 
 ## Verification
 If you can read this, the skill system is working correctly.`,
-      files: ["examples/sample.txt"], 
-      fileContents: {
-        "examples/sample.txt": "Sample supporting file for echo-info skill.",
-      }, 
-    }
-  ],
-},
-
-  // Bundled MCP servers
-  bundledMCPs: [
-    {
-      name: "echo-server",
-      description: "A simple echo MCP server for testing MCP integration",
-      files: [
-        {
-          path: path.resolve(__dirname, "../mcps/echo-server/src/index.ts"),
-          content: "console.log('Hello, world!');"
+          files: ["examples/sample.txt"],
+          fileContents: {
+            "examples/sample.txt": "Sample supporting file for echo-info skill.",
+          },
         }
       ],
-      startCommand: "tsx src/index.ts",
-      installCommand: "npm install"
-    }
-  ],
+    },
 
-};
+    // Bundled MCP servers
+    bundledMCPs: [echoServerBundle],
+  };
+}
 
 /**
  * Persistence type: "memory" for in-memory storage, "sqlite" for SQLite database

@@ -2,7 +2,7 @@ import { createServer } from "http";
 import { createAgentRuntime, type PersistenceAdapter } from "@hhopkins/agent-server";
 import dotenv from "dotenv";
 import { InMemoryPersistenceAdapter, SqlitePersistenceAdapter } from "./persistence/index.js";
-import { config, validateConfig, exampleAgentProfile } from "./config.js";
+import { config, validateConfig, createExampleAgentProfile } from "./config.js";
 
 // Load environment variables
 dotenv.config();
@@ -22,6 +22,10 @@ async function main() {
 
     // Validate environment variables
     validateConfig();
+
+    // Create agent profile (bundles MCP directories)
+    const exampleAgentProfile = await createExampleAgentProfile();
+    console.log("✅ Agent profile created");
 
     // Create persistence adapter based on configuration
     let persistence: PersistenceAdapter;

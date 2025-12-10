@@ -64,3 +64,9 @@ export type { AgentSession } from './core/agent-session.js';
 export { createRestServer, errorResponse } from './transport/rest/server.js';
 export { createSessionRoutes } from './transport/rest/routes/sessions.js';
 export { createMessageRoutes } from './transport/rest/routes/messages.js';
+
+// ============================================================================
+// Utilities
+// ============================================================================
+
+export { bundleMcpDirectory } from './lib/util/bundle-mcp.js';
