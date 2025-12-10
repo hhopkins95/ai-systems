@@ -1,0 +1,5 @@
+{
+  "name": "project-tracker",
+  "version": "1.0.0",
+  "description": "Project tracking system for multi-session work. Manages initiatives, session summaries, ideas, and todos. Enables knowledge transfer across AI sessions."
+}
