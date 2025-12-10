@@ -10,11 +10,11 @@ import type { SetupSessionResult } from '../../types.js';
 
 /**
  * Write a StreamEvent as JSONL to stdout
+ * Uses process.stdout.write directly for unbuffered output in non-TTY environments
  */
 export function writeStreamEvent(event: StreamEvent): void {
-  console.log(JSON.stringify(event));
-  // Flush stdout for immediate delivery
-  process.stdout.write('');
+  // Use write() instead of console.log() to avoid buffering in non-TTY (e.g., Modal containers)
+  process.stdout.write(JSON.stringify(event) + '\n');
 }
 
 /**
@@ -87,11 +87,11 @@ export function logDebug(message: string, data?: Record<string, unknown>): void 
 export type LogLevel = 'debug' | 'info' | 'warn' | 'error';
 
 /**
- * Write a log message as a StreamEvent to stdout
+ * Write a log message as a StreamEvent
  *
- * Unlike logDebug which writes to stderr and requires DEBUG env var,
- * this function always writes to stdout as a proper StreamEvent,
- * making logs visible in the backend's event stream.
+ * Uses stderr for immediate delivery (stderr is typically line-buffered
+ * even in non-TTY environments like Modal containers, unlike stdout which
+ * is fully buffered).
  */
 export function writeLog(
   level: LogLevel,
@@ -116,5 +116,6 @@ export function writeLog(
     block: systemBlock,
   };
 
-  writeStreamEvent(event);
+  // Write to stderr for immediate delivery (unbuffered in containers)
+  process.stderr.write(JSON.stringify(event) + '\n');
 }
