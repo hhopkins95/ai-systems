@@ -63,7 +63,7 @@ export function getProjectClaudeDir(projectDir: string): string {
  * Get the project-level settings path
  */
 export function getProjectSettingsPath(projectDir: string): string {
-  return join(projectDir, ".claude", "settings.json");
+  return join(projectDir, ".claude", "settings.local.json");
 }
 
 /**
