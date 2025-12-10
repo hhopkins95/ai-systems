@@ -96,6 +96,8 @@ export async function loadAgentProfile() {
 
             // write all of the files for the mcp server
             for (const file of mcpServer.files ?? []) {
+                // create the directory if it doesn't exist
+                await mkdir(path.join(mcpServerDir, path.dirname(file.path)), { recursive: true });
                 await writeFile(path.join(mcpServerDir, file.path), file.content);
             }
 

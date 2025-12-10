@@ -31,6 +31,7 @@ export async function createExampleAgentProfile(): Promise<AgentProfile> {
     }
   );
 
+
   return {
     id: "example-assistant",
     name: "Example Assistant",
