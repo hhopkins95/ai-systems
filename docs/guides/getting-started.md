@@ -3,7 +3,7 @@ title: Getting Started
 description: Quick start guide for the ai-systems monorepo
 ---
 
-# Getting Started
+# Getting Starteds
 
 This guide will help you get started with the ai-systems monorepo.
 

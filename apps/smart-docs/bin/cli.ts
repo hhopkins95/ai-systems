@@ -55,7 +55,7 @@ async function main() {
   // Resolve paths - use --cwd if specified, otherwise process.cwd()
   const projectRoot = specifiedCwd ? path.resolve(process.cwd(), specifiedCwd) : process.cwd();
   const homeDir = os.homedir();
-  const absoluteDocsPath = path.resolve(projectRoot, docsPath);
+  const absoluteDocsPath = path.resolve(process.cwd(), docsPath);
 
   // Check if docs path exists
   if (!fs.existsSync(absoluteDocsPath)) {
