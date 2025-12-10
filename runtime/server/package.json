@@ -49,6 +49,7 @@
   "scripts": {
     "prepublishOnly": "pnpm run build",
     "build": "tsc",
+    "dev": "tsc --watch --preserveWatchOutput",
     "check-types": "tsc --noEmit",
     "lint": "eslint . --ext ts,tsx --report-unused-disable-directives --max-warnings 0",
     "check": "pnpm run check-types && pnpm run lint"

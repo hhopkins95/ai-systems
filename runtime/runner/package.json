@@ -22,7 +22,7 @@
     "build": "pnpm run build:types && pnpm run build:bundle",
     "build:types": "tsc",
     "build:bundle": "tsx esbuild.config.ts",
-    "build:watch": "tsx esbuild.config.ts --watch",
+    "dev": "tsc --watch --preserveWatchOutput & tsx esbuild.config.ts --watch",
     "typecheck": "tsc --noEmit"
   },
   "keywords": [

@@ -1,11 +1,21 @@
 {
   "name": "@ai-systems/shared-types",
   "version": "0.1.0",
+  "type": "module",
+  "main": "./dist/index.js",
+  "types": "./dist/index.d.ts",
   "exports": {
-    ".": "./src/index.ts"
+    ".": {
+      "types": "./dist/index.d.ts",
+      "import": "./dist/index.js"
+    }
   },
+  "files": [
+    "dist/"
+  ],
   "scripts": {
-    "build": "true"
+    "build": "tsc",
+    "dev": "tsc --watch --preserveWatchOutput"
   },
   "devDependencies": {
     "@anthropic-ai/claude-agent-sdk": "^0.1.61",
