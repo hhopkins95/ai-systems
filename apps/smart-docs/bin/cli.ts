@@ -48,10 +48,12 @@ async function main() {
   const shouldOpen = args.includes('--open');
   const portIndex = args.findIndex(arg => arg === '--port' || arg === '-p');
   const specifiedPort = portIndex >= 0 && args[portIndex + 1] ? parseInt(args[portIndex + 1], 10) : null;
-  const docsPath = args.find(arg => !arg.startsWith('--') && !arg.startsWith('-') && (portIndex < 0 || arg !== args[portIndex + 1])) || './docs';
+  const cwdIndex = args.findIndex(arg => arg === '--cwd');
+  const specifiedCwd = cwdIndex >= 0 && args[cwdIndex + 1] ? args[cwdIndex + 1] : null;
+  const docsPath = args.find(arg => !arg.startsWith('--') && !arg.startsWith('-') && (portIndex < 0 || arg !== args[portIndex + 1]) && (cwdIndex < 0 || arg !== args[cwdIndex + 1])) || './docs';
 
-  // Resolve paths
-  const projectRoot = process.cwd();
+  // Resolve paths - use --cwd if specified, otherwise process.cwd()
+  const projectRoot = specifiedCwd ? path.resolve(process.cwd(), specifiedCwd) : process.cwd();
   const homeDir = os.homedir();
   const absoluteDocsPath = path.resolve(projectRoot, docsPath);
 
