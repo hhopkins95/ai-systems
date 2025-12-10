@@ -41,6 +41,11 @@ async function main() {
       persistence,
       executionEnvironment: {
         type : "modal-sandbox", 
+        modal : { 
+          appName : "example-app", 
+          tokenId : process.env.MODAL_TOKEN_ID!,
+          tokenSecret : process.env.MODAL_TOKEN_SECRET!,
+        }
       },
 
       idleTimeoutMs: 15 * 60 * 1000, // 15 minutes
