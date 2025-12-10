@@ -213,7 +213,8 @@ export interface SystemBlock extends BaseBlock {
     | 'error'            // Error occurred
     | 'status'           // Status update (e.g., "compacting")
     | 'hook_response'    // Hook execution result
-    | 'auth_status';     // Authentication status update
+    | 'auth_status'      // Authentication status update
+    | 'log';             // Debug/info log from runner
 
   /**
    * Human-readable message

@@ -31,6 +31,7 @@ import {
   writeStreamEvents,
   writeError,
   logDebug,
+  writeLog,
 } from './shared/output.js';
 import {
   setupSignalHandlers,
@@ -74,6 +75,10 @@ function claudeSessionExists(sessionId: string): boolean {
 // =============================================================================
 
 async function executeClaudeSdk(args: ExecuteQueryArgs): Promise<void> {
+  writeLog('info', 'Runner started (claude-sdk)', {
+    sessionId: args.sessionId,
+    cwd: args.cwd,
+  });
   logDebug('Starting Claude SDK execution', { sessionId: args.sessionId });
 
   // Validate environment
@@ -100,6 +105,11 @@ async function executeClaudeSdk(args: ExecuteQueryArgs): Promise<void> {
   const needsCreation = !claudeSessionExists(args.sessionId);
   logDebug('Session check', { sessionId: args.sessionId, needsCreation });
 
+  writeLog('info', 'Calling Claude SDK query()', {
+    sessionId: args.sessionId,
+    needsCreation,
+  });
+
   const generator = query({
     prompt: args.prompt,
     options: needsCreation
@@ -107,7 +117,12 @@ async function executeClaudeSdk(args: ExecuteQueryArgs): Promise<void> {
       : { ...options, resume: args.sessionId },
   });
 
+  let firstEventReceived = false;
   for await (const sdkMessage of generator) {
+    if (!firstEventReceived) {
+      firstEventReceived = true;
+      writeLog('info', 'First event received from SDK');
+    }
     // Convert SDK message to StreamEvents using converter
     const streamEvents = parseStreamEvent(sdkMessage);
     writeStreamEvents(streamEvents);
@@ -119,6 +134,10 @@ async function executeClaudeSdk(args: ExecuteQueryArgs): Promise<void> {
 // =============================================================================
 
 async function executeOpencode(args: ExecuteQueryArgs): Promise<void> {
+  writeLog('info', 'Runner started (opencode)', {
+    sessionId: args.sessionId,
+    model: args.model,
+  });
   logDebug('Starting OpenCode execution', { sessionId: args.sessionId });
 
   if (!args.model) {
@@ -163,6 +182,12 @@ async function executeOpencode(args: ExecuteQueryArgs): Promise<void> {
     });
 
     // Send prompt
+    writeLog('info', 'Sending prompt to OpenCode', {
+      sessionId: args.sessionId,
+      providerID,
+      modelID,
+    });
+
     await client.session.prompt({
       path: { id: args.sessionId },
       body: {
@@ -172,7 +197,14 @@ async function executeOpencode(args: ExecuteQueryArgs): Promise<void> {
     });
 
     // Process events
+    let firstEventReceived = false;
     for await (const event of events.stream) {
+      if (!firstEventReceived) {
+        firstEventReceived = true;
+        writeLog('info', 'First event received from OpenCode', {
+          eventType: event.type,
+        });
+      }
       // Convert OpenCode event to StreamEvents using stateful parser
       const streamEvents = parser.parseEvent(event);
       writeStreamEvents(streamEvents);
@@ -283,6 +315,9 @@ export async function executeQuery() {
 
     process.exit(0);
   } catch (error) {
+    writeLog('error', 'Query execution failed', {
+      errorMessage: error instanceof Error ? error.message : String(error),
+    });
     writeError(error as Error);
     process.exit(1);
   }

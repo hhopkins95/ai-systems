@@ -80,3 +80,41 @@ export function logDebug(message: string, data?: Record<string, unknown>): void 
     console.error(JSON.stringify({ message, ...data, timestamp: new Date().toISOString() }));
   }
 }
+
+/**
+ * Log levels for runner logs
+ */
+export type LogLevel = 'debug' | 'info' | 'warn' | 'error';
+
+/**
+ * Write a log message as a StreamEvent to stdout
+ *
+ * Unlike logDebug which writes to stderr and requires DEBUG env var,
+ * this function always writes to stdout as a proper StreamEvent,
+ * making logs visible in the backend's event stream.
+ */
+export function writeLog(
+  level: LogLevel,
+  message: string,
+  data?: Record<string, unknown>
+): void {
+  const blockId = `log-${Date.now()}-${Math.random().toString(36).slice(2, 8)}`;
+
+  const systemBlock: SystemBlock = {
+    type: 'system',
+    id: blockId,
+    timestamp: new Date().toISOString(),
+    subtype: 'log',
+    message,
+    metadata: { level, ...data },
+  };
+
+  const event: StreamEvent = {
+    type: 'block_complete',
+    blockId,
+    conversationId: 'main',
+    block: systemBlock,
+  };
+
+  writeStreamEvent(event);
+}
