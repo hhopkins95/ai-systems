@@ -74,7 +74,7 @@ export function SessionList({ currentSessionId, onSessionSelect }: SessionListPr
 
   // Create session form state
   const [showCreateForm, setShowCreateForm] = useState(false);
-  const [selectedArchitecture, setSelectedArchitecture] = useState<SupportedArchitecture>('claude-agent-sdk');
+  const [selectedArchitecture, setSelectedArchitecture] = useState<SupportedArchitecture>('claude-sdk');
   const [modelOption, setModelOption] = useState('');
 
   const handleCreateSession = async () => {

@@ -10,7 +10,7 @@ export const API_KEY = "example-api-key"; // In production, use environment vari
  * Supported agent architectures for session creation
  */
 export const SUPPORTED_ARCHITECTURES = [
-  { value: 'claude-agent-sdk' as const, label: 'Claude Agent SDK' },
+  { value: 'claude-sdk' as const, label: 'Claude SDK' },
   { value: 'opencode' as const, label: 'OpenCode' },
 ] as const;
 
@@ -55,5 +55,5 @@ export const OPENCODE_MODEL_OPTIONS = [
  * Get model options for a given architecture
  */
 export function getModelOptionsForArchitecture(arch: SupportedArchitecture) {
-  return arch === 'claude-agent-sdk' ? CLAUDE_MODEL_OPTIONS : OPENCODE_MODEL_OPTIONS;
+  return arch === 'claude-sdk' ? CLAUDE_MODEL_OPTIONS : OPENCODE_MODEL_OPTIONS;
 }
