@@ -56,6 +56,14 @@ export function writeError(error: Error | string): void {
   console.error(JSON.stringify(event));
 }
 
+/**
+ * Write an error as plain text to stderr (for subprocess error handling)
+ */
+export function writePlainError(error: Error | string): void {
+  const errorMessage = typeof error === 'string' ? error : error.message;
+  console.error(errorMessage);
+}
+
 
 /**
  * Write a generic JSON object to stdout

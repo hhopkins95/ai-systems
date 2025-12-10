@@ -26,7 +26,7 @@
 import { mkdir, writeFile } from 'fs/promises';
 import path, { join } from 'path';
 import { readStdinJson } from './shared/input.js';
-import { logDebug, writeError } from './shared/output.js';
+import { logDebug, writePlainError } from './shared/output.js';
 import { setupExceptionHandlers } from './shared/signal-handlers.js';
 import { AgentArchitecture, AgentProfile, ClaudeMcpJsonConfig, OpencodeSettings } from '@ai-systems/shared-types';
 import { ClaudeEntityManager} from '@hhopkins/claude-entity-manager';
@@ -138,7 +138,7 @@ export async function loadAgentProfile() {
 
     } catch (error) {
         const errorMessage = error instanceof Error ? error.message : String(error);
-        writeError(errorMessage);
+        writePlainError(errorMessage);
         process.exit(1);
     }
 }
