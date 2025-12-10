@@ -15,7 +15,6 @@ Create a new initiative with proper folder structure.
 ### 1. Gather Information
 
 Ask for or infer:
-- **Name**: Short kebab-case name (e.g., `add-local-execution`)
 - **Goal**: What are we trying to accomplish?
 - **Scope**: What's in/out of scope?
 - **Completion criteria**: How do we know when it's done?
