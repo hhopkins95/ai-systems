@@ -69,7 +69,7 @@ export interface PersistedSessionData extends PersistedSessionListData {
 /**
  * Sandbox status values
  */
-export type SandboxStatus = 'starting' | 'ready' | 'unhealthy' | 'terminated';
+export type SandboxStatus = 'starting' | 'ready' | 'unhealthy' | 'terminated' | 'error';
 
 /**
  * Runtime state for a session.

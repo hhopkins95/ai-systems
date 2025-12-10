@@ -460,11 +460,18 @@ export class AgentSession {
     } catch (error) {
       logger.error({ error, sessionId: this.sessionId, architecture: this.architecture }, 'Failed to send message');
 
-      // Emit error event so WebSocket clients are notified
+      // Update sandbox state to error
+      this.sandboxStatus = 'error';
+      const errorMessage = error instanceof Error ? error.message : String(error);
+
+      // Emit status update first so UI reflects the error state
+      this.emitRuntimeStatus(errorMessage);
+
+      // Then emit error event for error block display
       this.eventBus.emit('session:error', {
         sessionId: this.sessionId,
         error: {
-          message: error instanceof Error ? error.message : String(error),
+          message: errorMessage,
         },
       });
 
