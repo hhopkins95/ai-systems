@@ -13,6 +13,16 @@
       "name": "agent-service",
       "description": "Skills and patterns for creating apps that use the agent runtime",
       "source": "./plugins/agent-service"
+    }, 
+{
+      "name": "smart-docs",
+      "description": "Documentation standards and workflows for AI-native codebases. Provides structure, content guidelines, and templates for writing maintainable documentation.",
+      "source": "./plugins/smart-docs-authoring"
+    }, 
+{
+      "name": "project-tracker",
+      "description": "Project tracking system for multi-session work. Manages initiatives, session summaries, ideas, and todos. Enables knowledge transfer across AI sessions.",
+      "source": "./plugins/project-tracker"
     }
   ]
 }
