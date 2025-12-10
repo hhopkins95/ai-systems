@@ -371,34 +371,33 @@ export class AgentSession {
       this.emitRuntimeStatus("Preparing...");
     }
 
-    // Lazily create execution environment if it doesn't exist
-    await this.activateExecutionEnvironment();
-
-    // Update lastActivity timestamp
-    this.lastActivity = Date.now();
-
-    // Emit user message block before agent processing
-    const userBlockId = randomUUID();
-    const userBlock = {
-      id: userBlockId,
-      type: 'user_message' as const,
-      content: message,
-      timestamp: new Date().toISOString(),
-    };
-
-    this.eventBus.emit('session:block:start', {
-      sessionId: this.sessionId,
-      conversationId: 'main',
-      block: userBlock,
-    });
-    this.eventBus.emit('session:block:complete', {
-      sessionId: this.sessionId,
-      conversationId: 'main',
-      blockId: userBlockId,
-      block: userBlock,
-    });
-
     try {
+      // Lazily create execution environment if it doesn't exist
+      await this.activateExecutionEnvironment();
+
+      // Update lastActivity timestamp
+      this.lastActivity = Date.now();
+
+      // Emit user message block before agent processing
+      const userBlockId = randomUUID();
+      const userBlock = {
+        id: userBlockId,
+        type: 'user_message' as const,
+        content: message,
+        timestamp: new Date().toISOString(),
+      };
+
+      this.eventBus.emit('session:block:start', {
+        sessionId: this.sessionId,
+        conversationId: 'main',
+        block: userBlock,
+      });
+      this.eventBus.emit('session:block:complete', {
+        sessionId: this.sessionId,
+        conversationId: 'main',
+        blockId: userBlockId,
+        block: userBlock,
+      });
       logger.info(
         {
           sessionId: this.sessionId,
