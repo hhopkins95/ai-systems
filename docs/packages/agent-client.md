@@ -1,210 +1,95 @@
----
-title: "@hhopkins/agent-client"
-description: React hooks and client library for connecting to @hhopkins/agent-server
----
+# agent-client
 
-# @hhopkins/agent-client
+React hooks and client library for connecting to agent-server.
 
-React hooks and client library for connecting to [@hhopkins/agent-server](./agent-server.md). Provides type-safe, real-time access to AI agent sessions with support for message streaming, file tracking, and subagent conversations.
+## What It Does
 
-## Features
+- Provides React hooks for agent session management
+- Manages WebSocket connection to agent-server
+- Handles message streaming and state updates
+- Tracks workspace files and subagent conversations
 
-- **Type-safe React hooks** for session management
-- **Real-time WebSocket updates** for streaming responses
-- **Context-based state management** with optimized re-renders
-- **Full TypeScript support** with comprehensive type definitions
-- **Architecture-agnostic** - works with Claude SDK, OpenCode, and Gemini CLI
-- **Session lifecycle management** - create, load, destroy sessions
-- **Message streaming** - real-time conversation blocks
-- **File workspace tracking** - monitor agent-created files
-- **Subagent support** - nested agent conversations (Claude SDK)
+## Architecture
 
-## Installation
+```mermaid
+flowchart LR
+    subgraph agent-client
+        Provider[AgentServiceProvider]
+        Hooks[React Hooks]
+        Socket[Socket Manager]
+    end
 
-```bash
-npm install @hhopkins/agent-client
-# or
-pnpm add @hhopkins/agent-client
+    Provider --> Hooks
+    Hooks --> Socket
+    Socket -->|WebSocket| Server[agent-server]
 ```
 
-## Quick Start
+## Core Components
 
-### 1. Wrap your app with the provider
+| Component | File | Purpose |
+|-----------|------|---------|
+| AgentServiceProvider | `src/provider.tsx` | Context provider |
+| useAgentSession | `src/hooks/useAgentSession.ts` | Session lifecycle |
+| useMessages | `src/hooks/useMessages.ts` | Conversation blocks |
+| useWorkspaceFiles | `src/hooks/useWorkspaceFiles.ts` | File tracking |
+| useSubagents | `src/hooks/useSubagents.ts` | Subagent support |
+
+## Usage
 
 ```tsx
-import { AgentServiceProvider } from '@hhopkins/agent-client';
+import { AgentServiceProvider, useAgentSession, useMessages } from '@hhopkins/agent-client';
 
 function App() {
   return (
-    <AgentServiceProvider
-      apiUrl="http://localhost:3002"
-      wsUrl="http://localhost:3003"
-      apiKey="your-api-key"
-      debug={process.env.NODE_ENV === 'development'}
-    >
-      <YourApp />
+    <AgentServiceProvider apiUrl="http://localhost:3001" wsUrl="http://localhost:3001">
+      <ChatUI />
     </AgentServiceProvider>
   );
 }
-```
 
-### 2. Use hooks in your components
-
-```tsx
-import {
-  useAgentSession,
-  useMessages,
-  useWorkspaceFiles,
-} from '@hhopkins/agent-client';
-
-function ChatInterface() {
-  const { session, createSession, destroySession } = useAgentSession();
-  const { blocks, sendMessage, isStreaming } = useMessages(session?.info.sessionId || '');
-  const { files } = useWorkspaceFiles(session?.info.sessionId || '');
-
-  async function handleCreateSession() {
-    const sessionId = await createSession('my-agent-profile', 'claude-agent-sdk');
-    console.log('Created session:', sessionId);
-  }
+function ChatUI() {
+  const { session, createSession } = useAgentSession();
+  const { blocks, sendMessage, isStreaming } = useMessages(session?.info.sessionId);
 
   return (
     <div>
-      {!session ? (
-        <button onClick={handleCreateSession}>Start New Session</button>
-      ) : (
-        <>
-          <ConversationView blocks={blocks} isStreaming={isStreaming} />
-          <MessageInput onSend={sendMessage} disabled={isStreaming} />
-          <FileList files={files} />
-          <button onClick={destroySession}>End Session</button>
-        </>
-      )}
+      {blocks.map(block => <Block key={block.id} {...block} />)}
+      <Input onSend={sendMessage} disabled={isStreaming} />
     </div>
   );
 }
 ```
 
-## Core Hooks
-
-### `useSessionList()`
-
-Access and manage the list of all sessions.
-
-```tsx
-const { sessions, isLoading, refresh, getSession } = useSessionList();
-```
-
-### `useAgentSession(sessionId?)`
-
-Manage a single agent session lifecycle.
-
-```tsx
-const {
-  session,
-  status,
-  isLoading,
-  error,
-  createSession,
-  loadSession,
-  destroySession,
-  syncSession,
-} = useAgentSession();
-```
-
-### `useMessages(sessionId)`
-
-Access conversation blocks and send messages.
-
-```tsx
-const {
-  blocks,
-  metadata,
-  isStreaming,
-  error,
-  sendMessage,
-  getBlock,
-  getBlocksByType,
-} = useMessages(sessionId);
-```
-
-### `useWorkspaceFiles(sessionId)`
-
-Track files created/modified by the agent.
-
-```tsx
-const {
-  files,
-  isLoading,
-  getFile,
-  getFilesByPattern,
-  getFilesByExtension,
-} = useWorkspaceFiles(sessionId);
-```
-
-### `useSubagents(sessionId)`
-
-Access subagent conversations (Claude SDK only).
-
-```tsx
-const {
-  subagents,
-  count,
-  hasRunningSubagents,
-  getSubagent,
-  getSubagentBlocks,
-} = useSubagents(sessionId);
-```
-
-## Types
-
-### Conversation Blocks
+## Key Types
 
 ```typescript
-type ConversationBlock =
-  | UserMessageBlock      // User input
-  | AssistantTextBlock    // Agent text response
-  | ToolUseBlock          // Agent tool invocation
-  | ToolResultBlock       // Tool execution result
-  | ThinkingBlock         // Agent reasoning
-  | SystemBlock           // System events
-  | SubagentBlock;        // Subagent reference
-```
-
-### Session Status
-
-```typescript
-type SessionStatus =
-  | "pending"
-  | "active"
-  | "inactive"
-  | "completed"
-  | "failed"
-  | "building-sandbox";
-```
-
-## Type Guards
-
-```tsx
-import { isAssistantTextBlock, isToolUseBlock } from '@hhopkins/agent-client';
-
-function BlockRenderer({ block }: { block: ConversationBlock }) {
-  if (isAssistantTextBlock(block)) {
-    return <div>{block.content}</div>;
-  }
-
-  if (isToolUseBlock(block)) {
-    return <ToolCallDisplay toolName={block.toolName} input={block.input} />;
-  }
-
-  // ... handle other block types
+interface UseAgentSessionReturn {
+  session: Session | null;
+  status: SessionStatus;
+  createSession: (profileRef: string, arch: string) => Promise<string>;
+  loadSession: (id: string) => Promise<void>;
+  destroySession: () => Promise<void>;
 }
+
+interface UseMessagesReturn {
+  blocks: ConversationBlock[];
+  isStreaming: boolean;
+  sendMessage: (content: string) => Promise<void>;
+}
+
+type SessionStatus = 'pending' | 'active' | 'inactive' | 'completed' | 'failed';
 ```
 
-## Related Packages
+## How It Connects
 
-- [@hhopkins/agent-server](./agent-server.md) - The backend server this client connects to
-- [@hhopkins/agent-converters](./agent-converters.md) - Shared types and converters
+| Direction | Package | Relationship |
+|-----------|---------|--------------|
+| Depends on | agent-server | Types + WebSocket |
+| Depends on | shared-types | Block types |
+| Peer dep | react | React 18 or 19 |
 
-## License
+## Related
 
-MIT
+- [Architecture Overview](../system/architecture-overview.md) - System structure
+- [Streaming and Events](../system/streaming-and-events.md) - Event types
+- [agent-server](./agent-server.md) - Server connection

@@ -1,218 +1,105 @@
----
-title: "@hhopkins/claude-entity-manager"
-description: A unified service for discovering, loading, and managing Claude Code entities and plugins
----
+# claude-entity-manager
 
-# @hhopkins/claude-entity-manager
+Service for discovering and managing Claude Code entities and plugins.
 
-A unified service for discovering, loading, and managing Claude Code entities (skills, commands, agents, hooks) and plugins.
+## What It Does
 
-## Installation
+- Discovers entities from global, project, and plugin sources
+- Loads and parses entity configurations (skills, commands, agents, hooks)
+- Manages plugin installation, enabling, and updates
+- Assembles agent context for sessions
+- Writes entities to project directories
 
-```bash
-npm install @hhopkins/claude-entity-manager
+## Architecture
+
+```mermaid
+flowchart TB
+    subgraph claude-entity-manager
+        CEM[ClaudeEntityManager] --> Discovery[PluginDiscovery]
+        CEM --> Loaders
+        CEM --> Registry[PluginRegistry]
+        CEM --> Writer[EntityWriter]
+
+        Loaders --> Skill[SkillLoader]
+        Loaders --> Command[CommandLoader]
+        Loaders --> Agent[AgentLoader]
+        Loaders --> Hook[HookLoader]
+    end
+
+    Discovery --> Global["~/.claude/"]
+    Discovery --> Project[".claude/"]
+    Discovery --> Plugins["~/.claude/plugins/"]
 ```
 
-## Quick Start
+## Core Components
+
+| Component | File | Purpose |
+|-----------|------|---------|
+| ClaudeEntityManager | `src/ClaudeEntityManager.ts` | Main service |
+| PluginDiscovery | `src/discovery/PluginDiscovery.ts` | Find plugins |
+| SkillLoader | `src/loaders/SkillLoader.ts` | Parse skills |
+| CommandLoader | `src/loaders/CommandLoader.ts` | Parse commands |
+| EntityWriter | `src/installation/EntityWriter.ts` | Write entities |
+| PluginInstaller | `src/installation/PluginInstaller.ts` | Install plugins |
+
+## Usage
 
 ```typescript
-import { ClaudeEntityManager } from "@hhopkins/claude-entity-manager";
+import { ClaudeEntityManager } from '@hhopkins/claude-entity-manager';
 
 const manager = new ClaudeEntityManager({
-  projectDir: process.cwd(),
+  projectDir: '/path/to/project',
 });
 
-// Load all entities from enabled plugins
-const config = await manager.loadAllEntities();
-console.log(`Found ${config.skills.length} skills`);
-console.log(`Found ${config.commands.length} commands`);
-console.log(`Found ${config.agents.length} agents`);
-console.log(`Found ${config.hooks.length} hooks`);
+// Load complete agent context
+const context = await manager.loadAgentContext();
+// Returns: { skills, commands, subagents, hooks, mcpServers, memoryFiles }
+
+// Plugin management
+await manager.installPlugin('plugin@marketplace');
+await manager.enablePlugin('plugin-id');
+await manager.disablePlugin('plugin-id');
+
+// Write entities to project
+await manager.writeProjectSkill({ name: 'my-skill', description: '...', content: '...' });
 ```
 
-## Features
-
-- **Load entities** from global `~/.claude/`, project `./.claude/`, and enabled plugins
-- **Discover plugins** from marketplaces, cache, and registry
-- **Skills collections support** - marketplaces with skills at root level (like `anthropic-agent-skills`)
-- **Read/write plugin states** (enable/disable via settings.json)
-- **Install plugins/marketplaces** from GitHub, git URLs, or local directories
-- **Aggregate entities** respecting plugin enable/disable states
-
-## API
-
-### Constructor Options
+## Key Types
 
 ```typescript
 interface ClaudeEntityManagerOptions {
-  /** Custom Claude config directory (default: ~/.claude) */
-  claudeDir?: string;
-  /** Project directory for project-local entities */
-  projectDir?: string;
-  /** Whether to include disabled plugins (default: false) */
+  claudeDir?: string;      // Default: ~/.claude
+  projectDir?: string;     // Project root
   includeDisabled?: boolean;
 }
-```
 
-### Entity Loading
-
-```typescript
-// Load all entities
-const config = await manager.loadAllEntities();
-
-// Load from specific plugin
-const pluginConfig = await manager.loadPluginEntities("plugin-name@marketplace");
-
-// Load specific entity types
-const skills = await manager.loadSkills();
-const commands = await manager.loadCommands();
-const agents = await manager.loadAgents();
-const hooks = await manager.loadHooks();
-
-// Filter by plugin
-const pluginSkills = await manager.loadSkills({ pluginId: "plugin@marketplace" });
-```
-
-### Plugin Discovery
-
-```typescript
-// Discover all plugins
-const plugins = await manager.discoverPlugins();
-
-// Get specific plugin
-const plugin = await manager.getPlugin("plugin-name@marketplace");
-
-// Get marketplaces
-const marketplaces = await manager.getMarketplaces();
-```
-
-### Plugin Enable/Disable
-
-```typescript
-// Check status
-const enabled = await manager.isPluginEnabled("plugin@marketplace");
-
-// Enable/disable
-await manager.enablePlugin("plugin@marketplace");
-await manager.disablePlugin("plugin@marketplace");
-
-// Toggle
-const newState = await manager.togglePlugin("plugin@marketplace");
-```
-
-### Plugin Installation
-
-```typescript
-// Install from various sources
-await manager.installPlugin("owner/repo"); // GitHub short format
-await manager.installPlugin("https://github.com/owner/repo"); // GitHub URL
-await manager.installPlugin("./local/path"); // Local directory
-await manager.installPlugin("plugin@marketplace"); // From marketplace
-
-// With options
-await manager.installPlugin("owner/repo", { force: true }); // Force reinstall
-await manager.installPlugin("owner/repo", { update: true }); // Update existing
-
-// Install marketplace
-await manager.installMarketplace("owner/repo", "marketplace-name");
-
-// Update plugins
-await manager.updatePlugin("plugin@marketplace");
-await manager.updateAllPlugins();
-
-// Uninstall
-await manager.uninstallPlugin("plugin@marketplace");
-```
-
-## Entity Types
-
-### Skill
-
-```typescript
-interface Skill {
-  name: string;
-  path: string;
-  source: EntitySource;
-  description: string;
-  version?: string;
-  content: string;
-  metadata: SkillMetadata;
-  files: string[];
-  fileContents?: Record<string, string>;
+interface AgentContext {
+  skills: Skill[];
+  commands: Command[];
+  subagents: Agent[];
+  hooks: Hook[];
+  mcpServers: McpServerWithSource[];
+  memoryFiles: MemoryFile[];
 }
-```
 
-### Command
-
-```typescript
-interface Command {
-  name: string;
-  path: string;
-  source: EntitySource;
-  description?: string;
-  content: string;
-  metadata: CommandMetadata;
-}
-```
-
-### Agent
-
-```typescript
-interface Agent {
-  name: string;
-  path: string;
-  source: EntitySource;
-  description?: string;
-  content: string;
-  metadata: AgentMetadata;
-}
-```
-
-### Hook
-
-```typescript
-interface Hook {
-  name: string;
-  path: string;
-  source: EntitySource;
-  hooks: Partial<Record<HookEvent, HookMatcher[]>>;
-}
-```
-
-### Plugin
-
-```typescript
-interface Plugin {
-  id: string; // "plugin-name@marketplace" or "plugin-name"
-  name: string;
+interface EntitySource {
+  type: 'global' | 'project' | 'plugin';
+  pluginId?: string;
   marketplace?: string;
-  description?: string;
-  version?: string;
-  source: PluginSource;
-  path: string;
-  enabled: boolean;
-  skillCount: number;
-  commandCount: number;
-  agentCount: number;
-  hookCount: number;
-  hasMcpServers: boolean;
-  installInfo?: InstalledPluginInfo;
 }
 ```
 
-## File Locations
+## How It Connects
 
-| File | Purpose |
-|------|---------|
-| `~/.claude/plugins/installed_plugins.json` | Plugin registry |
-| `~/.claude/plugins/known_marketplaces.json` | Marketplace registry |
-| `~/.claude/settings.json` | Global settings (plugin enable/disable) |
-| `./.claude/settings.json` | Project settings (overrides global) |
-| `~/.claude/skills/*/SKILL.md` | Global skills |
-| `~/.claude/commands/*.md` | Global commands |
-| `~/.claude/agents/*.md` | Global agents |
-| `~/.claude/hooks/*.json` | Global hooks |
+| Direction | Package | Relationship |
+|-----------|---------|--------------|
+| Depends on | shared-types | Entity types |
+| Used by | agent-runner | Load profiles |
+| Used by | smart-docs | Display entities |
+| Used by | opencode-claude-adapter | Sync entities |
 
-## License
+## Related
 
-MIT
+- [Entity Management](../system/entity-management.md) - System overview
+- [agent-runner](./agent-runner.md) - Uses entity manager
+- [opencode-claude-adapter](./opencode-claude-adapter.md) - Syncs entities

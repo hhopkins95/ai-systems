@@ -1,191 +1,119 @@
----
-title: "@hhopkins/agent-server"
-description: Node.js runtime for orchestrating AI agents in isolated sandboxes with real-time streaming
----
+# agent-server
 
-# @hhopkins/agent-server
+Node.js runtime for orchestrating AI agents in isolated Modal sandboxes.
 
-Node.js runtime for orchestrating AI agents (Claude, Gemini) in isolated sandboxes with real-time streaming and flexible persistence.
+## What It Does
 
-## Features
+- Orchestrates agent sessions via WebSocket connections
+- Manages sandbox lifecycle (create, execute, terminate)
+- Routes messages between clients and agent processes
+- Streams events in real-time to connected clients
+- Persists session state via adapter pattern
 
-- **Isolated Sandbox Execution** - Run agents in secure, ephemeral sandboxes (Modal, Docker, etc.)
-- **Real-time Streaming** - WebSocket-based streaming of agent messages and tool execution
-- **Adapter Pattern** - Plug in any persistence layer (Convex, PostgreSQL, MongoDB, etc.)
-- **Multi-Architecture** - Support for Claude Agent SDK, OpenCode, and Gemini CLI
-- **Session Management** - Complete session lifecycle with state tracking
-- **Event-Driven** - Internal event bus for extensibility
-- **Type-Safe** - Full TypeScript support with exported types
-- **SDK-Agnostic** - Uses [@hhopkins/agent-converters](./agent-converters.md) for normalized transcript parsing
+## Architecture
 
-## Installation
+```mermaid
+flowchart TB
+    subgraph agent-server
+        HTTP[Hono HTTP Server]
+        WS[Socket.IO Server]
 
-```bash
-npm install @hhopkins/agent-server
-# or
-pnpm add @hhopkins/agent-server
+        HTTP --> Routes[API Routes]
+        WS --> Handlers[Socket Handlers]
+
+        Routes --> SM[SessionManager]
+        Handlers --> SM
+
+        SM --> Sessions[AgentSession instances]
+        Sessions --> EE[ExecutionEnvironment]
+        Sessions --> EB[EventBus]
+    end
+
+    EE --> Modal[Modal Sandbox]
+    Modal --> Runner[agent-runner]
 ```
 
-## Quick Start
+## Core Components
 
-### 1. Implement the Persistence Adapter
+| Component | File | Purpose |
+|-----------|------|---------|
+| Server Entry | `src/index.ts` | HTTP + WebSocket setup |
+| SessionManager | `src/core/session-manager.ts` | Session container |
+| AgentSession | `src/core/agent-session.ts` | Individual session state |
+| ExecutionEnvironment | `src/core/execution-environment.ts` | Sandbox abstraction |
+| EventBus | `src/core/event-bus.ts` | Domain events |
+| EnvironmentPrimitives | `src/lib/environment-primitives/` | Modal/local implementations |
 
-The runtime requires a persistence adapter to store session data and files. Implement the `PersistenceAdapter` interface for your database:
-
-```typescript
-import type { PersistenceAdapter } from '@hhopkins/agent-server/types';
-
-class MyPersistenceAdapter implements PersistenceAdapter {
-  constructor(private db: YourDatabase) {}
-
-  async listAllSessions() {
-    return await this.db.sessions.findAll();
-  }
-
-  async loadSession(sessionId: string) {
-    return await this.db.sessions.findById(sessionId);
-  }
-
-  async createSessionRecord(session) {
-    await this.db.sessions.insert(session);
-  }
-
-  async updateSessionRecord(sessionId, updates) {
-    await this.db.sessions.update(sessionId, updates);
-  }
-
-  async saveTranscript(sessionId, rawTranscript, subagentId?) {
-    await this.db.transcripts.upsert({ sessionId, subagentId, content: rawTranscript });
-  }
-
-  async saveWorkspaceFile(sessionId, file) {
-    await this.db.files.upsert({ sessionId, path: file.path, content: file.content });
-  }
-
-  async deleteSessionFile(sessionId, path) {
-    await this.db.files.delete({ sessionId, path });
-  }
-
-  async listAgentProfiles() {
-    return await this.db.agentProfiles.findAll();
-  }
-
-  async loadAgentProfile(agentProfileId) {
-    return await this.db.agentProfiles.findById(agentProfileId);
-  }
-}
-```
-
-### 2. Configure and Start the Runtime
+## Usage
 
 ```typescript
 import { AgentRuntime } from '@hhopkins/agent-server';
 import type { RuntimeConfig } from '@hhopkins/agent-server/types';
 
-// Create your adapter instance
-const persistence = new MyPersistenceAdapter(myDatabase);
-
-// Configure the runtime
 const config: RuntimeConfig = {
-  persistence,
+  persistence: myPersistenceAdapter,
   modal: {
     tokenId: process.env.MODAL_TOKEN_ID!,
     tokenSecret: process.env.MODAL_TOKEN_SECRET!,
-    appName: 'my-app-agents',
+    appName: 'my-agents',
   },
-  // Optional configuration
-  idleTimeoutMs: 15 * 60 * 1000,  // 15 minutes
-  syncIntervalMs: 30 * 1000,       // 30 seconds
-  websocketPort: 3000,
-  logLevel: 'info',
 };
 
-// Start the runtime
 const runtime = new AgentRuntime(config);
 await runtime.start();
-
-console.log('Agent runtime started!');
 ```
 
-### 3. Connect Your Application
+### API Endpoints
 
-The runtime exposes HTTP and WebSocket APIs:
+```
+GET  /health              - Health check
+GET  /sessions            - List all sessions
+POST /sessions            - Create new session
+GET  /sessions/:id        - Get session details
+DELETE /sessions/:id      - Delete session
+```
+
+### WebSocket Events
 
 ```typescript
-// REST API
-POST   /sessions/create         # Create a new session
-GET    /sessions                # List all sessions
-GET    /sessions/:id            # Get session details
-POST   /sessions/:id/message    # Send message to agent
-DELETE /sessions/:id            # Terminate session
+// Client → Server
+socket.emit('session:create', { agentProfileRef, architecture });
+socket.emit('session:message', { sessionId, content });
 
-// WebSocket
-ws://localhost:3000              # Real-time session updates
+// Server → Client
+socket.on('stream:event', ({ sessionId, event }) => {});
+socket.on('session:status', ({ sessionId, runtime }) => {});
 ```
 
-Use the [@hhopkins/agent-client](./agent-client.md) package for easy React integration.
+## Key Types
 
-## Architecture
+```typescript
+interface RuntimeConfig {
+  persistence: PersistenceAdapter;
+  modal: { tokenId: string; tokenSecret: string; appName: string };
+  idleTimeoutMs?: number;
+  websocketPort?: number;
+}
 
-```
-┌──────────────────────────────────────────────────┐
-│                  Your Application                 │
-│          (REST API + WebSocket Client)            │
-└───────────────────┬──────────────────────────────┘
-                    │
-┌───────────────────▼──────────────────────────────┐
-│              Agent Server (this package)          │
-│                                                   │
-│  ┌─────────────┐  ┌─────────────┐  ┌───────────┐ │
-│  │   HTTP      │  │  WebSocket  │  │   Event   │ │
-│  │  Transport  │  │  Transport  │  │    Bus    │ │
-│  └──────┬──────┘  └──────┬──────┘  └─────┬─────┘ │
-│         │                │               │       │
-│  ┌──────▼────────────────▼───────────────▼─────┐ │
-│  │          Session Manager                    │ │
-│  │  • Lifecycle management                     │ │
-│  │  • State synchronization                    │ │
-│  │  • Sandbox orchestration                    │ │
-│  └──────┬──────────────────────────────────────┘ │
-│         │                                        │
-└─────────┼────────────────────────────────────────┘
-          │
-          ├──→ Sandbox (Agent execution via @hhopkins/agent-runner)
-          ├──→ Converters (@hhopkins/agent-converters for transcript parsing)
-          └──→ Persistence Adapter (Your database)
+interface CreateSessionArgs {
+  agentProfileRef: string;
+  architecture: AgentArchitecture;
+  sessionOptions?: AgentArchitectureSessionOptions;
+}
 ```
 
-## Key Concepts
+## How It Connects
 
-**Sessions** - Each agent conversation is a session with:
-- Unique session ID
-- Agent architecture type (Claude/OpenCode/Gemini)
-- Agent profile reference
-- Conversation blocks (messages, tool uses, thinking)
-- Workspace files
-- Raw transcript storage
+| Direction | Package | Relationship |
+|-----------|---------|--------------|
+| Depends on | agent-runner | Spawns in sandboxes |
+| Depends on | converters | Parse transcripts |
+| Depends on | shared-types | Type definitions |
+| Used by | agent-client | WebSocket connection |
 
-**Blocks** - Conversations are represented as blocks:
-- `user_message` - User input
-- `assistant_text` - Agent response
-- `tool_use` - Agent using a tool
-- `tool_result` - Tool execution result
-- `thinking` - Agent's internal reasoning
-- `system` - System events
-- `subagent` - Subagent invocation
+## Related
 
-## Related Packages
-
-- [@hhopkins/agent-client](./agent-client.md) - React hooks for connecting to this server
-- [@hhopkins/agent-converters](./agent-converters.md) - Transcript parsing (used internally)
-- [@hhopkins/agent-runner](./agent-execution.md) - Sandbox execution scripts
-
-## Requirements
-
-- Node.js >= 18
-- Modal account ([modal.com](https://modal.com)) for sandbox execution
-- Anthropic API key (for Claude agents)
-
-## License
-
-MIT
+- [Architecture Overview](../system/architecture-overview.md) - System structure
+- [Session Lifecycle](../system/session-lifecycle.md) - Session management
+- [agent-client](./agent-client.md) - Client connection
+- [agent-runner](./agent-runner.md) - Sandbox execution

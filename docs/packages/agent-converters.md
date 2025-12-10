@@ -1,221 +1,94 @@
----
-title: "@hhopkins/agent-converters"
-description: Pure transformation functions for parsing agent transcripts and converting to normalized blocks
----
+# agent-converters
 
-# @hhopkins/agent-converters
+Pure transformation functions for parsing agent transcripts and converting to ConversationBlocks.
 
-Pure transformation functions for parsing agent transcripts and converting SDK-specific messages to architecture-agnostic ConversationBlocks and StreamEvents.
+## What It Does
 
-## Features
+- Parses raw transcripts from Claude SDK and OpenCode SDK
+- Converts SDK-specific formats to unified ConversationBlocks
+- Provides type guards for runtime type checking
+- Handles subagent transcript extraction
 
-- **Pure Functions** - No side effects, easy to test and compose
-- **Multi-SDK Support** - Claude SDK and OpenCode converters
-- **Type Re-exports** - All block types from `@ai-systems/shared-types`
-- **Type Guards** - Runtime type checking for blocks and events
-- **Utilities** - ID generation, timestamps, logging interfaces
+## Architecture
 
-## Installation
+```mermaid
+flowchart LR
+    subgraph agent-converters
+        Main[Main Exports]
+        Claude[claude-sdk/]
+        OpenCode[opencode/]
+    end
 
-```bash
-npm install @hhopkins/agent-converters
-# or
-pnpm add @hhopkins/agent-converters
+    RawTranscript[Raw Transcript] --> Main
+    Main --> Claude
+    Main --> OpenCode
+    Claude --> Blocks[ConversationBlock[]]
+    OpenCode --> Blocks
 ```
 
-## Quick Start
+## Core Components
+
+| Component | File | Purpose |
+|-----------|------|---------|
+| Claude Parser | `src/claude-sdk/` | Parse Claude SDK transcripts |
+| OpenCode Parser | `src/opencode/` | Parse OpenCode transcripts |
+| Type Guards | `src/index.ts` | Runtime type checking |
+| Utilities | `src/utils.ts` | ID generation, timestamps |
+
+## Usage
 
 ```typescript
 // Import from subpaths
 import { parseClaudeTranscriptFile } from '@hhopkins/agent-converters/claude-sdk';
 import { parseOpenCodeTranscriptFile } from '@hhopkins/agent-converters/opencode';
 
-// Parse a Claude SDK transcript file
-const blocks = parseClaudeTranscriptFile(transcriptContent);
+// Parse Claude SDK transcript
+const blocks = parseClaudeTranscriptFile(rawTranscript);
 
-// Parse an OpenCode transcript file
-const { blocks, subagents } = parseOpenCodeTranscriptFile(transcriptContent);
-```
+// Parse OpenCode transcript
+const { blocks, subagents } = parseOpenCodeTranscriptFile(rawTranscript);
 
-## Claude SDK Converters
-
-Import from the `/claude-sdk` subpath:
-
-```typescript
-import {
-  parseClaudeTranscriptFile,
-  parseCombinedClaudeTranscript,
-  convertMessagesToBlocks,
-  parseStreamEvent,
-} from '@hhopkins/agent-converters/claude-sdk';
-```
-
-### `parseClaudeTranscriptFile(content, options?)`
-
-Parse a Claude SDK JSONL transcript file into SDK messages.
-
-```typescript
-const messages = parseClaudeTranscriptFile(rawTranscript, {
-  logger: console,
-});
-```
-
-### `parseCombinedClaudeTranscript(content, options?)`
-
-Parse a combined transcript (main + subagents) into ConversationBlocks.
-
-```typescript
-const { blocks, subagents } = parseCombinedClaudeTranscript(combinedTranscript, {
-  logger: console,
-});
-```
-
-### `convertMessagesToBlocks(messages, options?)`
-
-Convert an array of SDK messages to ConversationBlocks.
-
-```typescript
-const blocks = convertMessagesToBlocks(sdkMessages, {
-  logger: console,
-});
-```
-
-### `parseStreamEvent(message, options?)`
-
-Parse an SDK message into StreamEvents.
-
-```typescript
-const events = parseStreamEvent(sdkMessage, { logger: console });
-```
-
-### Other Exports
-
-- `extractSubagentId(filename)` - Extract subagent ID from a filename
-- `detectSubagentStatus(messages)` - Detect if a subagent is running/complete
-- `sdkMessageToBlocks(message)` - Convert a single SDK message
-- `sdkMessagesToBlocks(messages)` - Convert multiple SDK messages
-- `extractToolResultBlocks(message)` - Extract tool results from a message
-- `createSubagentBlockFromToolUse(toolUse)` - Create a subagent block
-
-## OpenCode Converters
-
-Import from the `/opencode` subpath:
-
-```typescript
-import {
-  parseOpenCodeTranscriptFile,
-  createStreamEventParser,
-  parseOpencodeStreamEvent,
-} from '@hhopkins/agent-converters/opencode';
-```
-
-### `parseOpenCodeTranscriptFile(content, options?)`
-
-Parse an OpenCode JSON transcript file.
-
-```typescript
-const { blocks, subagents } = parseOpenCodeTranscriptFile(rawTranscript, {
-  logger: console,
-});
-```
-
-### `createStreamEventParser(sessionId, options?)`
-
-Create a stateful stream event parser for real-time parsing.
-
-```typescript
-const parser = createStreamEventParser('session-123');
-
-for await (const event of eventStream) {
-  const streamEvents = parser.parseEvent(event);
-  for (const streamEvent of streamEvents) {
-    handleEvent(streamEvent);
-  }
-}
-```
-
-### `parseOpencodeStreamEvent(event, sessionId, options?)`
-
-Parse a single OpenCode stream event (stateless).
-
-```typescript
-const streamEvents = parseOpencodeStreamEvent(rawEvent, 'session-123', {
-  logger: console,
-});
-```
-
-## Type Re-exports
-
-All block and event types are re-exported from `@ai-systems/shared-types`:
-
-```typescript
-import type {
-  ConversationBlock,
-  UserMessageBlock,
-  AssistantTextBlock,
-  ToolUseBlock,
-  ToolResultBlock,
-  ThinkingBlock,
-  SystemBlock,
-  SubagentBlock,
-  ErrorBlock,
-  StreamEvent,
-  BlockStartEvent,
-  TextDeltaEvent,
-  BlockCompleteEvent,
-} from '@hhopkins/agent-converters';
-```
-
-## Type Guards
-
-```typescript
-import {
-  isUserMessageBlock,
-  isAssistantTextBlock,
-  isToolUseBlock,
-  isToolResultBlock,
-  isThinkingBlock,
-  isSystemBlock,
-  isSubagentBlock,
-  isErrorBlock,
-  isBlockStartEvent,
-  isTextDeltaEvent,
-  isBlockCompleteEvent,
-} from '@hhopkins/agent-converters';
+// Use type guards
+import { isAssistantTextBlock, isToolUseBlock } from '@hhopkins/agent-converters';
 
 if (isAssistantTextBlock(block)) {
   console.log(block.content);
 }
 ```
 
-## Utilities
+## Key Types
 
 ```typescript
-import {
-  generateId,
-  toISOTimestamp,
-  createConsoleLogger,
-  noopLogger,
-  type Logger,
-} from '@hhopkins/agent-converters';
+// Re-exported from shared-types
+type ConversationBlock =
+  | UserMessageBlock
+  | AssistantTextBlock
+  | ToolUseBlock
+  | ToolResultBlock
+  | ThinkingBlock
+  | SystemBlock
+  | SubagentBlock;
 
-// Generate a unique block ID
-const id = generateId(); // "blk_abc123..."
-
-// Convert Date to ISO string
-const timestamp = toISOTimestamp(new Date());
-
-// Create a logger
-const logger = createConsoleLogger('MyModule');
-logger.info('Processing transcript');
+// Parsing functions
+function parseClaudeTranscriptFile(content: string): ConversationBlock[];
+function parseOpenCodeTranscriptFile(content: string): {
+  blocks: ConversationBlock[];
+  subagents: SubagentInfo[];
+};
 ```
 
-## Related Packages
+## How It Connects
 
-- [@hhopkins/agent-server](./agent-server.md) - Uses converters for transcript parsing
-- [@hhopkins/agent-runner](./agent-execution.md) - Uses converters for output normalization
-- [@ai-systems/shared-types](https://github.com/hhopkins/ai-systems/tree/main/packages/shared-types) - Source of block/event types
+| Direction | Package | Relationship |
+|-----------|---------|--------------|
+| Depends on | shared-types | Block definitions |
+| Peer dep | @anthropic-ai/claude-agent-sdk | Optional |
+| Peer dep | @opencode-ai/sdk | Optional |
+| Used by | agent-runner | Transcript parsing |
+| Used by | agent-server | Block conversion |
 
-## License
+## Related
 
-MIT
+- [Streaming and Events](../system/streaming-and-events.md) - Event and block types
+- [agent-runner](./agent-runner.md) - Uses converters
+- [shared-types](./shared-types.md) - Type definitions

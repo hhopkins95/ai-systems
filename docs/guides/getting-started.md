@@ -1,78 +1,121 @@
----
-title: Getting Started
-description: Quick start guide for the ai-systems monorepo
----
+# Getting Started
 
-# Getting Starteds
-
-This guide will help you get started with the ai-systems monorepo.
+Set up the ai-systems monorepo and run your first agent.
 
 ## Prerequisites
 
 - Node.js >= 20
 - pnpm >= 9
+- Modal account (for sandbox execution)
 
-## Installation
+## Steps
 
-Clone the repository and install dependencies:
+### 1. Install Dependencies
 
 ```bash
 cd ai-systems
 pnpm install
 ```
 
-## Building
-
-Build all packages:
+### 2. Build All Packages
 
 ```bash
 pnpm build
 ```
 
-Build a specific package:
+Build output goes to `dist/` in each package.
+
+### 3. Set Up Environment
+
+Create `.env` files for packages that need secrets:
 
 ```bash
-pnpm --filter @hhopkins/agent-server build
+# runtime/server/.env
+MODAL_TOKEN_ID=your-modal-token-id
+MODAL_TOKEN_SECRET=your-modal-token-secret
 ```
 
-## Development
+### 4. Run the Examples
 
-Start development servers (where applicable):
+Start the example backend:
 
 ```bash
+cd apps/example-backend
 pnpm dev
 ```
 
-## Packages Overview
-
-### Runtime
-
-- **[@hhopkins/agent-server](../packages/agent-server.md)** - The core Node.js runtime for orchestrating AI agents in sandboxes
-- **[@hhopkins/agent-client](../packages/agent-client.md)** - React hooks for connecting to the agent server
-- **[@hhopkins/agent-runner](../packages/agent-execution.md)** - Environment-agnostic execution scripts for agent queries
-- **[@hhopkins/agent-converters](../packages/agent-converters.md)** - Pure transformation functions for parsing agent transcripts
-
-### Tooling
-
-- **[@hhopkins/claude-entity-manager](../packages/claude-entity-manager.md)** - Library for discovering and managing Claude Code entities
-- **[@hhopkins/smart-docs](../packages/smart-docs.md)** - Local documentation viewer
-- **[opencode-claude-adapter](../packages/opencode-claude-adapter.md)** - Sync Claude entities to OpenCode
-
-## Examples
-
-The `examples/` directory contains reference implementations:
-
-- **backend** - Example server using `@hhopkins/agent-server`
-- **frontend** - Example React app using `@hhopkins/agent-client`
-
-## Plugins
-
-The `plugins/` directory contains Claude Code plugins:
-
-- **agent-service** - Skills for building apps with the agent runtime
-
-To install a plugin from this marketplace:
+In another terminal, start the example frontend:
 
 ```bash
-claude plugins install agent-service@hhopkins-agent-service
+cd apps/example-frontend
+pnpm dev
 ```
+
+Open `http://localhost:3004` to interact with the agent.
+
+## Verification
+
+Confirm everything works:
+
+```bash
+# Check builds pass
+pnpm build
+
+# Check types pass
+pnpm typecheck
+
+# Backend health check
+curl http://localhost:3001/health
+```
+
+Expected output for health check:
+```json
+{"status":"ok"}
+```
+
+## Project Structure
+
+```
+ai-systems/
+├── runtime/
+│   ├── server/     # @hhopkins/agent-server - Orchestration
+│   ├── client/     # @hhopkins/agent-client - React hooks
+│   └── runner/     # @hhopkins/agent-runner - Sandbox execution
+├── packages/
+│   ├── converters/ # @hhopkins/agent-converters - Transcript parsing
+│   ├── claude-entity-manager/  # Entity discovery
+│   ├── types/      # @ai-systems/shared-types
+│   └── opencode-claude-adapter/
+├── apps/
+│   ├── example-backend/   # Reference server
+│   ├── example-frontend/  # Reference React app
+│   └── smart-docs/        # Documentation viewer
+└── plugins/
+    └── smart-docs-authoring/  # Documentation standards
+```
+
+## Common Issues
+
+### Modal Connection Fails
+
+**Symptom:** "Modal authentication failed"
+**Cause:** Missing or invalid Modal tokens
+**Fix:** Ensure `MODAL_TOKEN_ID` and `MODAL_TOKEN_SECRET` are set correctly
+
+### Build Fails
+
+**Symptom:** TypeScript errors during build
+**Cause:** Missing dependencies or stale builds
+**Fix:** Run `pnpm install && pnpm build` from root
+
+### Port Already in Use
+
+**Symptom:** "EADDRINUSE" error
+**Cause:** Another process using the port
+**Fix:** Kill the process or use a different port via `PORT=3002 pnpm dev`
+
+## Next Steps
+
+- [Architecture Overview](../system/architecture-overview.md) - Understand the system
+- [agent-server](../packages/agent-server.md) - Configure the runtime
+- [agent-client](../packages/agent-client.md) - Build your UI

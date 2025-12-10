@@ -1,57 +1,69 @@
----
-title: ai-systems Documentation
-description: Monorepo for AI agent runtime, entity management, and tooling
----
-
 # ai-systems
 
-Welcome to the ai-systems documentation.
+Monorepo for AI agent runtime, entity management, and tooling.
 
-## Packages
+## Quick Start
+
+- [Getting Started](./guides/getting-started.md) - Install and run your first agent
+- [Architecture Overview](./system/architecture-overview.md) - Understand the system
+
+## System Documentation
+
+Cross-cutting concepts and capabilities:
+
+| Doc | Description |
+|-----|-------------|
+| [Architecture Overview](./system/architecture-overview.md) | Package relationships and data flow |
+| [Agent Execution](./system/agent-execution.md) | How queries flow through sandboxes |
+| [Session Lifecycle](./system/session-lifecycle.md) | Session state management |
+| [Streaming and Events](./system/streaming-and-events.md) | Real-time event types |
+| [Entity Management](./system/entity-management.md) | Plugin and entity discovery |
+
+## Package Documentation
 
 ### Runtime
 
-- [agent-server](./packages/agent-server.md) - Node.js runtime for orchestrating AI agents in isolated sandboxes
-- [agent-client](./packages/agent-client.md) - React hooks for connecting to agent-server
-- [agent-execution](./packages/agent-execution.md) - Environment-agnostic execution scripts for agent queries
-- [agent-converters](./packages/agent-converters.md) - Pure transformation functions for parsing agent transcripts
+| Package | Description |
+|---------|-------------|
+| [agent-server](./packages/agent-server.md) | Node.js orchestration with Modal sandboxes |
+| [agent-client](./packages/agent-client.md) | React hooks for agent interaction |
+| [agent-runner](./packages/agent-runner.md) | Execution scripts for sandboxes |
+| [agent-converters](./packages/agent-converters.md) | Transcript parsing and conversion |
 
 ### Tooling
 
-- [claude-entity-manager](./packages/claude-entity-manager.md) - Service for discovering and managing Claude Code entities
-- [smart-docs](./packages/smart-docs.md) - Local documentation viewer for AI-native codebases
-- [opencode-claude-adapter](./packages/opencode-claude-adapter.md) - Adapter for syncing Claude entities to OpenCode
+| Package | Description |
+|---------|-------------|
+| [claude-entity-manager](./packages/claude-entity-manager.md) | Entity and plugin discovery |
+| [shared-types](./packages/shared-types.md) | Common type definitions |
+| [opencode-claude-adapter](./packages/opencode-claude-adapter.md) | OpenCode entity sync |
+| [smart-docs](./packages/smart-docs.md) | Documentation viewer |
 
-## Quick Links
+## Guides
 
-- [Getting Started](./guides/getting-started.md)
-
-## Active Plans
-
-- [Monorepo Reorganization](./plans/monorepo-reorganization.md) - Restructuring packages for better separation of concerns
-
-## Session Summaries
-
-- [2024-12-05: Entity Manager Refactor](./session-summaries/2024-12-05-entity-manager-refactor.md)
+| Guide | Description |
+|-------|-------------|
+| [Getting Started](./guides/getting-started.md) | Installation and first run |
+| [Adding New Architecture](./guides/adding-new-agent-architecture.md) | Integrate new AI SDKs |
 
 ## Repository Structure
 
 ```
 ai-systems/
+├── runtime/
+│   ├── server/     # @hhopkins/agent-server
+│   ├── client/     # @hhopkins/agent-client
+│   └── runner/     # @hhopkins/agent-runner
 ├── packages/
-│   ├── runtime/
-│   │   ├── server/              # @hhopkins/agent-server
-│   │   ├── client/              # @hhopkins/agent-client
-│   │   └── execution/           # @hhopkins/agent-runner
 │   ├── converters/              # @hhopkins/agent-converters
 │   ├── claude-entity-manager/   # @hhopkins/claude-entity-manager
-│   ├── shared-types/            # @ai-systems/shared-types
-│   └── opencode-claude-adapter/ # opencode-claude-adapter
-├── packages/apps/
-│   └── smart-docs/              # @hhopkins/smart-docs
-├── examples/
-│   ├── backend/                 # Example server using agent-server
-│   └── frontend/                # Example React app using agent-client
+│   ├── types/                   # @ai-systems/shared-types
+│   └── opencode-claude-adapter/
+├── apps/
+│   ├── example-backend/   # Reference server
+│   ├── example-frontend/  # Reference React app
+│   └── smart-docs/        # @hhopkins/smart-docs
 └── plugins/
-    └── agent-service/           # Claude Code plugin for agent development
+    ├── smart-docs-authoring/  # Documentation standards
+    └── project-tracker/       # Multi-session tracking
 ```

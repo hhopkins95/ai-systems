@@ -1,124 +1,87 @@
----
-title: "@hhopkins/smart-docs"
-description: A local documentation viewer for AI-native codebases
----
+# smart-docs
 
-# Smart Docs
+Local documentation viewer for AI-native codebases.
 
-A local documentation viewer for AI-native codebases that unifies your project documentation with Claude Code configuration and plugin management.
+## What It Does
 
-## Purpose
-
-Smart Docs solves the problem of scattered AI-native documentation by providing a single, clean interface to view:
-
-- **Your project documentation** - Markdown files from your docs folder
-- **Claude Code configuration** - Skills, commands, agents, and hooks from both global (`~/.claude`) and project-level (`./.claude`) directories
-- **Plugin management** - View all installed plugins and enable/disable them per-project
-
-Instead of building a full documentation app within your project root, just keep a simple `docs/` folder and view everything through Smart Docs.
-
-## Features
-
-- **Single command launch** - `npx smart-docs ./docs` starts a local server and opens your browser
-- **Unified view** - See your docs, Claude config, and plugins in one place
-- **Live updates** - File changes are reflected immediately (file watching)
-- **Plugin management** - Enable/disable global plugins for specific projects
-- **Markdown support** - Syntax highlighting, frontmatter parsing, internal links, and Mermaid diagrams
-- **Local dev focused** - No deployment needed, runs entirely on your machine
-
-## Installation
-
-```bash
-npm install -g smart-docs
-```
-
-Or use directly with npx:
-
-```bash
-npx smart-docs ./docs
-```
-
-## Usage
-
-### Basic usage
-
-From your project root:
-
-```bash
-npx smart-docs ./docs
-```
-
-This will:
-1. Start a local web server
-2. Watch your docs folder and `.claude` directories for changes
-3. Open your browser to view the documentation
-
-### What it shows
-
-**Docs Tab**
-- Browse your markdown documentation
-- Nested folder structure support
-- Syntax-highlighted code blocks
-- Mermaid diagram rendering
-
-**Claude Config Tab**
-- **Global**: Skills, commands, agents, hooks from `~/.claude`
-- **Project**: Skills, commands, agents, hooks from `./.claude`
-- View raw content with syntax highlighting
-
-**Plugins Tab**
-- List all installed plugins (global and project-level)
-- See plugin metadata (name, version, description, component counts)
-- Enable/disable global plugins for the current project
-- Auto-creates `.claude/settings.json` if needed
+- Serves project documentation as a local web app
+- Renders Markdown with syntax highlighting and Mermaid diagrams
+- Shows Claude Code configuration (skills, commands, agents, hooks)
+- Provides plugin management interface
+- Watches files for live updates
 
 ## Architecture
 
-### Tech Stack
-- **Next.js 15** with TypeScript and App Router
-- **Hono** server for API endpoints (embedded in Next.js)
-- **Socket.IO** for live file updates
-- **Chokidar** for file watching
-- **React Markdown** with plugins for rendering
-- **Tailwind CSS** for styling
+```mermaid
+flowchart TB
+    subgraph smart-docs
+        CLI[CLI Entry] --> Server[Next.js Server]
+        Server --> Pages[Page Components]
+        Server --> API[API Routes]
 
-### How it works
+        Pages --> Docs[Docs Viewer]
+        Pages --> Config[Config Viewer]
+        Pages --> Plugins[Plugin Manager]
 
-1. **CLI** parses the docs path and sets environment variables
-2. **Services** initialize as singletons:
-   - File watcher monitors docs, `.claude` folders, and plugins
-   - Plugin discovery scans for installed plugins
-   - Services read from disk on every request (no caching)
-3. **API routes** expose data to the frontend
-4. **Socket.IO** broadcasts file changes to connected clients
-5. **Frontend** fetches data and updates in real-time
+        API --> CEM[claude-entity-manager]
+        API --> FS[File System]
+    end
+```
 
-## Configuration
+## Core Components
 
-### Plugin Management
+| Component | File | Purpose |
+|-----------|------|---------|
+| CLI | `src/cli.ts` | Start server |
+| DocsViewer | `src/pages/docs/` | Markdown rendering |
+| ConfigViewer | `src/pages/config/` | Entity display |
+| PluginManager | `src/pages/plugins/` | Plugin UI |
 
-Smart Docs reads and writes to `.claude/settings.json` in your project root:
+## Usage
 
-```json
-{
-  "enabledPlugins": {
-    "example-skills@anthropic-agent-skills": true,
-    "my-custom-plugin@local": false
-  }
+```bash
+# Start for current directory
+npx smart-docs
+
+# Start for specific directory
+npx smart-docs /path/to/project
+
+# Specify port
+npx smart-docs --port 4000
+```
+
+Navigate to `http://localhost:3002`:
+
+- **Docs** - Browse `docs/` folder as rendered Markdown
+- **Config** - View skills, commands, agents, hooks
+- **Plugins** - Manage installed plugins
+
+## Key Types
+
+```typescript
+interface SmartDocsConfig {
+  port?: number;
+  projectDir: string;
+  docsDir?: string;  // Default: docs/
 }
 ```
 
-When you toggle a plugin in the UI, Smart Docs updates this file automatically.
+## Tech Stack
 
-### File Watching
+- **Next.js 15** - React framework
+- **React 19** - UI library
+- **Tailwind CSS** - Styling
+- **Socket.IO** - Live reloading
+- **Remark** - Markdown processing
 
-Smart Docs watches these locations:
-- `<docs-path>/**/*.md` - Your documentation
-- `~/.claude/skills/**` - Global skills
-- `~/.claude/plugins/**` - Global plugins
-- `./.claude/**` - Project-level Claude config
-- `./.claude/settings.json` - Plugin states
+## How It Connects
 
-## License
+| Direction | Package | Relationship |
+|-----------|---------|--------------|
+| Depends on | claude-entity-manager | Load entities |
+| Depends on | shared-types | Type definitions |
 
-MIT
+## Related
+
+- [Entity Management](../system/entity-management.md) - Entity loading
+- [claude-entity-manager](./claude-entity-manager.md) - Entity service

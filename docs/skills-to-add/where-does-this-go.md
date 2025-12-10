@@ -1,1 +1,0 @@
-Skill about analyzing the codebase package architecture to decide the best place for some code / resource within the codebase file system. Will require a style-guide / architecture map. 
