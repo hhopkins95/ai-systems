@@ -44,22 +44,10 @@ export async function createModalSandbox(
     let customCommands: string[] = [];
 
     // Build dockerfile commands to copy sandbox directory into /app
-    customCommands.push(...generateSandboxAppInstallCommands({
-      localDirPath: localSandboxAppDir,
-      targetSandboxDirPath: "/app",
-    }));
-
-
-  //   // For each mcp in the agent profile, build the app commands
-  //   if (agentProfile?.bundledMCPs) {
-  //   for (const localmcp of agentProfile.bundledMCPs) { 
-  //     const sandboxPath = path.join("/mcps", normalizeString(localmcp.name));
-  //     customCommands.push(...generateSandboxAppInstallCommands({
-  //       localDirPath: localmcp.localProjectPath,
-  //       targetSandboxDirPath: sandboxPath,
-  //     }));
-  //   }
-  // }
+    // customCommands.push(...generateSandboxAppInstallCommands({
+    //   localDirPath: localSandboxAppDir,
+    //   targetSandboxDirPath: "/app",
+    // }));
 
     // Build custom image with Node.js 22 and sandbox application
     // This image is cached by Modal and reused across sandboxes
@@ -70,8 +58,8 @@ export async function createModalSandbox(
         ...customCommands,
 
         // Install dependencies in /app
-        'WORKDIR /app',
-        'RUN npm install',
+        // 'WORKDIR /app',
+        // 'RUN npm install',
 
         // Install Claude Code CLI globally (needed by the claude-agent-sdk)
         'RUN npm install -g @anthropic-ai/claude-code',

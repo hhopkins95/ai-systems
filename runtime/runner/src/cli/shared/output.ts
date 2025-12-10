@@ -53,7 +53,7 @@ export function writeError(error: Error | string): void {
     block: systemBlock,
   };
 
-  console.log(JSON.stringify(event));
+  console.error(JSON.stringify(event));
 }
 
 
