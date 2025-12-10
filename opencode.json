@@ -5,8 +5,9 @@
   ],
   "mcp": {
     "foo": {
-      "command": "node",
-      "args": [
+      "type": "local",
+      "command": [
+        "node",
         "foo.fj"
       ]
     }

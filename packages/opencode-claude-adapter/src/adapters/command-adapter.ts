@@ -10,7 +10,7 @@
  */
 
 import type { Command, CommandWithSource } from "@ai-systems/shared-types";
-import { mkdir, writeFile } from "fs/promises";
+import { mkdir, writeFile, readdir, rm } from "fs/promises";
 import { join } from "path";
 import matter from "gray-matter";
 
@@ -44,6 +44,21 @@ function formatCommandFile(command: CommandWithSource): string {
 }
 
 /**
+ * Clear all contents of a directory
+ */
+async function clearDirectory(dir: string): Promise<void> {
+  try {
+    const entries = await readdir(dir, { withFileTypes: true });
+    for (const entry of entries) {
+      const fullPath = join(dir, entry.name);
+      await rm(fullPath, { recursive: true });
+    }
+  } catch {
+    // Directory might not exist - that's fine
+  }
+}
+
+/**
  * Sync commands to .opencode/command/ directory
  */
 export async function syncCommands(
@@ -56,17 +71,16 @@ export async function syncCommands(
     errors: [],
   };
 
-  if (commands.length === 0) {
-    return result;
-  }
-
   const targetDir = join(projectDir, ".opencode", "command");
 
   // Ensure directory exists
-  try {
-    await mkdir(targetDir, { recursive: true });
-  } catch (error) {
-    // Directory might already exist
+  await mkdir(targetDir, { recursive: true });
+
+  // Clear existing commands before syncing
+  await clearDirectory(targetDir);
+
+  if (commands.length === 0) {
+    return result;
   }
 
   // Deduplicate commands by name (later sources override earlier)

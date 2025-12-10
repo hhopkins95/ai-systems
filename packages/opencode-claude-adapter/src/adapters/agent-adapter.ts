@@ -11,7 +11,7 @@
  */
 
 import type { Agent, AgentWithSource } from "@ai-systems/shared-types";
-import { mkdir, writeFile } from "fs/promises";
+import { mkdir, writeFile, readdir, rm } from "fs/promises";
 import { join } from "path";
 import matter from "gray-matter";
 
@@ -96,6 +96,21 @@ function formatAgentFile(agent: AgentWithSource): string {
 }
 
 /**
+ * Clear all contents of a directory
+ */
+async function clearDirectory(dir: string): Promise<void> {
+  try {
+    const entries = await readdir(dir, { withFileTypes: true });
+    for (const entry of entries) {
+      const fullPath = join(dir, entry.name);
+      await rm(fullPath, { recursive: true });
+    }
+  } catch {
+    // Directory might not exist - that's fine
+  }
+}
+
+/**
  * Sync agents to .opencode/agent/ directory
  */
 export async function syncAgents(
@@ -108,17 +123,16 @@ export async function syncAgents(
     errors: [],
   };
 
-  if (agents.length === 0) {
-    return result;
-  }
-
   const targetDir = join(projectDir, ".opencode", "agent");
 
   // Ensure directory exists
-  try {
-    await mkdir(targetDir, { recursive: true });
-  } catch (error) {
-    // Directory might already exist
+  await mkdir(targetDir, { recursive: true });
+
+  // Clear existing agents before syncing
+  await clearDirectory(targetDir);
+
+  if (agents.length === 0) {
+    return result;
   }
 
   // Deduplicate agents by name (later sources override earlier)

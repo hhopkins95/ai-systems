@@ -90,12 +90,10 @@ export async function syncMcpServers(
     // Read existing config
     const config = await readOpencodeConfig(projectDir);
 
-    // Initialize mcp section if not present
-    if (!config.mcp) {
-      config.mcp = {};
-    }
+    // Clear existing MCP entries and start fresh
+    config.mcp = {};
 
-    // Deduplicate and add MCP servers (later sources override earlier)
+    // Add MCP servers (later sources override earlier)
     for (const server of mcpServers) {
       const transformed = transformMcpServer(server);
       if (transformed) {

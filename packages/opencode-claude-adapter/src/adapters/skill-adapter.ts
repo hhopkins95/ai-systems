@@ -14,7 +14,7 @@
 import { tool } from "@opencode-ai/plugin";
 import type { PluginInput, ToolDefinition } from "@opencode-ai/plugin";
 import type { Skill, SkillWithSource } from "@ai-systems/shared-types";
-import { readFile, mkdir, copyFile, readdir, stat } from "fs/promises";
+import { readFile, mkdir, copyFile, readdir, stat, rm } from "fs/promises";
 import { join, dirname, relative } from "path";
 import { generateFileTree } from "../utils/file-tree";
 
@@ -93,6 +93,21 @@ async function listFiles(dir: string, base: string = ""): Promise<string[]> {
 }
 
 /**
+ * Clear all contents of a directory
+ */
+async function clearDirectory(dir: string): Promise<void> {
+  try {
+    const entries = await readdir(dir, { withFileTypes: true });
+    for (const entry of entries) {
+      const fullPath = join(dir, entry.name);
+      await rm(fullPath, { recursive: true });
+    }
+  } catch {
+    // Directory might not exist - that's fine
+  }
+}
+
+/**
  * Sync skills to .opencode/skills/ directory
  */
 export async function syncSkills(
@@ -106,15 +121,17 @@ export async function syncSkills(
   };
 
   const syncedSkills: SyncedSkill[] = [];
-
-  if (skills.length === 0) {
-    return { syncResult: result, syncedSkills };
-  }
-
   const targetDir = join(projectDir, ".opencode", "skills");
 
   // Ensure directory exists
   await mkdir(targetDir, { recursive: true });
+
+  // Clear existing skills before syncing
+  await clearDirectory(targetDir);
+
+  if (skills.length === 0) {
+    return { syncResult: result, syncedSkills };
+  }
 
   // Deduplicate skills by name (later sources override earlier)
   const skillMap = new Map<string, SkillWithSource>();
