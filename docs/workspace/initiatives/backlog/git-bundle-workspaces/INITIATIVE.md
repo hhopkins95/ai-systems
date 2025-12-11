@@ -16,7 +16,7 @@ Promote workspaces to first-class entities with git-based storage. This enables 
 - Workspace as independent entity (decoupled from session)
 - Git-based storage backend for workspaces
 - Commit model (auto-commit at turn boundaries, named checkpoints)
-- Efficient loading through persistence adapter
+- Separate module architecture (outside runtime core)
 - Migration path from current embedded model
 
 **Out of scope:**
@@ -65,98 +65,93 @@ interface Session {
 
 Agent could have a `checkpoint` tool for semantic commits with messages.
 
-## Technical Considerations
+## Architecture Direction
 
-### Persistence Adapter Extensions
+### Key Insight: Git on Server Only
+
+The execution environment doesn't need git — it just needs files. Git is a storage/versioning concern, not an execution concern.
+
+```
+Exec Env                                    Server
+────────                                    ──────
+file write ──── event { path, content } ───▶ write to git working tree
+                                            │
+                                            ▼ (end of turn)
+                                            git commit
+```
+
+- Exec env doesn't know git exists (no changes needed)
+- Server receives file events (same as today), writes to working tree
+- Server commits at turn boundaries
+- No bundle transfer to/from exec env
+- Bundle only used for backup/transfer between servers
+
+### Separate Module (Not in Runtime)
+
+Since git is purely a server-side storage concern, it should live **outside the runtime** as an optional module that wraps or composes with the persistence adapter.
+
+```
+┌─────────────────────────────────────────────┐
+│                  Runtime                     │
+│  ┌─────────────────────────────────────┐    │
+│  │  AgentSession (unchanged)            │    │
+│  └──────────────────┬──────────────────┘    │
+│                     ▼                        │
+│  ┌─────────────────────────────────────┐    │
+│  │  PersistenceAdapter (basic)          │    │
+│  │    - saveWorkspaceFile()             │    │
+│  └─────────────────────────────────────┘    │
+└─────────────────────────────────────────────┘
+                      │
+                      ▼
+┌─────────────────────────────────────────────┐
+│  GitWorkspaceManager (separate package)     │
+│    - wraps or observes persistence          │
+│    - maintains git repos                    │
+│    - commits, bundles, history              │
+└─────────────────────────────────────────────┘
+```
+
+Benefits:
+- **Optional** — use it or don't, runtime doesn't care
+- **Composable** — wrap any persistence adapter
+- **Separate package** — e.g. `@ai-systems/git-workspace-manager`
+- **Clear boundary** — runtime handles execution, this handles versioned storage
+- **Calling app decides** — whether to use git workspaces or plain file storage
+
+### Sketch of Module Interface
 
 ```typescript
-interface WorkspacePersistence {
-  // Workspace lifecycle
-  createWorkspace(name?: string): Promise<Workspace>;
-  loadWorkspace(workspaceId: string): Promise<Workspace>;
-  deleteWorkspace(workspaceId: string): Promise<void>;
+// packages/git-workspace-manager/
 
-  // File operations (maintains current abstraction)
-  getWorkspaceFiles(workspaceId: string, ref?: string): Promise<WorkspaceFile[]>;
-  saveWorkspaceFile(workspaceId: string, file: WorkspaceFile): Promise<void>;
-  deleteWorkspaceFile(workspaceId: string, path: string): Promise<void>;
+class GitWorkspaceManager {
+  constructor(
+    private baseAdapter: PersistenceAdapter,  // delegates basic storage
+    private gitStoragePath: string
+  ) {}
 
-  // Git operations
-  commitWorkspace(workspaceId: string, message?: string): Promise<string>; // returns commit hash
-  checkpointWorkspace(workspaceId: string, name: string): Promise<string>;
-  listCheckpoints(workspaceId: string): Promise<Checkpoint[]>;
+  // Wraps base adapter, adds git tracking
+  async saveWorkspaceFile(workspaceId: string, file: WorkspaceFile): Promise<void>;
 
-  // History
-  diffWorkspace(workspaceId: string, from: string, to: string): Promise<FileDiff[]>;
-  getWorkspaceHistory(workspaceId: string): Promise<Commit[]>;
-
-  // Branching
-  forkWorkspace(workspaceId: string, name?: string): Promise<Workspace>;
-
-  // Bundle operations (for transfer/backup)
-  bundleWorkspace(workspaceId: string): Promise<Buffer>;
-  unbundleWorkspace(bundle: Buffer, name?: string): Promise<Workspace>;
+  // Git-specific operations
+  async commit(workspaceId: string, message?: string): Promise<string>;
+  async checkpoint(workspaceId: string, name: string): Promise<string>;
+  async getHistory(workspaceId: string): Promise<Commit[]>;
+  async diff(workspaceId: string, from: string, to: string): Promise<Diff>;
+  async fork(workspaceId: string): Promise<Workspace>;
+  async bundle(workspaceId: string): Promise<Buffer>;
+  async restore(bundle: Buffer): Promise<Workspace>;
 }
 ```
 
-### Loading Efficiency Considerations
+## Loading Efficiency
 
-**Challenge:** Git stores full repo history. Loading all files for every session resume could be slow.
+**Recommended approach:** Working tree on disk + lazy loading
 
-**Options to explore:**
-1. **Lazy loading** — Load file list first, content on demand
-2. **Working tree cache** — Keep extracted working tree alongside bundle
-3. **Sparse checkout** — Only load files the session actually needs
-4. **Object store separation** — Share objects across workspaces, bundle per-workspace refs only
-
-### Data Flow Impact
-
-**Session start:**
-```
-1. Create or reference Workspace
-2. Load WorkspaceFile[] from workspace (at HEAD or specific ref)
-3. Initialize execution environment with files
-4. Session tracks workspaceId + current ref
-```
-
-**During session:**
-```
-1. File changes persisted immediately (current behavior)
-2. Changes staged in git working tree
-3. End of turn → auto-commit
-4. Client receives WorkspaceFile events (unchanged)
-```
-
-**Session end/pause:**
-```
-1. Final commit if uncommitted changes
-2. Optionally bundle for archival
-3. Session stores final ref for resume
-```
-
-**Session resume:**
-```
-1. Load workspace at stored ref
-2. Reconstruct WorkspaceFile[]
-3. Continue
-```
-
-## Completion Criteria
-
-- [ ] Workspace entity and table created
-- [ ] Session references workspace by ID
-- [ ] Git-based workspace storage implementation
-- [ ] Auto-commit at turn boundaries
-- [ ] Checkpoint/tagging support
-- [ ] Efficient file loading (lazy or cached)
-- [ ] Fork workspace functionality
-- [ ] Migration for existing sessions
-- [ ] WorkspaceFile abstraction preserved for clients
-- [ ] Documentation updated
-
-## Current Status
-
-Not started - in backlog. Brainstorming complete.
+- Active workspace = real git repo on disk (fast file access)
+- `getWorkspaceFiles()` reads working tree directly
+- Bundle created on demand for archival/transfer
+- Manifest-first loading for large workspaces (file list, then content on demand)
 
 ## Open Questions
 
@@ -164,6 +159,24 @@ Not started - in backlog. Brainstorming complete.
 2. **Cross-workspace dedup** — Shared object store worth the complexity?
 3. **Binary files** — Include in git? Separate blob store?
 4. **History limits** — Prune old history? Keep forever?
+5. **Integration point** — Wrapper around adapter vs event subscriber vs middleware?
+
+## Completion Criteria
+
+- [ ] Workspace entity defined (separate from session)
+- [ ] GitWorkspaceManager module created (separate package)
+- [ ] Git repo storage implementation
+- [ ] Auto-commit at turn boundaries
+- [ ] Checkpoint/tagging support
+- [ ] Efficient file loading
+- [ ] Fork workspace functionality
+- [ ] Bundle export/import
+- [ ] Migration path documented
+- [ ] WorkspaceFile abstraction preserved for clients
+
+## Current Status
+
+Backlog — brainstorming captured, not scheduled for implementation.
 
 ## Quick Links
 
