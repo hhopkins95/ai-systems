@@ -254,6 +254,24 @@ export function AgentServiceProvider({
     });
 
     // =========================================================================
+    // Log Events
+    // =========================================================================
+
+    wsManager.on('session:log', (data) => {
+      logEvent('session:log', data);
+      dispatch({ type: 'EVENT_LOGGED', eventName: 'session:log', payload: data });
+      dispatch({
+        type: 'SESSION_LOG_RECEIVED',
+        sessionId: data.sessionId,
+        log: {
+          level: data.level,
+          message: data.message,
+          data: data.data,
+        },
+      });
+    });
+
+    // =========================================================================
     // Error Events
     // =========================================================================
 

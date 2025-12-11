@@ -38,6 +38,23 @@ export interface DebugEvent {
 const MAX_EVENT_LOG_SIZE = 100;
 
 // ============================================================================
+// Session Log Types
+// ============================================================================
+
+export type LogLevel = 'debug' | 'info' | 'warn' | 'error';
+
+export interface SessionLogEntry {
+  id: string;
+  timestamp: number;
+  sessionId: string;
+  level: LogLevel;
+  message: string;
+  data?: Record<string, unknown>;
+}
+
+const MAX_SESSION_LOG_SIZE = 500;
+
+// ============================================================================
 // State Shape
 // ============================================================================
 
@@ -59,6 +76,9 @@ export interface SessionState {
 
   /** Subagent conversations keyed by subagentId */
   subagents: Map<string, SubagentState>;
+
+  /** Session logs from execution environment */
+  logs: SessionLogEntry[];
 
   /** Loading state for async operations */
   isLoading: boolean;
@@ -167,7 +187,11 @@ export type AgentServiceAction =
   | { type: 'REMOVE_OPTIMISTIC_MESSAGE'; sessionId: string; optimisticId: string }
 
   // Error Display
-  | { type: 'ERROR_BLOCK_ADDED'; sessionId: string; error: { message: string; code?: string } };
+  | { type: 'ERROR_BLOCK_ADDED'; sessionId: string; error: { message: string; code?: string } }
+
+  // Session Logs
+  | { type: 'SESSION_LOG_RECEIVED'; sessionId: string; log: { level?: LogLevel; message: string; data?: Record<string, unknown> } }
+  | { type: 'SESSION_LOGS_CLEARED'; sessionId: string };
 
 // ============================================================================
 // Initial State
@@ -237,6 +261,7 @@ export function agentServiceReducer(
         metadata: existingSession?.metadata ?? {},
         files: existingSession?.files ?? [],
         subagents: existingSession?.subagents ?? new Map(),
+        logs: existingSession?.logs ?? [],
         isLoading: existingSession?.isLoading ?? false,
       });
 
@@ -270,6 +295,7 @@ export function agentServiceReducer(
         metadata: {},
         files: action.data.workspaceFiles,
         subagents: subagentsMap,
+        logs: [],
         isLoading: false,
       });
 
@@ -686,6 +712,46 @@ export function agentServiceReducer(
       sessions.set(action.sessionId, {
         ...session,
         blocks: [...session.blocks, errorBlock],
+      });
+
+      return { ...state, sessions };
+    }
+
+    case 'SESSION_LOG_RECEIVED': {
+      const sessions = new Map(state.sessions);
+      const session = sessions.get(action.sessionId);
+
+      if (!session) return state;
+
+      const newLog: SessionLogEntry = {
+        id: `log-${Date.now()}-${Math.random().toString(36).slice(2, 9)}`,
+        timestamp: Date.now(),
+        sessionId: action.sessionId,
+        level: action.log.level ?? 'info',
+        message: action.log.message,
+        data: action.log.data,
+      };
+
+      // Append log, keep only MAX_SESSION_LOG_SIZE most recent
+      const logs = [...session.logs, newLog].slice(-MAX_SESSION_LOG_SIZE);
+
+      sessions.set(action.sessionId, {
+        ...session,
+        logs,
+      });
+
+      return { ...state, sessions };
+    }
+
+    case 'SESSION_LOGS_CLEARED': {
+      const sessions = new Map(state.sessions);
+      const session = sessions.get(action.sessionId);
+
+      if (!session) return state;
+
+      sessions.set(action.sessionId, {
+        ...session,
+        logs: [],
       });
 
       return { ...state, sessions };
