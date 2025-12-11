@@ -6,7 +6,6 @@
  */
 
 import type { StreamEvent, SystemBlock } from '@ai-systems/shared-types';
-import type { SetupSessionResult } from '../../types.js';
 
 /**
  * Write a StreamEvent as JSONL to stdout
@@ -89,9 +88,8 @@ export type LogLevel = 'debug' | 'info' | 'warn' | 'error';
 /**
  * Write a log message as a StreamEvent
  *
- * Uses stderr for immediate delivery (stderr is typically line-buffered
- * even in non-TTY environments like Modal containers, unlike stdout which
- * is fully buffered).
+ * Outputs log events to stdout as JSONL, consistent with other StreamEvents.
+ * The server reads stdout and forwards log events to the server logger.
  */
 export function writeLog(
   level: LogLevel,
@@ -116,6 +114,6 @@ export function writeLog(
     block: systemBlock,
   };
 
-  // Write to stderr for immediate delivery (unbuffered in containers)
-  process.stderr.write(JSON.stringify(event) + '\n');
+  // Write to stdout as JSONL (consistent with other StreamEvents)
+  process.stdout.write(JSON.stringify(event) + '\n');
 }

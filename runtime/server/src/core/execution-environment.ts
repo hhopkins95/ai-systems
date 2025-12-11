@@ -32,6 +32,27 @@ async function readStreamToString(stream: ReadableStream): Promise<string> {
 }
 
 /**
+ * Check if a StreamEvent is a runner log event
+ */
+function isRunnerLogEvent(event: StreamEvent): boolean {
+    return event.type === 'block_complete' &&
+        event.block.type === 'system' &&
+        (event.block as SystemBlock).subtype === 'log';
+}
+
+/**
+ * Forward a runner log event to the server logger
+ * Should only be called after isRunnerLogEvent returns true
+ */
+function forwardRunnerLog(event: StreamEvent): void {
+    if (event.type !== 'block_complete') return;
+    const block = event.block as SystemBlock;
+    const { level, ...rest } = (block.metadata || {}) as { level?: string };
+    const logFn = level === 'error' ? logger.error : level === 'warn' ? logger.warn : logger.info;
+    logFn.call(logger, { runnerLog: true, ...rest }, `[Runner] ${block.message}`);
+}
+
+/**
  * Event emitted when a workspace file changes
  */
 export interface WorkspaceFileEvent {
@@ -231,53 +252,12 @@ export class ExecutionEnvironment {
         }
 
         const process = await this.primitives.exec(cmdArgs, { cwd: APP_DIR });
-        const reader = process.stdout.getReader();
-        let buffer = '';
 
         try {
-            while (true) {
-                const { done, value } = await reader.read();
-                if (done) break;
-
-                // Convert value to string if it's a Uint8Array
-                const chunk = typeof value === 'string' ? value : new TextDecoder().decode(value);
-                buffer += chunk;
-                const lines = buffer.split('\n');
-                buffer = lines.pop() || '';
-
-                for (const line of lines) {
-                    if (line.trim()) {
-                        try {
-                            const event = JSON.parse(line) as StreamEvent;
-
-                            // Log runner log events to server console
-                            if (event.type === 'block_complete' &&
-                                event.block.type === 'system' &&
-                                (event.block as SystemBlock).subtype === 'log') {
-                                const block = event.block as SystemBlock;
-                                const { level, ...rest } = (block.metadata || {}) as { level?: string };
-                                const logFn = level === 'error' ? logger.error : level === 'warn' ? logger.warn : logger.info;
-                                logFn.call(logger, { runnerLog: true, ...rest }, `[Runner] ${block.message}`);
-                            }
-
-                            yield event;
-                        } catch {
-                            // Skip malformed JSON lines
-                        }
-                    }
-                }
-            }
-
-            // Process any remaining buffer
-            if (buffer.trim()) {
-                try {
-                    yield JSON.parse(buffer) as StreamEvent;
-                } catch {
-                    // Skip malformed JSON
-                }
+            for await (const event of this.parseRunnerStream(process.stdout)) {
+                yield event;
             }
         } finally {
-            reader.releaseLock();
             await process.wait();
             // Send transcript update after query completes
             await this.sendTranscriptUpdate();
@@ -297,11 +277,13 @@ export class ExecutionEnvironment {
     }
 
     /**
-     * Capture and log runner log events from a process's stdout
-     * Used to capture logs from prepareSession scripts
+     * Parse JSONL StreamEvents from a runner process stdout
+     * Yields all valid StreamEvents and forwards log events to server logger
      */
-    private async captureRunnerLogs(process: { stdout: ReadableStream }): Promise<void> {
-        const reader = process.stdout.getReader();
+    private async *parseRunnerStream(
+        stdout: ReadableStream
+    ): AsyncGenerator<StreamEvent> {
+        const reader = stdout.getReader();
         let buffer = '';
 
         try {
@@ -318,22 +300,42 @@ export class ExecutionEnvironment {
                     if (line.trim()) {
                         try {
                             const event = JSON.parse(line) as StreamEvent;
-                            if (event.type === 'block_complete' &&
-                                event.block.type === 'system' &&
-                                (event.block as SystemBlock).subtype === 'log') {
-                                const block = event.block as SystemBlock;
-                                const { level, ...rest } = (block.metadata || {}) as { level?: string };
-                                const logFn = level === 'error' ? logger.error : level === 'warn' ? logger.warn : logger.info;
-                                logFn.call(logger, { runnerLog: true, ...rest }, `[Runner] ${block.message}`);
+                            if (isRunnerLogEvent(event)) {
+                                forwardRunnerLog(event);
                             }
+                            yield event;
                         } catch {
-                            // Not JSON, ignore
+                            // Skip malformed JSON lines
                         }
                     }
                 }
             }
+
+            // Process any remaining buffer
+            if (buffer.trim()) {
+                try {
+                    const event = JSON.parse(buffer) as StreamEvent;
+                    if (isRunnerLogEvent(event)) {
+                        forwardRunnerLog(event);
+                    }
+                    yield event;
+                } catch {
+                    // Skip malformed JSON
+                }
+            }
         } finally {
             reader.releaseLock();
+        }
+    }
+
+    /**
+     * Capture and log runner log events from a process's stdout
+     * Used to capture logs from prepareSession scripts
+     */
+    private async captureRunnerLogs(process: { stdout: ReadableStream }): Promise<void> {
+        // Consume the stream, forwarding logs (side effect of parseRunnerStream)
+        for await (const _event of this.parseRunnerStream(process.stdout)) {
+            // Events consumed but not used - logs forwarded inside parseRunnerStream
         }
     }
 
