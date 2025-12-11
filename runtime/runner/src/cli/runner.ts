@@ -12,10 +12,12 @@
  */
 
 import { Command } from 'commander';
-import { loadAgentProfile } from './load-agent-profile.js';
-import { loadSessionTranscript } from './load-session-transcript.js';
-import { executeQuery } from './execute-query.js';
-import { readSessionTranscript } from './read-session-transcript.js';
+import {
+  loadAgentProfile,
+  loadSessionTranscript,
+  executeQuery,
+  readSessionTranscript,
+} from './commands/index.js';
 
 const program = new Command();
 

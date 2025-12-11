@@ -14,6 +14,10 @@
  * - runner load-session-transcript: Load session transcript
  * - runner execute-query: Execute query against Claude SDK or OpenCode
  * - runner read-session-transcript: Read current session transcript
+ *
+ * Core functions can be imported directly for testing:
+ * - executeQuery, executeClaudeQuery, executeOpencodeQuery
+ * - loadAgentProfile, loadSessionTranscript, readSessionTranscript
  */
 
 import { readFileSync } from 'fs';
@@ -36,6 +40,13 @@ export const getRunnerBundleContent = (): string => {
   return readFileSync(runnerBundlePath, 'utf-8');
 };
 
+// Core functions - can be called directly for testing
+export * from './core/index.js';
+
+// Client utilities
+export * from './clients/index.js';
+
+// Types
 export type {
   // Core types
   AgentArchitecture,

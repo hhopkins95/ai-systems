@@ -1,0 +1,161 @@
+/**
+ * OpenCode SDK query execution.
+ *
+ * Pure async generator that yields StreamEvents from OpenCode responses.
+ */
+
+import * as fs from 'fs';
+import * as path from 'path';
+import os from 'os';
+import { exec } from 'child_process';
+import { promisify } from 'util';
+import { createStreamEventParser } from '@hhopkins/agent-converters/opencode';
+import type { StreamEvent } from '@ai-systems/shared-types';
+import { getOpencodeConnection, closeOpencodeServer } from '../clients/opencode.js';
+import { emptyAsyncIterable } from '../clients/channel.js';
+import type { ExecuteQueryInput, UserMessage } from './types.js';
+
+const execAsync = promisify(exec);
+
+/**
+ * Create an OpenCode session with a specific ID.
+ */
+async function createOpencodeSession(sessionId: string, cwd: string): Promise<void> {
+  const sessionFileContents = JSON.stringify({
+    info: {
+      id: sessionId,
+      version: '1.0.120',
+      projectID: 'global',
+      directory: cwd,
+      title: 'New Session',
+      time: {
+        created: Date.now(),
+        updated: Date.now(),
+      },
+      summary: {
+        additions: 0,
+        deletions: 0,
+        files: 0,
+      },
+    },
+    messages: [],
+  }, null, 2);
+
+  const filePath = path.join(os.tmpdir(), `temp-${sessionId}.json`);
+  fs.writeFileSync(filePath, sessionFileContents);
+
+  if (!fs.existsSync(filePath)) {
+    throw new Error(`File was not created at ${filePath}`);
+  }
+
+  try {
+    await execAsync(`opencode import "${filePath}"`);
+  } finally {
+    try {
+      fs.unlinkSync(filePath);
+    } catch {
+      // Ignore cleanup errors
+    }
+  }
+}
+
+/**
+ * Execute a query using the OpenCode SDK.
+ *
+ * @param input - Query parameters
+ * @param messages - Optional async iterable of follow-up messages
+ * @yields StreamEvent objects converted from OpenCode events
+ */
+export async function* executeOpencodeQuery(
+  input: ExecuteQueryInput,
+  _messages: AsyncIterable<UserMessage> = emptyAsyncIterable()
+): AsyncGenerator<StreamEvent> {
+  if (!input.model) {
+    throw new Error('Model is required for opencode architecture (format: provider/model)');
+  }
+
+  const [providerID, modelID] = input.model.split('/');
+  if (!providerID || !modelID) {
+    throw new Error('Model must be in format provider/model (e.g., anthropic/claude-sonnet-4-20250514)');
+  }
+
+  const connection = await getOpencodeConnection();
+  const client = connection.client;
+
+  try {
+    // Create stateful parser for this session
+    const parser = createStreamEventParser(input.sessionId);
+
+    // Check if session exists, create if not
+    const existingSession = await client.session.get({
+      path: { id: input.sessionId },
+      query: { directory: input.cwd },
+    });
+
+    if (!existingSession.data) {
+      await createOpencodeSession(input.sessionId, input.cwd || '/workspace');
+    }
+
+    // Create a promise that will resolve when we get the idle event
+    let resolveEventStream: () => void;
+    const eventStreamComplete = new Promise<void>(resolve => {
+      resolveEventStream = resolve;
+    });
+
+    // Collect events
+    const events: StreamEvent[] = [];
+
+    // Start event subscription in parallel (IMPORTANT: must start before prompt)
+    const eventPromise = (async () => {
+      const eventResult = await client.event.subscribe({
+        query: { directory: input.cwd },
+      });
+
+      for await (const event of eventResult.stream) {
+        // Convert OpenCode event to StreamEvents using stateful parser
+        const streamEvents = parser.parseEvent(event);
+        events.push(...streamEvents);
+
+        // Break when session goes idle
+        if (event.type === 'session.idle' && event.properties.sessionID === input.sessionId) {
+          resolveEventStream!();
+          break;
+        }
+      }
+    })();
+
+    // Authenticate
+    await client.auth.set({
+      path: { id: 'zen' },
+      body: { type: 'api', key: process.env.OPENCODE_API_KEY || '' },
+      query: { directory: input.cwd },
+    });
+
+    // Send prompt
+    await client.session.prompt({
+      path: { id: input.sessionId },
+      query: { directory: input.cwd },
+      body: {
+        model: { providerID, modelID },
+        parts: [{ type: 'text', text: input.prompt }],
+      },
+    });
+
+    // Wait for event stream to complete
+    await eventStreamComplete;
+
+    // Yield all collected events
+    for (const event of events) {
+      yield event;
+    }
+
+    // Also wait for the event promise to finish
+    await eventPromise;
+
+  } finally {
+    await closeOpencodeServer();
+  }
+
+  // Note: streaming input mode with messages will be implemented
+  // when needed. For now, we use single-prompt mode.
+}
