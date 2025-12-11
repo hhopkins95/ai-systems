@@ -431,6 +431,22 @@ export class ExecutionEnvironment {
                 path: event.path,
                 content: event.content,
             });
+        }, {
+            ignorePatterns : [
+                '**/.git/**',
+                '**/.claude/**',
+                '**/.opencode/**',
+                'opencode.json',
+                '**/node_modules/**',
+                '**/dist/**',
+                '**/build/**',
+                '**/coverage/**',
+                '**/logs/**',
+                '**/temp/**',
+                '**/tmp/**',
+                '**/cache/**',
+                '**/temp-cache/**',
+            ]
         });
     }
 

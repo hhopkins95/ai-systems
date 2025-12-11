@@ -122,7 +122,7 @@ interface AgentProfile {
 
 The package builds to a single bundled file:
 
-```
+```text
 dist/
 ├── index.js          # Library exports
 ├── index.d.ts        # Type declarations
@@ -206,7 +206,7 @@ pnpm harness execute-query \
 
 Example fixtures are provided in `runtime/runner/fixtures/`:
 
-```
+```text
 fixtures/
 ├── agents/
 │   └── minimal.json      # Minimal agent profile
@@ -216,7 +216,7 @@ fixtures/
     └── simple.json       # Simple query input
 ```
 
-### Programmatic Usage
+### Using the Harness Programmatically
 
 ```typescript
 import { runRunner, createWorkspace, parseJsonlStream } from '@hhopkins/agent-runner/test-harness';
