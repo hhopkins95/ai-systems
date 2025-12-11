@@ -11,7 +11,6 @@ import { EnvironmentPrimitive, WatchEvent } from "../lib/environment-primitives/
 import { getEnvironmentPrimitive } from "../lib/environment-primitives/factory";
 import { RuntimeExecutionEnvironmentOptions } from "../types/runtime";
 import { getRunnerBundleContent } from "@hhopkins/agent-runner";
-/* @ts-ignore */
 import { getAdapterBundleContent } from "@ai-systems/opencode-claude-adapter/bundle";
 
 import { join } from "path";

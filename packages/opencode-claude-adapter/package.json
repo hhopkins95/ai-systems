@@ -2,7 +2,7 @@
   "name": "@ai-systems/opencode-claude-adapter",
   "version": "0.1.1",
   "description": "OpenCode Claude Adapter - plugin for opencode that allows for automatic loading of agent profiles -- agents, skills, commands, etc... from claude code's system into opencode's system",
-  "main": "./dist/bundle.js",
+  "main": "./dist/index.js",
   "types": "./dist/index.d.ts",
   "exports": {
     ".": "./dist/index.js",

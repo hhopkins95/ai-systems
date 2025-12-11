@@ -16,7 +16,7 @@ const __dirname = dirname(fileURLToPath(import.meta.url));
  * Path to the bundled adapter.
  * Use this to copy the adapter into execution environments.
  */
-export const adapterBundlePath = join(__dirname, 'bundle.js');
+export const adapterBundlePath = join(__dirname, 'adapter.bundle.js');
 
 /**
  * Get the content of the bundled adapter.
