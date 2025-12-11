@@ -10,6 +10,9 @@
  * - Display thinking in real-time
  * - Update tool/subagent execution status
  * - Track progress of long-running operations
+ * 
+ * 
+ * Also includes execution-environment level events -- logs, errors, status updates, etc. 
  */
 
 import type { ConversationBlock } from './blocks.js';
@@ -189,6 +192,24 @@ export interface MetadataUpdateEvent {
   conversationId: 'main' | string;
 }
 
+/**
+ * Any log that needs to be sent from the runner to the server
+ */
+export interface LogEvent {
+  type : 'log', 
+  message : string
+  data? : Record<string, unknown>
+}
+
+/**
+ * Error that occured in a runner script execution. 
+ */
+export interface ErrorEvent { 
+  type : 'error', 
+  message : string
+  data? : Record<string, unknown>
+}
+
 // ============================================================================
 // Union Type
 // ============================================================================
@@ -201,8 +222,9 @@ export type StreamEvent =
   | TextDeltaEvent
   | BlockUpdateEvent
   | BlockCompleteEvent
-  | MetadataUpdateEvent;
-
+  | MetadataUpdateEvent
+  | LogEvent
+  | ErrorEvent;
 // ============================================================================
 // Type Guards
 // ============================================================================
