@@ -32,7 +32,6 @@ import { AgentArchitecture, AgentProfile, ClaudeMcpJsonConfig, OpencodeSettings 
 import { ClaudeEntityManager} from '@hhopkins/claude-entity-manager';
 import os from 'os';
 import { exec } from 'child_process';
-import { createRequire } from 'module';
 
 // Set up exception handlers early
 setupExceptionHandlers();
@@ -137,17 +136,14 @@ export async function loadAgentProfile() {
                 architecture: input.architectureType,
             });
 
-            const require = createRequire(import.meta.url);
-            const adapterPackageJson = require.resolve('@ai-systems/opencode-claude-adapter');
-            const adapterPath = path.dirname(adapterPackageJson);
+            // Use the known path where the adapter is installed in the sandbox
+            const adapterPath = '/app/opencode-adapter';
 
             const opencodeConfig : OpencodeSettings = {
                 plugin: [adapterPath],
             }
 
             await writeFile(path.join(input.projectDirPath, 'opencode.json'), JSON.stringify(opencodeConfig, null, 2));
-
-
         }
 
         writeLog('info', 'Agent profile loaded');

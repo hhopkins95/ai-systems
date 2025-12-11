@@ -24,6 +24,26 @@ import { syncAgents } from "./adapters/agent-adapter";
 import { syncInstructions, type SkillInfo } from "./adapters/instruction-adapter";
 import { syncMcpServers } from "./adapters/mcp-adapter";
 
+import { readFileSync } from "fs";
+import { dirname, join } from "path";
+import { fileURLToPath } from "url";
+
+const __dirname = dirname(fileURLToPath(import.meta.url));
+
+/**
+ * Path to the bundled adapter.
+ * Use this to copy the adapter into execution environments.
+ */
+export const adapterBundlePath = join(__dirname, 'bundle.js');
+
+/**
+ * Content of the bundled adapter.
+ * Use this to write the adapter directly into execution environments.
+ */
+export const getAdapterBundleContent = (): string => {
+  return readFileSync(adapterBundlePath, 'utf-8');
+};
+
 export const ClaudeAdapterPlugin: Plugin = async (ctx) => {
   const projectDir = ctx.directory;
 

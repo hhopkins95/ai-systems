@@ -11,6 +11,7 @@ import { EnvironmentPrimitive, WatchEvent } from "../lib/environment-primitives/
 import { getEnvironmentPrimitive } from "../lib/environment-primitives/factory";
 import { RuntimeExecutionEnvironmentOptions } from "../types/runtime";
 import { getRunnerBundleContent } from "@hhopkins/agent-runner";
+import { getAdapterBundleContent } from "@ai-systems/opencode-claude-adapter";
 import { join } from "path";
 
 /**
@@ -121,6 +122,16 @@ export class ExecutionEnvironment {
         const { APP_DIR } = primitives.getBasePaths();
         const runnerContent = getRunnerBundleContent();
         await primitives.writeFile(join(APP_DIR, 'runner.js'), runnerContent);
+
+        // Install opencode adapter bundle for opencode architecture support
+        const adapterDir = join(APP_DIR, 'opencode-adapter');
+        await primitives.createDirectory(adapterDir);
+        await primitives.writeFile(join(adapterDir, 'index.js'), getAdapterBundleContent());
+        await primitives.writeFile(join(adapterDir, 'package.json'), JSON.stringify({
+            name: "@ai-systems/opencode-claude-adapter",
+            main: "./index.js",
+            type: "module"
+        }));
 
         return new ExecutionEnvironment(
             primitives,

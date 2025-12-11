@@ -40,6 +40,7 @@
   },
   "scripts": {
     "build": "tsc",
+    "build:bundle": "tsx esbuild.bundle.ts",
     "dev": "tsc --watch --preserveWatchOutput",
     "typecheck": "tsc --noEmit",
     "prepublishOnly": "npm run build"
@@ -51,6 +52,8 @@
     "@opencode-ai/plugin": "^1.0.126",
     "@types/bun": "^1.3.0",
     "bun-types": "^1.3.0",
+    "esbuild": "^0.24.0",
+    "tsx": "^4.19.2",
     "typescript": "^5.7.2"
   },
   "dependencies": {
