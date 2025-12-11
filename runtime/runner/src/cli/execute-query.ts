@@ -197,7 +197,10 @@ async function executeOpencode(args: ExecuteQueryArgs): Promise<void> {
     const parser = createStreamEventParser(args.sessionId);
 
     // Check if session exists, create if not
-    const existingSession = await client.session.get({ path: { id: args.sessionId } });
+    const existingSession = await client.session.get({
+      path: { id: args.sessionId },
+      query: { directory: args.cwd },
+    });
     logDebug('Session check', { sessionId: args.sessionId, exists: !!existingSession.data });
 
     if (!existingSession.data) {
@@ -207,7 +210,9 @@ async function executeOpencode(args: ExecuteQueryArgs): Promise<void> {
 
     // Start event subscription in parallel (IMPORTANT: must start before prompt)
     const eventPromise = (async () => {
-      const events = await client.event.subscribe();
+      const events = await client.event.subscribe({
+        query: { directory: args.cwd },
+      });
 
       let firstEventReceived = false;
       for await (const event of events.stream) {
@@ -234,6 +239,7 @@ async function executeOpencode(args: ExecuteQueryArgs): Promise<void> {
     await client.auth.set({
       path: { id: 'zen' },
       body: { type: 'api', key: process.env.OPENCODE_API_KEY || '' },
+      query: { directory: args.cwd },
     });
 
     // Send prompt
@@ -245,7 +251,7 @@ async function executeOpencode(args: ExecuteQueryArgs): Promise<void> {
 
     await client.session.prompt({
       path: { id: args.sessionId },
-
+      query: { directory: args.cwd },
       body: {
         model: { providerID, modelID },
         parts: [{ type: 'text', text: args.prompt }],
