@@ -74,7 +74,7 @@ If you can read this, the skill system is working correctly.`,
     },
 
     // Bundled MCP servers
-    bundledMCPs: [echoServerBundle],
+    // bundledMCPs: [echoServerBundle],
   };
 }
 
