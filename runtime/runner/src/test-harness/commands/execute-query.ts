@@ -10,6 +10,7 @@ import { createWorkspace } from '../lib/workspace.js';
 import { parseJsonlStream, formatSummary } from '../lib/stream-parser.js';
 import { resolveInput, mergeInput } from '../lib/input-resolver.js';
 import type { OutputFormat } from '../types.js';
+import { randomUUID } from 'crypto';
 
 export const executeQueryCommand = new Command('execute-query')
   .description('Execute a query against the agent runner')
@@ -56,7 +57,7 @@ export const executeQueryCommand = new Command('execute-query')
 
     // Generate session ID if not provided
     if (!input.sessionId) {
-      input.sessionId = `harness-${Date.now()}`;
+      input.sessionId = randomUUID();
     }
 
     // Create workspace

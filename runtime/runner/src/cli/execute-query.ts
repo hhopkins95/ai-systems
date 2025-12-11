@@ -118,6 +118,7 @@ async function executeClaudeSdk(args: ExecuteQueryArgs): Promise<void> {
   }
   logDebug('Found Claude Code executable', { path: claudeCodePath });
 
+
   const options: Options = {
     pathToClaudeCodeExecutable: claudeCodePath,
     cwd: args.cwd || '/workspace',
@@ -140,8 +141,10 @@ async function executeClaudeSdk(args: ExecuteQueryArgs): Promise<void> {
     needsCreation,
   });
 
+
   const generator = query({
     prompt: args.prompt,
+    // options
     options: needsCreation
       ? { ...options, extraArgs: { 'session-id': args.sessionId } }
       : { ...options, resume: args.sessionId },
