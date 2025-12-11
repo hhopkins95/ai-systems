@@ -9,21 +9,45 @@ Execution scripts for running agent queries inside sandboxes.
 - Supports multiple AI architectures (Claude SDK, OpenCode SDK)
 - Loads agent profiles and entity configurations
 - Streams events back to the orchestration layer
+- **Core functions directly importable** for testing without subprocess spawning
 
 ## Architecture
 
 ```mermaid
 flowchart TB
     subgraph agent-runner
-        CLI[runner.js CLI] --> Commands
-        Commands --> LProfile[load-agent-profile]
-        Commands --> LTranscript[load-session-transcript]
-        Commands --> ExecQuery[execute-query]
-        Commands --> ReadTranscript[read-session-transcript]
+        subgraph core [Core Functions]
+            ExecQuery[executeQuery]
+            ExecClaude[executeClaudeQuery]
+            ExecOpencode[executeOpencodeQuery]
+            LoadProfile[loadAgentProfile]
+            LoadTranscript[loadSessionTranscript]
+            ReadTranscript[readSessionTranscript]
+        end
 
-        ExecQuery --> Adapters
-        Adapters --> Claude[ClaudeAdapter]
-        Adapters --> OpenCode[OpenCodeAdapter]
+        subgraph clients [Clients]
+            Claude[findClaudeExecutable]
+            OpenCode[getOpencodeConnection]
+            Channel[createMessageChannel]
+        end
+
+        subgraph cli [CLI Layer]
+            Runner[runner.ts] --> Commands
+            Commands --> CLIExec[execute-query]
+            Commands --> CLIProfile[load-agent-profile]
+            Commands --> CLILoad[load-session-transcript]
+            Commands --> CLIRead[read-session-transcript]
+        end
+
+        CLIExec --> ExecQuery
+        CLIProfile --> LoadProfile
+        CLILoad --> LoadTranscript
+        CLIRead --> ReadTranscript
+
+        ExecQuery --> ExecClaude
+        ExecQuery --> ExecOpencode
+        ExecClaude --> Claude
+        ExecOpencode --> OpenCode
     end
 
     Claude --> SDK1[Claude Agent SDK]
@@ -34,36 +58,69 @@ flowchart TB
 
 | Component | File | Purpose |
 |-----------|------|---------|
+| **Core Functions** | | |
+| executeQuery | `src/core/execute-query.ts` | Dispatcher to claude/opencode |
+| executeClaudeQuery | `src/core/execute-claude-query.ts` | Claude SDK async generator |
+| executeOpencodeQuery | `src/core/execute-opencode-query.ts` | OpenCode SDK async generator |
+| loadAgentProfile | `src/core/load-agent-profile.ts` | Write .claude/ config |
+| loadSessionTranscript | `src/core/load-session-transcript.ts` | Restore session state |
+| readSessionTranscript | `src/core/read-session-transcript.ts` | Extract current transcript |
+| **Clients** | | |
+| findClaudeExecutable | `src/clients/claude.ts` | Lazy Claude executable finder |
+| getOpencodeConnection | `src/clients/opencode.ts` | Lazy OpenCode client init |
+| createMessageChannel | `src/clients/channel.ts` | Async producer/consumer channel |
+| **CLI Layer** | | |
 | CLI Entry | `src/cli/runner.ts` | Command router |
-| load-agent-profile | `src/cli/load-agent-profile.ts` | Write .claude/ config |
-| execute-query | `src/cli/execute-query.ts` | Run query against SDK |
-| load-session-transcript | `src/cli/load-session-transcript.ts` | Restore session state |
-| read-session-transcript | `src/cli/read-session-transcript.ts` | Extract current transcript |
-| Test Harness CLI | `src/test-harness/cli.ts` | Local testing entry point |
-| Process Runner | `src/test-harness/lib/process-runner.ts` | Subprocess spawning |
-| Stream Parser | `src/test-harness/lib/stream-parser.ts` | JSONL parsing & summaries |
+| Commands | `src/cli/commands/*.ts` | Thin wrappers (~20 lines each) |
+| I/O Utilities | `src/cli/shared/*.ts` | stdin/stdout helpers |
 
 ## Usage
 
+### Direct Import (Recommended for Testing)
+
+Core functions can be imported and called directly without spawning subprocesses:
+
+```typescript
+import { executeQuery, loadAgentProfile, createMessageChannel } from '@hhopkins/agent-runner';
+
+// Execute a query - returns AsyncGenerator<StreamEvent>
+const input = {
+  prompt: 'What is 2 + 2?',
+  architecture: 'claude-sdk',
+  sessionId: 'my-session',
+  cwd: '/workspace'
+};
+
+for await (const event of executeQuery(input)) {
+  console.log(event);
+}
+
+// Load an agent profile
+const result = await loadAgentProfile({
+  projectDirPath: '/workspace',
+  sessionId: 'my-session',
+  agentProfile: { id: 'test', name: 'Test', customEntities: {} },
+  architectureType: 'claude-sdk'
+});
+```
+
 ### CLI Commands
+
+All commands read JSON from stdin:
 
 ```bash
 # Load agent profile into workspace
-node runner.js load-agent-profile < input.json
+echo '{"projectDirPath":"/workspace",...}' | runner load-agent-profile
 
 # Execute a query
-node runner.js execute-query "Hello" \
-  --architecture claude-sdk \
-  --session-id abc123 \
-  --cwd /workspace
+echo '{"prompt":"Hello","architecture":"claude-sdk",...}' | runner execute-query
 
-# Read session transcript
-node runner.js read-session-transcript abc123 \
-  --architecture claude-sdk \
-  --project-dir /workspace
+# Load/read session transcripts
+runner load-session-transcript < input.json
+runner read-session-transcript < input.json
 ```
 
-### Programmatic Usage
+### Sandbox Deployment
 
 ```typescript
 import { getRunnerBundleContent } from '@hhopkins/agent-runner';
