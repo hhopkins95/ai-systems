@@ -18,16 +18,18 @@ function getDisplayStatus(session: SessionListItem): string {
   if (!session.runtime.isLoaded) {
     return "Not Loaded";
   }
-  if (!session.runtime.sandbox) {
+  if (!session.runtime.executionEnvironment) {
     return "Loaded";
   }
-  switch (session.runtime.sandbox.status) {
+  switch (session.runtime.executionEnvironment.status) {
+    case "inactive":
+      return "Inactive";
     case "starting":
       return "Starting";
     case "ready":
       return "Ready";
-    case "unhealthy":
-      return "Unhealthy";
+    case "error":
+      return "Error";
     case "terminated":
       return "Terminated";
     default:
@@ -42,15 +44,17 @@ function getStatusColor(session: SessionListItem): string {
   if (!session.runtime.isLoaded) {
     return "bg-gray-100 text-gray-700";
   }
-  if (!session.runtime.sandbox) {
+  if (!session.runtime.executionEnvironment) {
     return "bg-yellow-100 text-yellow-700";
   }
-  switch (session.runtime.sandbox.status) {
+  switch (session.runtime.executionEnvironment.status) {
+    case "inactive":
+      return "bg-gray-100 text-gray-700";
     case "starting":
       return "bg-yellow-100 text-yellow-700";
     case "ready":
       return "bg-green-100 text-green-700";
-    case "unhealthy":
+    case "error":
       return "bg-red-100 text-red-700";
     case "terminated":
       return "bg-gray-100 text-gray-700";

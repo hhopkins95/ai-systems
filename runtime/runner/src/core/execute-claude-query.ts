@@ -11,6 +11,7 @@ import { parseStreamEvent } from '@hhopkins/agent-converters/claude-sdk';
 import type { StreamEvent } from '@ai-systems/shared-types';
 import { findClaudeExecutable } from '../clients/claude.js';
 import { emptyAsyncIterable } from '../clients/channel.js';
+import { createLogEvent, createErrorEvent, errorEventFromError } from './execution-events.js';
 import type { ExecuteQueryInput, UserMessage } from './types.js';
 
 /**
@@ -49,13 +50,27 @@ export async function* executeClaudeQuery(
   input: ExecuteQueryInput,
   _messages: AsyncIterable<UserMessage> = emptyAsyncIterable()
 ): AsyncGenerator<StreamEvent> {
+  yield createLogEvent('Starting Claude SDK query execution', 'info', {
+    sessionId: input.sessionId,
+    cwd: input.cwd,
+  });
+
   // Validate environment
   if (!process.env.ANTHROPIC_API_KEY) {
+    yield createErrorEvent('ANTHROPIC_API_KEY environment variable not set', 'ENV_MISSING');
     throw new Error('ANTHROPIC_API_KEY environment variable not set');
   }
 
   // Find Claude Code executable
-  const claudeCodePath = await findClaudeExecutable();
+  yield createLogEvent('Finding Claude Code executable', 'debug');
+  let claudeCodePath: string;
+  try {
+    claudeCodePath = await findClaudeExecutable();
+    yield createLogEvent('Found Claude Code executable', 'debug', { path: claudeCodePath });
+  } catch (error) {
+    yield errorEventFromError(error, 'EXECUTABLE_NOT_FOUND');
+    throw error;
+  }
 
   const options: Options = {
     pathToClaudeCodeExecutable: claudeCodePath,
@@ -72,6 +87,11 @@ export async function* executeClaudeQuery(
   };
 
   const needsCreation = !claudeSessionExists(input.sessionId);
+  yield createLogEvent(
+    needsCreation ? 'Creating new session' : 'Resuming existing session',
+    'info',
+    { sessionId: input.sessionId }
+  );
 
   const generator = query({
     prompt: input.prompt,
@@ -80,12 +100,18 @@ export async function* executeClaudeQuery(
       : { ...options, resume: input.sessionId },
   });
 
-  for await (const sdkMessage of generator) {
-    // Convert SDK message to StreamEvents using converter
-    const streamEvents = parseStreamEvent(sdkMessage);
-    for (const event of streamEvents) {
-      yield event;
+  try {
+    for await (const sdkMessage of generator) {
+      // Convert SDK message to StreamEvents using converter
+      const streamEvents = parseStreamEvent(sdkMessage);
+      for (const event of streamEvents) {
+        yield event;
+      }
     }
+    yield createLogEvent('Claude SDK query completed', 'info', { sessionId: input.sessionId });
+  } catch (error) {
+    yield errorEventFromError(error, 'QUERY_EXECUTION_ERROR');
+    throw error;
   }
 
   // Note: streaming input mode with messages will be implemented

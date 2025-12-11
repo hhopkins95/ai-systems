@@ -4,7 +4,8 @@ import {
     AgentProfile,
     StreamEvent,
     WorkspaceFile,
-    SystemBlock
+    LogEvent,
+    isLogEvent,
 } from "@ai-systems/shared-types";
 import { logger } from '../config/logger.js';
 import { EnvironmentPrimitive, WatchEvent } from "../lib/environment-primitives/base";
@@ -34,24 +35,14 @@ async function readStreamToString(stream: ReadableStream): Promise<string> {
 }
 
 /**
- * Check if a StreamEvent is a runner log event
+ * Forward a LogEvent to the server logger
  */
-function isRunnerLogEvent(event: StreamEvent): boolean {
-    return event.type === 'block_complete' &&
-        event.block.type === 'system' &&
-        (event.block as SystemBlock).subtype === 'log';
-}
-
-/**
- * Forward a runner log event to the server logger
- * Should only be called after isRunnerLogEvent returns true
- */
-function forwardRunnerLog(event: StreamEvent): void {
-    if (event.type !== 'block_complete') return;
-    const block = event.block as SystemBlock;
-    const { level, ...rest } = (block.metadata || {}) as { level?: string };
-    const logFn = level === 'error' ? logger.error : level === 'warn' ? logger.warn : logger.info;
-    logFn.call(logger, { runnerLog: true, ...rest }, `[Runner] ${block.message}`);
+function forwardLogEvent(event: LogEvent): void {
+    const logFn = event.level === 'error' ? logger.error
+        : event.level === 'warn' ? logger.warn
+        : event.level === 'debug' ? logger.debug
+        : logger.info;
+    logFn.call(logger, { runnerLog: true, ...event.data }, `[Runner] ${event.message}`);
 }
 
 /**
@@ -315,8 +306,9 @@ export class ExecutionEnvironment {
                     if (line.trim()) {
                         try {
                             const event = JSON.parse(line) as StreamEvent;
-                            if (isRunnerLogEvent(event)) {
-                                forwardRunnerLog(event);
+                            // Forward log events to server logger
+                            if (isLogEvent(event)) {
+                                forwardLogEvent(event);
                             }
                             yield event;
                         } catch {
@@ -330,8 +322,9 @@ export class ExecutionEnvironment {
             if (buffer.trim()) {
                 try {
                     const event = JSON.parse(buffer) as StreamEvent;
-                    if (isRunnerLogEvent(event)) {
-                        forwardRunnerLog(event);
+                    // Forward log events to server logger
+                    if (isLogEvent(event)) {
+                        forwardLogEvent(event);
                     }
                     yield event;
                 } catch {

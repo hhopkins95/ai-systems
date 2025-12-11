@@ -65,7 +65,7 @@ export function setupSessionLifecycleHandlers(
           socketId: socket.id,
           sessionId,
           isLoaded: state.runtime.isLoaded,
-          sandboxStatus: state.runtime.sandbox?.status ?? 'none',
+          eeStatus: state.runtime.executionEnvironment?.status ?? 'none',
         },
         'Client joined session room'
       );

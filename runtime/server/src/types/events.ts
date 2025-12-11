@@ -172,6 +172,21 @@ export interface ServerToClientEvents {
   }) => void;
 
   // -------------------------------------------------------------------------
+  // Log Events
+  // -------------------------------------------------------------------------
+
+  /**
+   * Log message from runner/execution environment
+   * Operational logs for debugging and monitoring
+   */
+  'session:log': (data: {
+    sessionId: string;
+    level?: 'debug' | 'info' | 'warn' | 'error';
+    message: string;
+    data?: Record<string, unknown>;
+  }) => void;
+
+  // -------------------------------------------------------------------------
   // Error Events
   // -------------------------------------------------------------------------
 

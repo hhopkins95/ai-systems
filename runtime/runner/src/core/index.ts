@@ -30,5 +30,12 @@ export {
 export type {
   ExecuteQueryInput,
   UserMessage,
-  LogEvent,
 } from './types.js';
+
+// Execution event helpers
+export {
+  createLogEvent,
+  createErrorEvent,
+  createStatusEvent,
+  errorEventFromError,
+} from './execution-events.js';

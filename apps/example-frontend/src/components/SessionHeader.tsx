@@ -18,16 +18,18 @@ function getDisplayStatus(session: SessionListItem): string {
   if (!session.runtime.isLoaded) {
     return "Not Loaded";
   }
-  if (!session.runtime.sandbox) {
+  if (!session.runtime.executionEnvironment) {
     return "Loaded";
   }
-  switch (session.runtime.sandbox.status) {
+  switch (session.runtime.executionEnvironment.status) {
+    case "inactive":
+      return "Inactive";
     case "starting":
       return "Starting";
     case "ready":
       return "Ready";
-    case "unhealthy":
-      return "Unhealthy";
+    case "error":
+      return "Error";
     case "terminated":
       return "Terminated";
     default:
@@ -42,15 +44,17 @@ function getStatusColor(session: SessionListItem): string {
   if (!session.runtime.isLoaded) {
     return "bg-gray-100 text-gray-700";
   }
-  if (!session.runtime.sandbox) {
+  if (!session.runtime.executionEnvironment) {
     return "bg-yellow-100 text-yellow-700";
   }
-  switch (session.runtime.sandbox.status) {
+  switch (session.runtime.executionEnvironment.status) {
+    case "inactive":
+      return "bg-gray-100 text-gray-700";
     case "starting":
       return "bg-yellow-100 text-yellow-700";
     case "ready":
       return "bg-green-100 text-green-700";
-    case "unhealthy":
+    case "error":
       return "bg-red-100 text-red-700";
     case "terminated":
       return "bg-gray-100 text-gray-700";
@@ -176,19 +180,19 @@ export function SessionHeader({ sessionId, onDelete }: SessionHeaderProps) {
               {getDisplayStatus(session)}
             </span>
             {/* Show statusMessage alongside status badge */}
-            {session.runtime.sandbox?.statusMessage && (
+            {session.runtime.executionEnvironment?.statusMessage && (
               <span className="text-xs text-gray-500 italic">
-                {session.runtime.sandbox.statusMessage}
+                {session.runtime.executionEnvironment.statusMessage}
               </span>
             )}
           </div>
 
-          {/* Sandbox ID (if exists) */}
-          {session.runtime.sandbox?.sandboxId && (
+          {/* Environment ID (if exists) */}
+          {session.runtime.executionEnvironment?.id && (
             <div className="flex items-center gap-2">
-              <span className="text-xs text-gray-500">Sandbox:</span>
+              <span className="text-xs text-gray-500">Env:</span>
               <code className="text-xs bg-gray-100 px-2 py-0.5 rounded font-mono">
-                {session.runtime.sandbox.sandboxId.slice(0, 8)}...
+                {session.runtime.executionEnvironment.id.slice(0, 8)}...
               </code>
             </div>
           )}

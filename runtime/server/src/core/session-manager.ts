@@ -85,7 +85,7 @@ export class SessionManager {
   private getRuntimeState(sessionId: string): SessionRuntimeState {
     const session = this.loadedSessions.get(sessionId);
     if (!session) {
-      return { isLoaded: false, sandbox: null };
+      return { isLoaded: false, executionEnvironment: null };
     }
     return session.getRuntimeState();
   }
@@ -107,7 +107,7 @@ export class SessionManager {
         this.eventBus,
         this.adapters.persistence,
         this.executionConfig,
-        this.handleSandboxTerminated.bind(this),
+        this.handleEETerminated.bind(this),
       );
 
       // Add to loaded sessions
@@ -142,7 +142,7 @@ export class SessionManager {
         this.eventBus,
         this.adapters.persistence,
         this.executionConfig,
-        this.handleSandboxTerminated.bind(this),
+        this.handleEETerminated.bind(this),
       );
 
       // Add to loaded sessions
@@ -201,7 +201,7 @@ export class SessionManager {
       // Emit status update (session is now unloaded)
       this.eventBus.emit('session:status', {
         sessionId,
-        runtime: { isLoaded: false, sandbox: null },
+        runtime: { isLoaded: false, executionEnvironment: null },
       });
       this.eventBus.emit('sessions:changed');
     } catch (error) {
@@ -216,7 +216,7 @@ export class SessionManager {
    * Handle sandbox termination callback from AgentSession
    * Called when Modal terminates the sandbox (idle timeout)
    */
-  private handleSandboxTerminated(sessionId: string): void {
+  private handleEETerminated(sessionId: string): void {
     logger.info({ sessionId }, 'Sandbox terminated, unloading session...');
     // Use setImmediate to avoid blocking the health check callback
     setImmediate(async () => {

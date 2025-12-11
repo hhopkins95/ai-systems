@@ -36,13 +36,13 @@ Currently:
 
 ## Completion Criteria
 
-- [ ] Types package updated with new StreamEvent types and SessionRuntimeState
-- [ ] Runner emits `LogEvent`, `ErrorEvent`, `StatusEvent` properly
-- [ ] ExecutionEnvironment handles new event routing
-- [ ] AgentSession uses 'executionEnvironment' terminology, tracks `activeQuery`
-- [ ] `session:log` event flows to WebSocket clients
-- [ ] All references to 'sandbox' renamed in agent-session.ts
-- [ ] Type-check passes across all packages
+- [x] Types package updated with new StreamEvent types and SessionRuntimeState
+- [x] Runner emits `LogEvent`, `ErrorEvent`, `StatusEvent` properly
+- [x] ExecutionEnvironment handles new event routing
+- [x] AgentSession uses 'executionEnvironment' terminology, tracks `activeQuery`
+- [x] `session:log` event flows to WebSocket clients
+- [x] All references to 'sandbox' renamed in agent-session.ts
+- [x] Type-check passes across all packages
 - [ ] Documentation updated
 
 ## Design Decisions
@@ -106,7 +106,9 @@ Runner (emits LogEvent/ErrorEvent/StatusEvent)
 
 ## Current Status
 
-Design complete. Ready to begin implementation.
+**Implementation complete** (2025-12-11). All code changes merged to `update-runner` branch. Full build passes.
+
+Remaining: Update package documentation to reflect new types.
 
 ## Quick Links
 

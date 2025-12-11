@@ -16,9 +16,12 @@ export type {
   // Session types
   WorkspaceFile,
   RuntimeSessionData,
-  SandboxStatus,
   SessionRuntimeState,
   SessionListItem,
+  ExecutionEnvironmentStatus,
+  ExecutionEnvironmentState,
+  ExecutionEnvironmentError,
+  ActiveQueryState,
 
   // WebSocket event types
   ServerToClientEvents,

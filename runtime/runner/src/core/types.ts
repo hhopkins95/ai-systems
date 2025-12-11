@@ -31,12 +31,3 @@ export interface UserMessage {
   role: 'user';
   content: string;
 }
-
-/**
- * Log event emitted during execution.
- */
-export interface LogEvent {
-  level: 'debug' | 'info' | 'warn' | 'error';
-  message: string;
-  data?: Record<string, unknown>;
-}

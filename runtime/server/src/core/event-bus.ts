@@ -43,6 +43,7 @@ export interface DomainEvents {
   'session:file:created': EventPayload<ServerToClientEvents['session:file:created']>;
   'session:file:modified': EventPayload<ServerToClientEvents['session:file:modified']>;
   'session:file:deleted': EventPayload<ServerToClientEvents['session:file:deleted']>;
+  'session:log': EventPayload<ServerToClientEvents['session:log']>;
 
   // ============================================================================
   // Internal-only events (not exposed via WebSocket)

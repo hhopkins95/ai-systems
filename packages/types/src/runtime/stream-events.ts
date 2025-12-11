@@ -192,22 +192,105 @@ export interface MetadataUpdateEvent {
   conversationId: 'main' | string;
 }
 
+// ============================================================================
+// Execution Environment Events
+// ============================================================================
+
 /**
- * Any log that needs to be sent from the runner to the server
+ * Execution environment status values.
+ * Represents the lifecycle state of the execution environment container.
  */
-export interface LogEvent {
-  type : 'log', 
-  message : string
-  data? : Record<string, unknown>
+export type ExecutionEnvironmentStatus =
+  | 'inactive'      // No environment exists
+  | 'starting'      // Being created/initialized
+  | 'ready'         // Healthy and running
+  | 'error'         // Encountered an error
+  | 'terminated';   // Shut down (timeout, explicit, or crash)
+
+/**
+ * Status Event
+ *
+ * Emitted when the execution environment state changes.
+ * This is the authoritative signal for EE lifecycle transitions.
+ *
+ * Use cases:
+ * - Environment starting up
+ * - Environment ready to accept queries
+ * - Environment encountered an error
+ * - Environment terminated
+ */
+export interface StatusEvent {
+  type: 'status';
+
+  /**
+   * Current execution environment status
+   */
+  status: ExecutionEnvironmentStatus;
+
+  /**
+   * Human-readable status message for UI display
+   */
+  message?: string;
 }
 
 /**
- * Error that occured in a runner script execution. 
+ * Log Event
+ *
+ * Informational log message from the runner or execution environment.
+ * These are operational logs, not conversation content.
+ *
+ * Use cases:
+ * - Debug information during query execution
+ * - Progress updates for long operations
+ * - Diagnostic information
  */
-export interface ErrorEvent { 
-  type : 'error', 
-  message : string
-  data? : Record<string, unknown>
+export interface LogEvent {
+  type: 'log';
+
+  /**
+   * Log level for filtering/display
+   */
+  level?: 'debug' | 'info' | 'warn' | 'error';
+
+  /**
+   * Log message
+   */
+  message: string;
+
+  /**
+   * Additional structured data
+   */
+  data?: Record<string, unknown>;
+}
+
+/**
+ * Error Event
+ *
+ * Error that occurred during runner/execution environment operation.
+ * These are operational errors, not conversation-level errors.
+ *
+ * Use cases:
+ * - Runner script execution failure
+ * - SDK initialization error
+ * - File system errors in sandbox
+ */
+export interface ErrorEvent {
+  type: 'error';
+
+  /**
+   * Error message
+   */
+  message: string;
+
+  /**
+   * Error code for programmatic handling
+   */
+  code?: string;
+
+  /**
+   * Additional error context
+   */
+  data?: Record<string, unknown>;
 }
 
 // ============================================================================
@@ -216,13 +299,20 @@ export interface ErrorEvent {
 
 /**
  * All possible stream event types
+ *
+ * Divided into two categories:
+ * - Conversation events: Block-related events for the chat UI
+ * - Execution events: Operational events for status/logs/errors
  */
 export type StreamEvent =
+  // Conversation events
   | BlockStartEvent
   | TextDeltaEvent
   | BlockUpdateEvent
   | BlockCompleteEvent
   | MetadataUpdateEvent
+  // Execution environment events
+  | StatusEvent
   | LogEvent
   | ErrorEvent;
 // ============================================================================
@@ -247,4 +337,16 @@ export function isBlockCompleteEvent(event: StreamEvent): event is BlockComplete
 
 export function isMetadataUpdateEvent(event: StreamEvent): event is MetadataUpdateEvent {
   return event.type === 'metadata_update';
+}
+
+export function isStatusEvent(event: StreamEvent): event is StatusEvent {
+  return event.type === 'status';
+}
+
+export function isLogEvent(event: StreamEvent): event is LogEvent {
+  return event.type === 'log';
+}
+
+export function isErrorEvent(event: StreamEvent): event is ErrorEvent {
+  return event.type === 'error';
 }

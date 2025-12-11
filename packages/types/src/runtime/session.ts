@@ -1,5 +1,6 @@
 import { AgentArchitecture, AgentArchitectureSessionOptions } from "./architecture.js";
 import type { ConversationBlock } from "./blocks.js";
+import type { ExecutionEnvironmentStatus } from "./stream-events.js";
 
 /**
  * A file in the workspace during the session
@@ -67,28 +68,66 @@ export interface PersistedSessionData extends PersistedSessionListData {
 // =============================================================================
 
 /**
- * Sandbox status values
+ * Error information for the execution environment
  */
-export type SandboxStatus = 'starting' | 'ready' | 'unhealthy' | 'terminated' | 'error';
+export interface ExecutionEnvironmentError {
+    /** Error message */
+    message: string;
+    /** Error code for programmatic handling */
+    code?: string;
+    /** When the error occurred */
+    timestamp: number;
+}
+
+/**
+ * Execution environment state.
+ * Represents the container that runs agent queries.
+ */
+export interface ExecutionEnvironmentState {
+    /** Environment ID - available after 'starting' phase */
+    id?: string;
+    /** Current lifecycle status */
+    status: ExecutionEnvironmentStatus;
+    /** Human-readable status message for UI display */
+    statusMessage?: string;
+    /** Last health check timestamp */
+    lastHealthCheck?: number;
+    /** Number of times the environment has been restarted */
+    restartCount?: number;
+    /** Last error encountered, if status is 'error' */
+    lastError?: ExecutionEnvironmentError;
+}
+
+/**
+ * Active query state.
+ * Tracks when a query is currently being processed.
+ */
+export interface ActiveQueryState {
+    /** When the query started */
+    startedAt: number;
+}
 
 /**
  * Runtime state for a session.
  * This is computed/derived state, never persisted.
+ *
+ * Separates two concerns:
+ * - executionEnvironment: Is the container healthy/available?
+ * - activeQuery: Is there work currently in progress?
  */
 export interface SessionRuntimeState {
-    /** Whether the session is currently loaded in memory */
+    /** Whether the session is currently loaded in memory on the server */
     isLoaded: boolean;
-    /** Sandbox state, null if no sandbox exists */
-    sandbox: {
-        /** Sandbox ID - not available during 'starting' phase */
-        sandboxId?: string;
-        status: SandboxStatus;
-        /** Human-readable status message for UI display */
-        statusMessage?: string;
-        restartCount: number;
-        lastHealthCheck: number; // timestamp
-    } | null;
+
+    /** Execution environment state, null if no environment exists */
+    executionEnvironment: ExecutionEnvironmentState | null;
+
+    /** Active query state, undefined if no query is running */
+    activeQuery?: ActiveQueryState;
 }
+
+// Re-export for convenience
+export type { ExecutionEnvironmentStatus } from "./stream-events.js";
 
 // =============================================================================
 // Client-Facing Types (persistence data + runtime state)

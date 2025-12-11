@@ -66,7 +66,7 @@ export function setupEventListeners(
       {
         sessionId: data.sessionId,
         isLoaded: data.runtime.isLoaded,
-        sandboxStatus: data.runtime.sandbox?.status ?? 'none',
+        eeStatus: data.runtime.executionEnvironment?.status ?? 'none',
       },
       'Broadcast session status'
     );
@@ -263,6 +263,26 @@ export function setupEventListeners(
       path: data.path,
     });
     logger.debug({ sessionId: data.sessionId, path: data.path }, 'Broadcast file deleted');
+  });
+
+  // ==========================================================================
+  // Log Events
+  // ==========================================================================
+
+  /**
+   * Log message from runner/execution environment
+   */
+  eventBus.on('session:log', (data) => {
+    io.to(`session:${data.sessionId}`).emit('session:log', {
+      sessionId: data.sessionId,
+      level: data.level,
+      message: data.message,
+      data: data.data,
+    });
+    logger.debug(
+      { sessionId: data.sessionId, level: data.level },
+      `[Runner Log] ${data.message}`
+    );
   });
 
   // ==========================================================================

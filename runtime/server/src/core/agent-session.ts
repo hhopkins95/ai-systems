@@ -23,7 +23,8 @@ import type {
   WorkspaceFile,
   AgentArchitecture,
   SessionRuntimeState,
-  SandboxStatus,
+  ExecutionEnvironmentStatus,
+  ExecutionEnvironmentError,
   CreateSessionArgs,
   AgentArchitectureSessionOptions,
 } from '@ai-systems/shared-types';
@@ -49,9 +50,9 @@ function generateSessionId(architecture: AgentArchitecture): string {
 }
 
 /**
- * Callback type for sandbox termination notification
+ * Callback type for execution environment termination notification
  */
-export type OnSandboxTerminatedCallback = (sessionId: string) => void;
+export type OnExecutionEnvironmentTerminatedCallback = (sessionId: string) => void;
 
 /**
  * AgentSession class - manages individual session lifecycle
@@ -62,11 +63,15 @@ export class AgentSession {
 
   // Execution environment (lazy - created on first sendMessage)
   private executionEnvironment?: ExecutionEnvironment;
-  private sandboxId?: string;
-  private sandboxStatus: SandboxStatus | null = null;
+  private executionEnvironmentId?: string;
+  private eeStatus: ExecutionEnvironmentStatus | null = null;
   private statusMessage?: string;
   private lastHealthCheck?: number;
-  private sandboxRestartCount: number = 0;
+  private eeRestartCount: number = 0;
+  private lastError?: ExecutionEnvironmentError;
+
+  // Query execution state
+  private activeQueryStartedAt?: number;
 
   // Session metadata
   private createdAt?: number;
@@ -88,12 +93,12 @@ export class AgentSession {
   private readonly persistenceAdapter: PersistenceAdapter;
   private readonly executionConfig: RuntimeConfig['executionEnvironment'];
 
-  // Callback for sandbox termination (set by SessionManager)
-  private onSandboxTerminated?: OnSandboxTerminatedCallback;
+  // Callback for execution environment termination (set by SessionManager)
+  private onEETerminated?: OnExecutionEnvironmentTerminatedCallback;
 
   // Periodic jobs (only active when execution environment exists)
   private syncInterval?: NodeJS.Timeout;
-  private sandboxHeartbeat?: NodeJS.Timeout;
+  private healthCheckInterval?: NodeJS.Timeout;
 
   static async create(
     input: {
@@ -102,7 +107,7 @@ export class AgentSession {
     eventBus: EventBus,
     persistenceAdapter: PersistenceAdapter,
     executionConfig: RuntimeConfig['executionEnvironment'],
-    onSandboxTerminated?: OnSandboxTerminatedCallback,
+    onEETerminated?: OnExecutionEnvironmentTerminatedCallback,
   ): Promise<AgentSession> {
 
     // Load existing session from persistence
@@ -133,7 +138,7 @@ export class AgentSession {
         persistenceAdapter,
         executionConfig,
         agentProfile,
-        onSandboxTerminated,
+        onEETerminated,
         architecture: sessionData.type,
         sessionId: sessionData.sessionId,
         blocks,
@@ -156,7 +161,7 @@ export class AgentSession {
         persistenceAdapter,
         executionConfig,
         agentProfile,
-        onSandboxTerminated,
+        onEETerminated,
         architecture: input.architecture,
         sessionId: newSessionId,
         blocks: [],
@@ -189,7 +194,7 @@ export class AgentSession {
       persistenceAdapter: PersistenceAdapter;
       executionConfig: RuntimeConfig['executionEnvironment'];
       agentProfile: AgentProfile;
-      onSandboxTerminated?: OnSandboxTerminatedCallback;
+      onEETerminated?: OnExecutionEnvironmentTerminatedCallback;
 
       // Session Data
       architecture: AgentArchitecture;
@@ -206,7 +211,7 @@ export class AgentSession {
     this.persistenceAdapter = props.persistenceAdapter;
     this.executionConfig = props.executionConfig;
     this.agentProfile = props.agentProfile;
-    this.onSandboxTerminated = props.onSandboxTerminated;
+    this.onEETerminated = props.onEETerminated;
 
     this.architecture = props.architecture;
     this.sessionId = props.sessionId;
@@ -239,7 +244,7 @@ export class AgentSession {
       agentProfile: this.agentProfile,
       environmentOptions: this.executionConfig,
     });
-    this.sandboxId = this.executionEnvironment.getId();
+    this.executionEnvironmentId = this.executionEnvironment.getId();
 
     // Step 2: Prepare the session
     this.emitRuntimeStatus("Setting up session files...");
@@ -259,11 +264,11 @@ export class AgentSession {
     this.startPeriodicSync();
     this.startHealthMonitoring();
 
-    this.sandboxStatus = 'ready';
+    this.eeStatus = 'ready';
     this.lastHealthCheck = Date.now();
     this.emitRuntimeStatus("Ready");
 
-    logger.info({ sessionId: this.sessionId, sandboxId: this.sandboxId }, 'Execution environment activated');
+    logger.info({ sessionId: this.sessionId, sandboxId: this.executionEnvironmentId }, 'Execution environment activated');
   }
 
   /**
@@ -382,9 +387,13 @@ export class AgentSession {
     // Emit 'starting' status immediately when execution environment doesn't exist
     // This provides feedback to clients before environment creation (which can take a while)
     if (!this.executionEnvironment) {
-      this.sandboxStatus = 'starting';
+      this.eeStatus = 'starting';
       this.emitRuntimeStatus("Preparing...");
     }
+
+    // Track query start
+    this.activeQueryStartedAt = Date.now();
+    this.emitRuntimeStatus();
 
     try {
       // Lazily create execution environment if it doesn't exist
@@ -466,6 +475,36 @@ export class AgentSession {
               metadata: event.metadata,
             });
             break;
+
+          case 'log':
+            this.eventBus.emit('session:log', {
+              sessionId: this.sessionId,
+              level: event.level,
+              message: event.message,
+              data: event.data,
+            });
+            break;
+
+          case 'error':
+            this.lastError = {
+              message: event.message,
+              code: event.code,
+              timestamp: Date.now(),
+            };
+            this.eventBus.emit('session:error', {
+              sessionId: this.sessionId,
+              error: {
+                message: event.message,
+                code: event.code,
+              },
+            });
+            break;
+
+          case 'status':
+            this.eeStatus = event.status;
+            this.statusMessage = event.message;
+            this.emitRuntimeStatus();
+            break;
         }
       }
 
@@ -474,9 +513,13 @@ export class AgentSession {
     } catch (error) {
       logger.error({ error, sessionId: this.sessionId, architecture: this.architecture }, 'Failed to send message');
 
-      // Update sandbox state to error
-      this.sandboxStatus = 'error';
+      // Update execution environment state to error
+      this.eeStatus = 'error';
       const errorMessage = error instanceof Error ? error.message : String(error);
+      this.lastError = {
+        message: errorMessage,
+        timestamp: Date.now(),
+      };
 
       // Emit status update first so UI reflects the error state
       this.emitRuntimeStatus(errorMessage);
@@ -490,6 +533,10 @@ export class AgentSession {
       });
 
       throw error;
+    } finally {
+      // Clear query state
+      this.activeQueryStartedAt = undefined;
+      this.emitRuntimeStatus();
     }
   }
 
@@ -582,9 +629,9 @@ export class AgentSession {
       clearInterval(this.syncInterval);
       this.syncInterval = undefined;
     }
-    if (this.sandboxHeartbeat) {
-      clearInterval(this.sandboxHeartbeat);
-      this.sandboxHeartbeat = undefined;
+    if (this.healthCheckInterval) {
+      clearInterval(this.healthCheckInterval);
+      this.healthCheckInterval = undefined;
     }
   }
 
@@ -629,13 +676,17 @@ export class AgentSession {
   getRuntimeState(): SessionRuntimeState {
     return {
       isLoaded: true, // If this method is called, session is loaded
-      sandbox: this.sandboxStatus ? {
-        sandboxId: this.sandboxId,
-        status: this.sandboxStatus,
+      executionEnvironment: this.eeStatus ? {
+        id: this.executionEnvironmentId,
+        status: this.eeStatus,
         statusMessage: this.statusMessage,
-        restartCount: this.sandboxRestartCount,
-        lastHealthCheck: this.lastHealthCheck ?? Date.now(),
+        restartCount: this.eeRestartCount,
+        lastHealthCheck: this.lastHealthCheck,
+        lastError: this.lastError,
       } : null,
+      activeQuery: this.activeQueryStartedAt ? {
+        startedAt: this.activeQueryStartedAt,
+      } : undefined,
     };
   }
 
@@ -650,14 +701,14 @@ export class AgentSession {
   }
 
   private startHealthMonitoring(): void {
-    if (this.sandboxHeartbeat) {
+    if (this.healthCheckInterval) {
       logger.warn({ sessionId: this.sessionId }, 'Health monitoring already running');
       return;
     }
 
     logger.info({ sessionId: this.sessionId }, 'Starting execution environment health monitoring');
 
-    this.sandboxHeartbeat = setInterval(async () => {
+    this.healthCheckInterval = setInterval(async () => {
       if (!this.executionEnvironment) return;
 
       const isHealthy = await this.executionEnvironment.isHealthy();
@@ -666,20 +717,20 @@ export class AgentSession {
       if (!isHealthy) {
         // Execution environment has terminated
         logger.warn({ sessionId: this.sessionId }, 'Execution environment terminated');
-        this.sandboxStatus = 'terminated';
+        this.eeStatus = 'terminated';
         this.emitRuntimeStatus();
 
         // Stop monitoring and watchers
         this.stopWatchersAndJobs();
 
         // Notify SessionManager to unload this session
-        if (this.onSandboxTerminated) {
-          this.onSandboxTerminated(this.sessionId);
+        if (this.onEETerminated) {
+          this.onEETerminated(this.sessionId);
         }
       } else {
         // Execution environment is healthy
-        if (this.sandboxStatus !== 'ready') {
-          this.sandboxStatus = 'ready';
+        if (this.eeStatus !== 'ready') {
+          this.eeStatus = 'ready';
           this.emitRuntimeStatus();
         }
       }

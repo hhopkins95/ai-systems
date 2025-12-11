@@ -13,6 +13,7 @@ import { createStreamEventParser } from '@hhopkins/agent-converters/opencode';
 import type { StreamEvent } from '@ai-systems/shared-types';
 import { getOpencodeConnection, closeOpencodeServer } from '../clients/opencode.js';
 import { emptyAsyncIterable } from '../clients/channel.js';
+import { createLogEvent, createErrorEvent, errorEventFromError } from './execution-events.js';
 import type { ExecuteQueryInput, UserMessage } from './types.js';
 
 const execAsync = promisify(exec);
@@ -70,16 +71,32 @@ export async function* executeOpencodeQuery(
   input: ExecuteQueryInput,
   _messages: AsyncIterable<UserMessage> = emptyAsyncIterable()
 ): AsyncGenerator<StreamEvent> {
+  yield createLogEvent('Starting OpenCode SDK query execution', 'info', {
+    sessionId: input.sessionId,
+    cwd: input.cwd,
+    model: input.model,
+  });
+
   if (!input.model) {
+    yield createErrorEvent('Model is required for opencode architecture (format: provider/model)', 'INVALID_INPUT');
     throw new Error('Model is required for opencode architecture (format: provider/model)');
   }
 
   const [providerID, modelID] = input.model.split('/');
   if (!providerID || !modelID) {
+    yield createErrorEvent('Model must be in format provider/model', 'INVALID_INPUT');
     throw new Error('Model must be in format provider/model (e.g., anthropic/claude-sonnet-4-20250514)');
   }
 
-  const connection = await getOpencodeConnection();
+  yield createLogEvent('Connecting to OpenCode server', 'debug');
+  let connection;
+  try {
+    connection = await getOpencodeConnection();
+    yield createLogEvent('Connected to OpenCode server', 'debug');
+  } catch (error) {
+    yield errorEventFromError(error, 'CONNECTION_ERROR');
+    throw error;
+  }
   const client = connection.client;
 
   try {
@@ -93,7 +110,10 @@ export async function* executeOpencodeQuery(
     });
 
     if (!existingSession.data) {
+      yield createLogEvent('Creating new OpenCode session', 'info', { sessionId: input.sessionId });
       await createOpencodeSession(input.sessionId, input.cwd || '/workspace');
+    } else {
+      yield createLogEvent('Resuming existing OpenCode session', 'info', { sessionId: input.sessionId });
     }
 
     // Create a promise that will resolve when we get the idle event
@@ -125,6 +145,7 @@ export async function* executeOpencodeQuery(
     })();
 
     // Authenticate
+    yield createLogEvent('Authenticating with OpenCode', 'debug');
     await client.auth.set({
       path: { id: 'zen' },
       body: { type: 'api', key: process.env.OPENCODE_API_KEY || '' },
@@ -132,6 +153,7 @@ export async function* executeOpencodeQuery(
     });
 
     // Send prompt
+    yield createLogEvent('Sending prompt to OpenCode', 'debug');
     await client.session.prompt({
       path: { id: input.sessionId },
       query: { directory: input.cwd },
@@ -152,6 +174,10 @@ export async function* executeOpencodeQuery(
     // Also wait for the event promise to finish
     await eventPromise;
 
+    yield createLogEvent('OpenCode SDK query completed', 'info', { sessionId: input.sessionId });
+  } catch (error) {
+    yield errorEventFromError(error, 'QUERY_EXECUTION_ERROR');
+    throw error;
   } finally {
     await closeOpencodeServer();
   }
