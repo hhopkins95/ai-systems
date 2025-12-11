@@ -2,8 +2,12 @@
   "name": "@ai-systems/opencode-claude-adapter",
   "version": "0.1.1",
   "description": "OpenCode Claude Adapter - plugin for opencode that allows for automatic loading of agent profiles -- agents, skills, commands, etc... from claude code's system into opencode's system",
-  "main": "./dist/index.js",
+  "main": "./dist/bundle.js",
   "types": "./dist/index.d.ts",
+  "exports": {
+    ".": "./dist/index.js",
+    "./bundle": "./dist/bundle.js"
+  },
   "type": "module",
   "license": "MIT",
   "author": "Hunter Hopkins",
@@ -39,8 +43,7 @@
     "node": ">=20.0.0"
   },
   "scripts": {
-    "build": "tsc",
-    "build:bundle": "tsx esbuild.bundle.ts",
+    "build": "tsx esbuild.bundle.ts",
     "dev": "tsc --watch --preserveWatchOutput",
     "typecheck": "tsc --noEmit",
     "prepublishOnly": "npm run build"

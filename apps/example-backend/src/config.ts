@@ -31,6 +31,9 @@ export async function createExampleAgentProfile(): Promise<AgentProfile> {
     }
   );
 
+  console.log('echoServerBundle: ', echoServerBundle.name);
+
+
 
   return {
     id: "example-assistant",

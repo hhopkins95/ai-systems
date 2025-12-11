@@ -1,11 +1,4 @@
 {
   "mcpServers": {
-    "foo": {
-      "command": "node",
-      "args": [
-        "foo.fj"
-      ],
-      "type": "stdio"
-    }
   }
 }
