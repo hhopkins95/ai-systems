@@ -23,7 +23,8 @@
     "build:types": "tsc",
     "build:bundle": "tsx esbuild.config.ts",
     "dev": "tsc --watch --preserveWatchOutput & tsx esbuild.config.ts --watch",
-    "typecheck": "tsc --noEmit"
+    "typecheck": "tsc --noEmit",
+    "harness": "tsx src/test-harness/cli.ts"
   },
   "keywords": [
     "agent",
