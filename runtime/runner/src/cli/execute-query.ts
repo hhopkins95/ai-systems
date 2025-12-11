@@ -185,7 +185,7 @@ async function executeOpencode(args: ExecuteQueryArgs): Promise<void> {
   // Dynamic import of OpenCode SDK
   const { createOpencode } = await import('@opencode-ai/sdk');
 
-  const oc = await createOpencode({ hostname: '127.0.0.1', port: 4096 });
+  const oc = await createOpencode({ hostname: '127.0.0.1', port: 4096});
   const client = oc.client;
   const server = oc.server;
 
@@ -245,6 +245,7 @@ async function executeOpencode(args: ExecuteQueryArgs): Promise<void> {
 
     await client.session.prompt({
       path: { id: args.sessionId },
+
       body: {
         model: { providerID, modelID },
         parts: [{ type: 'text', text: args.prompt }],
