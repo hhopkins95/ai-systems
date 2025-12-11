@@ -75,7 +75,10 @@ export async function runRunner(options: RunnerOptions): Promise<RunnerResult> {
     });
 
     proc.stderr.on('data', (chunk: Buffer) => {
-      stderrChunks.push(chunk.toString());
+      const text = chunk.toString();
+      stderrChunks.push(text);
+      // Stream stderr for debugging
+      process.stderr.write(text);
     });
 
     // Handle timeout

@@ -34,6 +34,21 @@ import { ExecutionEnvironment, WorkspaceFileEvent, TranscriptChangeEvent } from 
 import { parseTranscript } from '@hhopkins/agent-converters';
 
 /**
+ * Generate a session ID in the appropriate format for the architecture
+ */
+function generateSessionId(architecture: AgentArchitecture): string {
+  if (architecture === 'opencode') {
+    // OpenCode format: ses_<timestamp_hex>_<random>
+    const timestamp = Date.now();
+    const timeBytes = timestamp.toString(16).padStart(12, '0');
+    const random = Math.random().toString(36).substring(2, 13);
+    return `ses_${timeBytes}_${random}`;
+  }
+  // Default to UUID for claude-sdk
+  return randomUUID();
+}
+
+/**
  * Callback type for sandbox termination notification
  */
 export type OnSandboxTerminatedCallback = (sessionId: string) => void;
@@ -130,7 +145,7 @@ export class AgentSession {
       });
     } else {
       // Create a new session
-      const newSessionId = randomUUID();
+      const newSessionId = generateSessionId(input.architecture);
       const agentProfile = await persistenceAdapter.loadAgentProfile(input.agentProfileRef);
       if (!agentProfile) {
         throw new Error(`Agent profile ${input.agentProfileRef} not found in persistence`);

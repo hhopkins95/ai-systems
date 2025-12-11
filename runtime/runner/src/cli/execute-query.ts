@@ -220,6 +220,7 @@ async function executeOpencode(args: ExecuteQueryArgs): Promise<void> {
 
         // Convert OpenCode event to StreamEvents using stateful parser
         const streamEvents = parser.parseEvent(event);
+       
         writeStreamEvents(streamEvents);
 
         // Break when session goes idle
