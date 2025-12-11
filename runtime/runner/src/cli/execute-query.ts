@@ -45,6 +45,21 @@ import os from 'os';
 
 const execAsync = promisify(exec);
 
+// =============================================================================
+// Claude Code Path Detection
+// =============================================================================
+
+/**
+ * Find the Claude Code executable in PATH
+ */
+async function findClaudeCodeExecutable(): Promise<string | undefined> {
+  try {
+    const { stdout } = await execAsync('which claude');
+    return stdout.trim() || undefined;
+  } catch {
+    return undefined;
+  }
+}
 
 // Set up exception handlers early
 setupExceptionHandlers();
@@ -94,7 +109,17 @@ async function executeClaudeSdk(args: ExecuteQueryArgs): Promise<void> {
     throw new Error('ANTHROPIC_API_KEY environment variable not set');
   }
 
+  // Find Claude Code executable
+  const claudeCodePath = await findClaudeCodeExecutable();
+  if (!claudeCodePath) {
+    throw new Error(
+      'Claude Code executable not found in PATH. Install with: npm install -g @anthropic-ai/claude-code'
+    );
+  }
+  logDebug('Found Claude Code executable', { path: claudeCodePath });
+
   const options: Options = {
+    pathToClaudeCodeExecutable: claudeCodePath,
     cwd: args.cwd || '/workspace',
     settingSources: ['project', 'user'],
     includePartialMessages: true,
