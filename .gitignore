@@ -30,6 +30,8 @@ Thumbs.db
 
 # Testing
 coverage
+runtime/runner/test/workspace/*
+!runtime/runner/test/workspace/.gitkeep
 
 # OpenCode generated files (synced from .claude by opencode-claude-adapter)
 .opencode/skills/
