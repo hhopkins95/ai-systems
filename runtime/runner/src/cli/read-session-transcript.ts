@@ -1,9 +1,21 @@
 #!/usr/bin/env tsx
 /**
-
+ * Read Session Transcript - Runs inside sandbox
+ *
+ * Reads and combines session transcript files.
+ *
+ * Usage:
+ *   Reads JSON input from stdin with the following structure:
+ *   {
+ *     "sessionId": string,       // The session ID
+ *     "architecture": string,    // "claude-sdk" or "opencode"
+ *     "projectDir": string       // Project directory
+ *   }
+ *
+ * Output:
+ *   Writes transcript JSON to stdout
  */
 
-import { Command } from 'commander';
 import * as path from 'path';
 import { CombinedClaudeTranscript } from '@hhopkins/agent-converters/claude-sdk';
 import {
@@ -14,24 +26,24 @@ import {
     setupSignalHandlers,
     setupExceptionHandlers,
 } from './shared/signal-handlers.js';
+import { readStdinJson } from './shared/input.js';
 import { getClaudeTranscriptDir } from '../helpers/getClaudeTranscriptDir.js';
-import { readdir, readFile , } from 'fs/promises';
+import { readdir, readFile } from 'fs/promises';
 import { execFile } from 'child_process';
 import { promisify } from 'util';
+import type { AgentArchitecture } from '../types.js';
 
 // Set up exception handlers early
 setupExceptionHandlers();
 
-// =============================================================================
-// Main
-// =============================================================================
-
-const program = new Command()
-    .name('read-session-transcript')
-    .description('Read and combine session transcript files')
-    .argument('<session-id>', 'The session ID')
-    .requiredOption('-a, --architecture <arch>', 'Architecture: claude-sdk or opencode')
-    .requiredOption('-p, --project-dir <path>', 'Project directory');
+/**
+ * Input structure for read-session-transcript (read from stdin)
+ */
+interface ReadTranscriptInput {
+    sessionId: string;
+    architecture: AgentArchitecture;
+    projectDir: string;
+}
 
 
 
@@ -114,13 +126,10 @@ async function readOpencodeTranscript(sessionId: string, projectDir: string): Pr
 
 
 export async function readSessionTranscript() {
-    // Parse args when this function is called
-    program.parse();
+    // Read input from stdin
+    const input = await readStdinJson<ReadTranscriptInput>();
 
-    const opts = program.opts();
-    const sessionId = program.args[0];
-    const architecture = opts.architecture;
-    const projectDir = opts.projectDir;
+    const { sessionId, architecture, projectDir } = input;
 
     // Setup signal handlers
     setupSignalHandlers();

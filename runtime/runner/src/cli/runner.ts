@@ -4,11 +4,11 @@
  * This is the main CLI that gets bundled and copied into execution environments
  * (Modal sandboxes, Docker containers, etc.). It dispatches to subcommands.
  *
- * Usage:
+ * All commands read their input from stdin as JSON:
  *   runner load-agent-profile < profile.json
  *   runner load-session-transcript < transcript.json
- *   runner execute-query "<prompt>" --architecture <arch> --session-id <id> [options]
- *   runner read-session-transcript <session-id> --architecture <arch> --project-dir <path>
+ *   runner execute-query < query.json
+ *   runner read-session-transcript < request.json
  */
 
 import { Command } from 'commander';
@@ -35,17 +35,15 @@ program
   .description('Load session transcript (reads JSON from stdin)')
   .action(loadSessionTranscript);
 
-// Arg-based commands - these parse their own args via commander
+// Stdin-based commands (reads JSON from stdin like the others)
 program
   .command('execute-query')
-  .description('Execute a query against the agent')
-  .allowUnknownOption()
-  .action(() => executeQuery());
+  .description('Execute a query against the agent (reads JSON from stdin)')
+  .action(executeQuery);
 
 program
   .command('read-session-transcript')
-  .description('Read current session transcript')
-  .allowUnknownOption()
-  .action(() => readSessionTranscript());
+  .description('Read current session transcript (reads JSON from stdin)')
+  .action(readSessionTranscript);
 
 program.parse();

@@ -6,22 +6,21 @@
  * converting native SDK output to StreamEvents before outputting.
  *
  * Usage:
- *   execute-query "<prompt>" --architecture <arch> --session-id <id> [options]
- *
- * Arguments:
- *   prompt                    - The user's message/prompt to send to the agent
- *   --architecture <arch>     - Architecture: claude-sdk or opencode (required)
- *   --session-id <id>         - The session ID to use (required)
- *   --cwd <path>              - Working directory (default: /workspace)
- *   --model <model>           - Model (provider/model format for opencode)
- *   --tools <json>            - JSON array of allowed tools
- *   --mcp-servers <json>      - JSON object of MCP server configs
+ *   Reads JSON input from stdin with the following structure:
+ *   {
+ *     "prompt": string,           // The user's message/prompt
+ *     "architecture": string,     // "claude-sdk" or "opencode"
+ *     "sessionId": string,        // The session ID
+ *     "cwd": string,              // Working directory (default: /workspace)
+ *     "model": string,            // Model for opencode (provider/model format)
+ *     "tools": string[],          // Allowed tools
+ *     "mcpServers": object        // MCP server configs
+ *   }
  *
  * Output:
  *   Streams JSONL to stdout, one StreamEvent per line
  */
 
-import { Command } from 'commander';
 import * as fs from 'fs';
 import * as path from 'path';
 import { parseStreamEvent } from '@hhopkins/agent-converters/claude-sdk';
@@ -37,6 +36,7 @@ import {
   setupSignalHandlers,
   setupExceptionHandlers,
 } from './shared/signal-handlers.js';
+import { readStdinJson } from './shared/input.js';
 
 // Set up exception handlers early
 setupExceptionHandlers();
@@ -267,38 +267,37 @@ async function createOpencodeSession(sessionId: string, cwd: string): Promise<vo
 // Main
 // =============================================================================
 
-const program = new Command()
-  .name('execute-query')
-  .description('Execute agent query with unified StreamEvent output')
-  .argument('<prompt>', 'The user prompt')
-  .requiredOption('-a, --architecture <arch>', 'Architecture: claude-sdk or opencode')
-  .requiredOption('-s, --session-id <id>', 'Session ID')
-  .option('-c, --cwd <path>', 'Working directory', '/workspace')
-  .option('-m, --model <model>', 'Model (provider/model for opencode)')
-  .option('-t, --tools <json>', 'JSON array of allowed tools')
-  .option('--mcp-servers <json>', 'JSON object of MCP server configs');
+/**
+ * Input structure for execute-query (read from stdin)
+ */
+interface ExecuteQueryInput {
+  prompt: string;
+  architecture: AgentArchitecture;
+  sessionId: string;
+  cwd?: string;
+  model?: string;
+  tools?: string[];
+  mcpServers?: Record<string, unknown>;
+}
 
 export async function executeQuery() {
-  // Parse args when this function is called
-  program.parse();
+  // Read input from stdin
+  const input = await readStdinJson<ExecuteQueryInput>();
 
   writeLog('info', 'Executing query', {
-    architecture: program.opts().architecture,
-    sessionId: program.opts().sessionId,
-    cwd: program.opts().cwd,
+    architecture: input.architecture,
+    sessionId: input.sessionId,
+    cwd: input.cwd,
   });
 
-  const opts = program.opts();
-  const prompt = program.args[0];
-
   const args: ExecuteQueryArgs = {
-    prompt,
-    sessionId: opts.sessionId,
-    architecture: opts.architecture as AgentArchitecture,
-    cwd: opts.cwd,
-    model: opts.model,
-    tools: opts.tools ? JSON.parse(opts.tools) : undefined,
-    mcpServers: opts.mcpServers ? JSON.parse(opts.mcpServers) : undefined,
+    prompt: input.prompt,
+    sessionId: input.sessionId,
+    architecture: input.architecture,
+    cwd: input.cwd || '/workspace',
+    model: input.model,
+    tools: input.tools,
+    mcpServers: input.mcpServers,
   };
 
   logDebug('Executing query', {

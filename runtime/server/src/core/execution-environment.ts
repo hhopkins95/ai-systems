@@ -238,20 +238,23 @@ export class ExecutionEnvironment {
     }): AsyncGenerator<StreamEvent> {
         const { APP_DIR, WORKSPACE_DIR } = this.primitives.getBasePaths();
 
-        const cmdArgs = [
-            'node', join(APP_DIR, 'runner.js'), 'execute-query',
-            args.query,
-            '--architecture', this.architecture,
-            '--session-id', this.sessionId,
-            '--cwd', WORKSPACE_DIR
-        ];
+        // Prepare input for stdin
+        const executeInput = {
+            prompt: args.query,
+            architecture: this.architecture,
+            sessionId: this.sessionId,
+            cwd: WORKSPACE_DIR,
+            model: args.options?.model,
+        };
 
-        // Add model if provided in options
-        if (args.options?.model) {
-            cmdArgs.push('--model', args.options.model);
-        }
+        const process = await this.primitives.exec(
+            ['node', join(APP_DIR, 'runner.js'), 'execute-query'],
+            { cwd: APP_DIR }
+        );
 
-        const process = await this.primitives.exec(cmdArgs, { cwd: APP_DIR });
+        // Write input to stdin and close
+        await process.stdin.writeText(JSON.stringify(executeInput));
+        await process.stdin.close();
 
         try {
             for await (const event of this.parseRunnerStream(process.stdout)) {
@@ -346,12 +349,21 @@ export class ExecutionEnvironment {
     async readSessionTranscript(): Promise<string | null> {
         const { APP_DIR, WORKSPACE_DIR } = this.primitives.getBasePaths();
 
-        const process = await this.primitives.exec([
-            'node', join(APP_DIR, 'runner.js'), 'read-session-transcript',
-            this.sessionId,
-            '--architecture', this.architecture,
-            '--project-dir', WORKSPACE_DIR
-        ], { cwd: APP_DIR });
+        // Prepare input for stdin
+        const readTranscriptInput = {
+            sessionId: this.sessionId,
+            architecture: this.architecture,
+            projectDir: WORKSPACE_DIR,
+        };
+
+        const process = await this.primitives.exec(
+            ['node', join(APP_DIR, 'runner.js'), 'read-session-transcript'],
+            { cwd: APP_DIR }
+        );
+
+        // Write input to stdin and close
+        await process.stdin.writeText(JSON.stringify(readTranscriptInput));
+        await process.stdin.close();
 
         const exitCode = await process.wait();
         if (exitCode !== 0) {
