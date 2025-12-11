@@ -132,6 +132,10 @@ export async function loadAgentProfile() {
 
         // if opencode, we need to add the adapter plugin
         if (input.architectureType === 'opencode') {
+            writeLog('info', 'Adding opencode adapter plugin', {
+                sessionId: input.sessionId,
+                architecture: input.architectureType,
+            });
 
             const require = createRequire(import.meta.url);
             const adapterPackageJson = require.resolve('@ai-systems/opencode-claude-adapter');

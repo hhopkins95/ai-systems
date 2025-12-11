@@ -37,6 +37,14 @@ import {
   setupExceptionHandlers,
 } from './shared/signal-handlers.js';
 import { readStdinJson } from './shared/input.js';
+import { query, Options } from "@anthropic-ai/claude-agent-sdk"
+import { exec } from 'child_process';
+import { promisify } from 'util';
+import os from 'os';
+
+
+const execAsync = promisify(exec);
+
 
 // Set up exception handlers early
 setupExceptionHandlers();
@@ -86,10 +94,7 @@ async function executeClaudeSdk(args: ExecuteQueryArgs): Promise<void> {
     throw new Error('ANTHROPIC_API_KEY environment variable not set');
   }
 
-  // Dynamic import of Claude SDK
-  const { query } = await import('@anthropic-ai/claude-agent-sdk');
-
-  const options: import('@anthropic-ai/claude-agent-sdk').Options = {
+  const options: Options = {
     cwd: args.cwd || '/workspace',
     settingSources: ['project', 'user'],
     includePartialMessages: true,
@@ -99,7 +104,7 @@ async function executeClaudeSdk(args: ExecuteQueryArgs): Promise<void> {
     allowedTools: args.tools
       ? [...args.tools, 'Skill']
       : ['Skill'],
-    mcpServers: args.mcpServers as import('@anthropic-ai/claude-agent-sdk').Options['mcpServers'],
+    mcpServers: args.mcpServers as Options['mcpServers'],
   };
 
   const needsCreation = !claudeSessionExists(args.sessionId);
@@ -223,10 +228,6 @@ async function executeOpencode(args: ExecuteQueryArgs): Promise<void> {
  * Create an OpenCode session with a specific ID
  */
 async function createOpencodeSession(sessionId: string, cwd: string): Promise<void> {
-  const { exec } = await import('child_process');
-  const { promisify } = await import('util');
-  const execAsync = promisify(exec);
-  const os = await import('os');
 
   const sessionFileContents = JSON.stringify({
     info: {
