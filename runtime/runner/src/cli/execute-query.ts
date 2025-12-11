@@ -205,8 +205,29 @@ async function executeOpencode(args: ExecuteQueryArgs): Promise<void> {
       await createOpencodeSession(args.sessionId, args.cwd || '/workspace');
     }
 
-    // Subscribe to events
-    const events = await client.event.subscribe();
+    // Start event subscription in parallel (IMPORTANT: must start before prompt)
+    const eventPromise = (async () => {
+      const events = await client.event.subscribe();
+
+      let firstEventReceived = false;
+      for await (const event of events.stream) {
+        if (!firstEventReceived) {
+          firstEventReceived = true;
+          writeLog('info', 'First event received from OpenCode', {
+            eventType: event.type,
+          });
+        }
+
+        // Convert OpenCode event to StreamEvents using stateful parser
+        const streamEvents = parser.parseEvent(event);
+        writeStreamEvents(streamEvents);
+
+        // Break when session goes idle
+        if (event.type === 'session.idle' && event.properties.sessionID === args.sessionId) {
+          break;
+        }
+      }
+    })();
 
     // Authenticate
     await client.auth.set({
@@ -229,24 +250,8 @@ async function executeOpencode(args: ExecuteQueryArgs): Promise<void> {
       },
     });
 
-    // Process events
-    let firstEventReceived = false;
-    for await (const event of events.stream) {
-      if (!firstEventReceived) {
-        firstEventReceived = true;
-        writeLog('info', 'First event received from OpenCode', {
-          eventType: event.type,
-        });
-      }
-      // Convert OpenCode event to StreamEvents using stateful parser
-      const streamEvents = parser.parseEvent(event);
-      writeStreamEvents(streamEvents);
-
-      // Break when session goes idle
-      if (event.type === 'session.idle' && event.properties.sessionID === args.sessionId) {
-        break;
-      }
-    }
+    // Wait for event stream to complete
+    await eventPromise;
   } finally {
     server?.close();
   }
@@ -256,7 +261,6 @@ async function executeOpencode(args: ExecuteQueryArgs): Promise<void> {
  * Create an OpenCode session with a specific ID
  */
 async function createOpencodeSession(sessionId: string, cwd: string): Promise<void> {
-
   const sessionFileContents = JSON.stringify({
     info: {
       id: sessionId,
@@ -279,6 +283,11 @@ async function createOpencodeSession(sessionId: string, cwd: string): Promise<vo
 
   const filePath = path.join(os.tmpdir(), `temp-${sessionId}.json`);
   fs.writeFileSync(filePath, sessionFileContents);
+
+  // Verify file exists
+  if (!fs.existsSync(filePath)) {
+    throw new Error(`File was not created at ${filePath}`);
+  }
 
   try {
     await execAsync(`opencode import "${filePath}"`);

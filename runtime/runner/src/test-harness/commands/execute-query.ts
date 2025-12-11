@@ -12,6 +12,21 @@ import { resolveInput, mergeInput } from '../lib/input-resolver.js';
 import type { OutputFormat } from '../types.js';
 import { randomUUID } from 'crypto';
 
+/**
+ * Generate a session ID in the appropriate format for the architecture
+ */
+function generateSessionId(architecture: AgentArchitecture): string {
+  if (architecture === 'opencode') {
+    // OpenCode format: ses_<timestamp_hex>_<random>
+    const timestamp = Date.now();
+    const timeBytes = timestamp.toString(16).padStart(12, '0');
+    const random = Math.random().toString(36).substring(2, 13);
+    return `ses_${timeBytes}_${random}`;
+  }
+  // Default to UUID for claude-sdk
+  return randomUUID();
+}
+
 export const executeQueryCommand = new Command('execute-query')
   .description('Execute a query against the agent runner')
   .option('-i, --input <file>', 'Input JSON file')
@@ -55,9 +70,9 @@ export const executeQueryCommand = new Command('execute-query')
       process.exit(1);
     }
 
-    // Generate session ID if not provided
+    // Generate session ID if not provided (format depends on architecture)
     if (!input.sessionId) {
-      input.sessionId = randomUUID();
+      input.sessionId = generateSessionId(input.architecture || 'claude-sdk');
     }
 
     // Create workspace
