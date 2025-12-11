@@ -39,6 +39,9 @@ flowchart TB
 | execute-query | `src/cli/execute-query.ts` | Run query against SDK |
 | load-session-transcript | `src/cli/load-session-transcript.ts` | Restore session state |
 | read-session-transcript | `src/cli/read-session-transcript.ts` | Extract current transcript |
+| Test Harness CLI | `src/test-harness/cli.ts` | Local testing entry point |
+| Process Runner | `src/test-harness/lib/process-runner.ts` | Subprocess spawning |
+| Stream Parser | `src/test-harness/lib/stream-parser.ts` | JSONL parsing & summaries |
 
 ## Usage
 
@@ -128,6 +131,119 @@ dist/
 ```
 
 The bundle includes all dependencies, making sandboxes self-contained.
+
+## Test Harness
+
+The runner includes a test harness for local testing that mimics how the execution environment invokes runners.
+
+### Running the Harness
+
+```bash
+# From runtime/runner directory
+pnpm harness <command> [options]
+
+# Or from anywhere in the monorepo
+pnpm --filter @hhopkins/agent-runner harness <command> [options]
+```
+
+### Commands
+
+| Command | Description |
+|---------|-------------|
+| `execute-query` | Execute a query against the agent |
+| `load-agent-profile` | Load agent profile into workspace |
+| `load-session-transcript` | Load session transcript into workspace |
+| `read-session-transcript` | Read session transcript from workspace |
+| `workflow` | Run complete workflow (profile + query) |
+
+### Example Usage
+
+```bash
+# Quick query test with summary output
+pnpm harness execute-query \
+  --prompt "What is 2+2?" \
+  --architecture claude-sdk \
+  --format summary
+
+# Full workflow with agent profile
+pnpm harness workflow \
+  --agent fixtures/agents/minimal.json \
+  --prompt "Hello world" \
+  --format summary
+
+# Stream events in real-time
+pnpm harness execute-query \
+  --prompt "List files" \
+  --format stream
+
+# Keep workspace for debugging
+pnpm harness execute-query \
+  --prompt "Create a file" \
+  --keep
+
+# Use fixture file for input
+pnpm harness execute-query \
+  --input fixtures/queries/simple.json \
+  --format collect
+```
+
+### Output Formats
+
+| Format | Description |
+|--------|-------------|
+| `stream` | Real-time JSONL output (default) |
+| `collect` | Collect all events, output as JSON array |
+| `summary` | Human-readable summary with stats |
+
+### Workspace Management
+
+- By default, creates temp directory in `/tmp/runner-harness-*`
+- Use `--workspace <dir>` to specify a directory
+- Use `--keep` to preserve workspace after run
+- Use `--clean` to clean workspace before run (load-agent-profile only)
+
+### Fixtures
+
+Example fixtures are provided in `runtime/runner/fixtures/`:
+
+```
+fixtures/
+├── agents/
+│   └── minimal.json      # Minimal agent profile
+├── sessions/
+│   └── empty.json        # Empty session transcript
+└── queries/
+    └── simple.json       # Simple query input
+```
+
+### Programmatic Usage
+
+```typescript
+import { runRunner, createWorkspace, parseJsonlStream } from '@hhopkins/agent-runner/test-harness';
+
+// Create workspace
+const workspace = await createWorkspace({ keep: true });
+
+// Run a query
+const result = await runRunner({
+  command: 'execute-query',
+  input: {
+    prompt: 'Hello',
+    sessionId: 'test-123',
+    architecture: 'claude-sdk',
+    cwd: workspace.path,
+  },
+  cwd: workspace.path,
+  onEvent: (event) => console.log(event),
+});
+
+// Parse output
+const parsed = parseJsonlStream(result.stdout);
+console.log(parsed.summary);
+
+// Cleanup
+await workspace.cleanup();
+```
 
 ## Related
 
