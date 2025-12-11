@@ -26,8 +26,7 @@
     "typecheck": "tsc --noEmit",
     "test": "tsx test/run-all.ts",
     "test:claude": "tsx test/test-execute-claude.ts",
-    "test:opencode": "tsx test/test-execute-opencode.ts",
-    "harness": "tsx src/test-harness/cli.ts"
+    "test:opencode": "tsx test/test-execute-opencode.ts"
   },
   "keywords": [
     "agent",
