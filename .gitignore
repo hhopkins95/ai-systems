@@ -40,5 +40,8 @@ runtime/runner/test/workspace/*
 AGENTS.md
 
 
-# Example data 
+# Example data
 apps/example-backend/data
+
+# Local agent sessions
+.agent-sessions

@@ -3,9 +3,15 @@ import { createAgentRuntime, type PersistenceAdapter } from "@hhopkins/agent-ser
 import dotenv from "dotenv";
 import { InMemoryPersistenceAdapter, SqlitePersistenceAdapter } from "./persistence/index.js";
 import { config, validateConfig, createExampleAgentProfile } from "./config.js";
+import path from "path";
+import { fileURLToPath } from "url";
 
 // Load environment variables
 dotenv.config();
+
+
+const dirname = path.dirname(fileURLToPath(import.meta.url));
+const agentSessionsDirectoryPath = path.join(dirname, "../../../.agent-sessions");
 
 /**
  * Main server entry point
@@ -44,11 +50,10 @@ async function main() {
     const runtime = await createAgentRuntime({
       persistence,
       executionEnvironment: {
-        type : "modal-sandbox", 
-        modal : { 
-          appName : "example-app", 
-          tokenId : process.env.MODAL_TOKEN_ID!,
-          tokenSecret : process.env.MODAL_TOKEN_SECRET!,
+        type: "local",
+        local: {
+          sessionsDirectoryPath: agentSessionsDirectoryPath,
+          shouldCleanup: true,
         }
       },
 
