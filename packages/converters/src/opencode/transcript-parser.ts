@@ -145,60 +145,6 @@ function convertToolPart(part: Part & { type: 'tool' }): ConversationBlock[] {
 }
 
 /**
- * Convert step-start part to SystemBlock
- */
-function convertStepStartPart(part: Part & { type: 'step-start' }): ConversationBlock {
-  return {
-    type: 'system',
-    id: part.id,
-    timestamp: new Date().toISOString(),
-    subtype: 'status',
-    message: 'Step started',
-    metadata: {
-      snapshot: (part as any).snapshot,
-    },
-  };
-}
-
-/**
- * Convert step-finish part to SystemBlock with token/cost metadata
- */
-function convertStepFinishPart(part: Part & { type: 'step-finish' }): ConversationBlock {
-  const p = part as any;
-  return {
-    type: 'system',
-    id: part.id,
-    timestamp: new Date().toISOString(),
-    subtype: 'status',
-    message: `Step finished: ${p.reason}`,
-    metadata: {
-      reason: p.reason,
-      snapshot: p.snapshot,
-      cost: p.cost,
-      tokens: p.tokens,
-    },
-  };
-}
-
-/**
- * Convert retry part to SystemBlock (error)
- */
-function convertRetryPart(part: Part & { type: 'retry' }): ConversationBlock {
-  const p = part as any;
-  return {
-    type: 'system',
-    id: part.id,
-    timestamp: p.time?.created ? toISOTimestamp(p.time.created) : new Date().toISOString(),
-    subtype: 'error',
-    message: `Retry attempt ${p.attempt}: ${p.error?.message || 'Unknown error'}`,
-    metadata: {
-      attempt: p.attempt,
-      error: p.error,
-    },
-  };
-}
-
-/**
  * Convert agent part to SubagentBlock
  */
 function convertAgentPart(part: Part & { type: 'agent' }): ConversationBlock {
@@ -295,14 +241,11 @@ function convertPartToBlocks(part: Part, model: string | undefined, logger: Logg
         }
         return convertToolPart(part as any);
 
+      // Skip step events - they're operational logs, not conversation content
       case 'step-start':
-        return [convertStepStartPart(part as any)];
-
       case 'step-finish':
-        return [convertStepFinishPart(part as any)];
-
       case 'retry':
-        return [convertRetryPart(part as any)];
+        return [];
 
       case 'agent':
         return [convertAgentPart(part as any)];

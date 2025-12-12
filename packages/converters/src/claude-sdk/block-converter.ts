@@ -450,6 +450,7 @@ function convertResultMessage(
 ): ConversationBlock[] {
   const isSuccess = msg.subtype === 'success';
 
+
   return [{
     type: 'system',
     id: msg.uuid,

@@ -18,11 +18,15 @@ export async function executeQuery(): Promise<void> {
   // Read input from stdin
   const input = await readStdinJson<ExecuteQueryInput>();
 
-  writeLog('info', 'Executing query', {
+  writeStreamEvent({
+    type: 'log',
+    level: 'info',
+    message: 'Executing query',
+    data: {
     architecture: input.architecture,
     sessionId: input.sessionId,
     cwd: input.cwd,
-  });
+  }});
 
   // Setup default signal handlers
   setupSignalHandlers();

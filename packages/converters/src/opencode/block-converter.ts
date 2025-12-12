@@ -482,18 +482,10 @@ export function createStreamEventParser(mainSessionId: string, options: ConvertO
     activeBlocks.clear();
 
     events.push({
-      type: 'block_complete',
-      blockId: generateId(),
-      conversationId,
-      block: {
-        type: 'system',
-        id: generateId(),
-        timestamp: new Date().toISOString(),
-        subtype: 'session_end',
-        message: 'Session completed',
-        metadata: {
-          sessionId: sessionID,
-        },
+      type: 'log',
+      message: 'Session completed',
+      data: {
+        sessionId: sessionID,
       },
     });
 
