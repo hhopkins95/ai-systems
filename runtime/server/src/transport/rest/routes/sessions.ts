@@ -241,5 +241,41 @@ export function createSessionRoutes(
     }
   )
 
+  /**
+   * POST /api/sessions/:id/environment/terminate
+   * Terminate execution environment but keep session loaded
+   */
+  .post("/:id/environment/terminate", async (c) => {
+    const sessionId = c.req.param("id");
+
+    const session = sessionManager.getSession(sessionId);
+    if (!session) {
+      throw new HTTPException(404, {
+        message: JSON.stringify(
+          errorResponse("Session not found or not loaded", "SESSION_NOT_FOUND")
+        ),
+      });
+    }
+
+    try {
+      await session.terminateExecutionEnvironment();
+      return c.json({
+        success: true,
+        sessionId,
+        runtime: session.getRuntimeState(),
+      });
+    } catch (error) {
+      throw new HTTPException(500, {
+        message: JSON.stringify(
+          errorResponse(
+            "Failed to terminate execution environment",
+            "ENVIRONMENT_TERMINATE_FAILED",
+            error instanceof Error ? error.message : String(error)
+          )
+        ),
+      });
+    }
+  })
+
   return app;
 }

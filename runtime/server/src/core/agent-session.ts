@@ -591,6 +591,40 @@ export class AgentSession {
     await this.persistFullSessionState();
   }
 
+  /**
+   * Terminate execution environment while keeping session loaded.
+   * Environment will lazily restart on next sendMessage() call.
+   */
+  async terminateExecutionEnvironment(): Promise<void> {
+    if (!this.executionEnvironment) {
+      logger.debug({ sessionId: this.sessionId }, 'No execution environment to terminate');
+      return;
+    }
+
+    logger.info({ sessionId: this.sessionId }, 'Terminating execution environment...');
+
+    try {
+      this.stopWatchersAndJobs();
+      await this.syncSessionStateToStorage();
+      await this.executionEnvironment.cleanup();
+
+      this.executionEnvironment = undefined;
+      this.executionEnvironmentId = undefined;
+      this.eeStatus = 'terminated';
+      this.statusMessage = 'Execution environment terminated';
+      this.emitRuntimeStatus(this.statusMessage);
+
+      logger.info({ sessionId: this.sessionId }, 'Execution environment terminated successfully');
+    } catch (error) {
+      logger.error({ error, sessionId: this.sessionId }, 'Failed to terminate execution environment');
+      this.eeStatus = 'error';
+      const errorMessage = error instanceof Error ? error.message : String(error);
+      this.lastError = { message: errorMessage, timestamp: Date.now() };
+      this.emitRuntimeStatus(errorMessage);
+      throw error;
+    }
+  }
+
   async updateSessionOptions(sessionOptions: AgentArchitectureSessionOptions): Promise<void> {
     this.sessionOptions = sessionOptions;
     await this.persistenceAdapter.updateSessionRecord(this.sessionId, {

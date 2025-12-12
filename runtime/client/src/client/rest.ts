@@ -8,6 +8,7 @@
 import type {
   SessionListItem,
   RuntimeSessionData,
+  SessionRuntimeState,
   CreateSessionRequest,
   CreateSessionResponse,
   SendMessageRequest,
@@ -148,6 +149,21 @@ export class RestClient {
   async syncSession(sessionId: string): Promise<void> {
     await this.request<{ success: boolean; sessionId: string }>(
       `/api/sessions/${sessionId}/sync`,
+      {
+        method: 'POST',
+      }
+    );
+  }
+
+  /**
+   * Terminate execution environment while keeping session loaded.
+   * The environment will lazily restart on next sendMessage() call.
+   */
+  async terminateExecutionEnvironment(
+    sessionId: string
+  ): Promise<{ success: boolean; sessionId: string; runtime: SessionRuntimeState }> {
+    return this.request<{ success: boolean; sessionId: string; runtime: SessionRuntimeState }>(
+      `/api/sessions/${sessionId}/environment/terminate`,
       {
         method: 'POST',
       }
