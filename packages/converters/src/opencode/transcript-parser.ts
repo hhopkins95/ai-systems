@@ -343,7 +343,16 @@ export function parseOpenCodeTranscriptFile(
   options: ParseTranscriptOptions = {}
 ): ParsedTranscript {
   const logger = options.logger ?? noopLogger;
-  const transcript = JSON.parse(content) as OpenCodeSessionTranscript;
+
+  let transcript: OpenCodeSessionTranscript;
+  try {
+    transcript = JSON.parse(content) as OpenCodeSessionTranscript;
+  } catch (error) {
+    const preview = content.substring(0, 100);
+    const errorMsg = error instanceof Error ? error.message : String(error);
+    logger.error({ error: errorMsg, contentPreview: preview }, 'Failed to parse OpenCode transcript JSON');
+    throw new Error(`Invalid OpenCode transcript JSON: ${errorMsg}. Content starts with: ${preview}...`);
+  }
   const blocks: ConversationBlock[] = [];
   const subagentsMap = new Map<string, ConversationBlock[]>();
 

@@ -106,7 +106,24 @@ async function readOpencodeTranscript(
       return null;
     }
 
-    return stdout;
+    // Find the start of valid JSON (should be '{')
+    // opencode export may output non-JSON content (like model identifiers) before the JSON
+    const jsonStart = stdout.indexOf('{');
+    if (jsonStart === -1) {
+      console.error(`OpenCode export did not return JSON object. Output: ${stdout.substring(0, 100)}...`);
+      return null;
+    }
+
+    const jsonContent = stdout.substring(jsonStart);
+
+    // Validate it's valid JSON before returning
+    try {
+      JSON.parse(jsonContent);
+      return jsonContent;
+    } catch (parseError) {
+      console.error(`OpenCode export returned invalid JSON. Content starts with: ${jsonContent.substring(0, 100)}...`);
+      return null;
+    }
   } catch (error) {
     console.error(`OpenCode export command failed:`, error);
     return null;
