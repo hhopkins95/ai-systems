@@ -11,6 +11,7 @@ import type {
   SubagentBlock,
   ToolExecutionStatus,
   StreamEvent,
+  LogEvent,
 } from '@ai-systems/shared-types';
 import { generateId, toISOTimestamp, noopLogger } from '../utils.js';
 import type { ConvertOptions } from '../types.js';
@@ -180,6 +181,12 @@ function partToIncompleteBlock(part: Part, model?: string): ConversationBlock | 
         };
       }
 
+      // Step events are handled as LogEvent, not ConversationBlock
+      case 'step-start':
+      case 'step-finish':
+      case 'retry':
+        return null;
+
       // For other types, return the full block
       default:
         return partToBlock(part, model);
@@ -250,6 +257,25 @@ export function createStreamEventParser(mainSessionId: string, options: ConvertO
     const { part, delta } = event.properties;
     const conversationId = part.sessionID === mainSessionId ? 'main' : part.sessionID;
     const events: StreamEvent[] = [];
+
+    // Convert step/retry events to LogEvent instead of ConversationBlock
+    if (part.type === 'step-start' || part.type === 'step-finish' || part.type === 'retry') {
+      const p = part as any;
+      const logEvent: LogEvent = {
+        type: 'log',
+        level: part.type === 'retry' ? 'warn' : 'info',
+        message: part.type === 'step-start' ? 'Step started'
+               : part.type === 'step-finish' ? `Step finished: ${p.reason || 'unknown'}`
+               : `Retry attempt ${p.attempt || '?'}: ${p.error?.message || 'Unknown error'}`,
+        data: {
+          partType: part.type,
+          partId: part.id,
+          ...(part.type === 'step-finish' && { reason: p.reason, cost: p.cost, tokens: p.tokens }),
+          ...(part.type === 'retry' && { attempt: p.attempt, error: p.error }),
+        },
+      };
+      return [logEvent];
+    }
 
     // Check if this is a new block or an update to existing
     const isNewBlock = !activeBlocks.has(part.id);

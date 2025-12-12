@@ -12,6 +12,7 @@ import type {
   ToolResultBlock,
   ToolUseBlock,
   StreamEvent,
+  LogEvent,
 } from '@ai-systems/shared-types';
 import { generateId, noopLogger, type Logger } from '../utils.js';
 import type { ConvertOptions } from '../types.js';
@@ -31,6 +32,24 @@ export function convertMessagesToBlocks(
   }
 
   return blocks;
+}
+
+/**
+ * Get a human-readable log message for a system message
+ */
+function getSystemLogMessage(msg: Extract<SDKMessage, { type: 'system' }>): string {
+  switch (msg.subtype) {
+    case 'init':
+      return `Session initialized with ${msg.model}`;
+    case 'status':
+      return `Status: ${msg.status || 'ready'}`;
+    case 'hook_response':
+      return `Hook ${msg.hook_name} (${msg.hook_event})`;
+    case 'compact_boundary':
+      return `Compact boundary (${msg.compact_metadata?.trigger || 'unknown'})`;
+    default:
+      return `System: ${(msg as any).subtype}`;
+  }
 }
 
 /**
@@ -101,7 +120,42 @@ export function parseStreamEvent(
     }];
   }
 
-  // For other message types (user, assistant, system, auth_status, etc.)
+  // Convert system messages (except error) to LogEvent instead of blocks
+  if (event.type === 'system') {
+    const logEvent: LogEvent = {
+      type: 'log',
+      level: 'info',
+      message: getSystemLogMessage(event),
+      data: {
+        subtype: event.subtype,
+        ...(event.subtype === 'init' && { model: event.model }),
+        ...(event.subtype === 'status' && { status: event.status }),
+        ...(event.subtype === 'hook_response' && {
+          hook_name: event.hook_name,
+          hook_event: event.hook_event,
+          exit_code: event.exit_code,
+        }),
+        ...(event.subtype === 'compact_boundary' && { trigger: event.compact_metadata?.trigger }),
+      },
+    };
+    return [logEvent];
+  }
+
+  // Convert auth_status to LogEvent
+  if (event.type === 'auth_status') {
+    const logEvent: LogEvent = {
+      type: 'log',
+      level: event.error ? 'error' : 'info',
+      message: event.isAuthenticating ? 'Authenticating...' : (event.error ? `Auth error: ${event.error}` : 'Authentication complete'),
+      data: {
+        isAuthenticating: event.isAuthenticating,
+        hasError: !!event.error,
+      },
+    };
+    return [logEvent];
+  }
+
+  // For other message types (user, assistant, etc.)
   // Convert to blocks and emit block_complete events
   const blocks = sdkMessageToBlocks(event, options);
   return blocks.map((block) => ({
