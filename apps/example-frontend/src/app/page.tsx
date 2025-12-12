@@ -3,7 +3,6 @@
 import { useState } from "react";
 import { useAgentSession } from "@hhopkins/agent-client";
 import { SessionList } from "@/components/SessionList";
-import { SessionHeader } from "@/components/SessionHeader";
 import { AgentChat } from "@/components/AgentChat";
 import { FileWorkspace } from "@/components/FileWorkspace";
 import { SubagentViewer } from "@/components/SubagentViewer";
@@ -22,7 +21,7 @@ import { DebugEventList } from "@/components/DebugEventList";
  */
 export default function HomePage() {
   const [currentSessionId, setCurrentSessionId] = useState<string | null>(null);
-  const [activeTab, setActiveTab] = useState<"chat" | "files" | "subagents" | "raw" | "monitor">("chat");
+  const [activeTab, setActiveTab] = useState<"chat" | "files" | "subagents" | "raw">("chat");
 
   // Use useAgentSession at the page level to ensure the WebSocket room is joined
   // regardless of which tab is active. This is important because the room join
@@ -67,10 +66,11 @@ export default function HomePage() {
               </div>
             ) : (
               <>
-                {/* Session Header */}
-                <SessionHeader
+                {/* Execution Monitor (includes session info) */}
+                <ExecutionMonitor
                   sessionId={currentSessionId}
                   onDelete={() => setCurrentSessionId(null)}
+                  defaultExpanded={false}
                 />
 
                 {/* Tab Navigation */}
@@ -115,16 +115,6 @@ export default function HomePage() {
                   >
                     Raw Data
                   </button>
-                  <button
-                    onClick={() => setActiveTab("monitor")}
-                    className={`px-4 py-2 rounded-lg font-medium transition-colors ${
-                      activeTab === "monitor"
-                        ? "bg-blue-500 text-white"
-                        : "bg-white text-gray-700 hover:bg-gray-100"
-                    }`}
-                  >
-                    Monitor
-                  </button>
                 </div>
 
                 {/* Tab Content */}
@@ -140,9 +130,6 @@ export default function HomePage() {
                   )}
                   {activeTab === "raw" && (
                     <RawDataViewer sessionId={currentSessionId} />
-                  )}
-                  {activeTab === "monitor" && (
-                    <ExecutionMonitor sessionId={currentSessionId} />
                   )}
                 </div>
               </>

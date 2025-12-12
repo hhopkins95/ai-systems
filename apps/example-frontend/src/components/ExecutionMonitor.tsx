@@ -3,15 +3,19 @@
 import { useState, useEffect, useRef, useMemo } from "react";
 import {
   useAgentSession,
+  useSessionList,
   useLogs,
   type SessionLogEntry,
   type LogLevel,
   type SessionRuntimeState,
 } from "@hhopkins/agent-client";
+import { BACKEND_URL, API_KEY, type SupportedArchitecture } from "@/lib/constants";
+import { SessionOptionsPopover } from "./SessionOptionsPopover";
 
 interface ExecutionMonitorProps {
   sessionId: string;
   defaultExpanded?: boolean;
+  onDelete?: () => void;
 }
 
 // ============================================================================
@@ -152,11 +156,14 @@ function LogEntry({ log }: { log: SessionLogEntry }) {
 export function ExecutionMonitor({
   sessionId,
   defaultExpanded = true,
+  onDelete,
 }: ExecutionMonitorProps) {
-  const { session } = useAgentSession(sessionId);
+  const { session, updateSessionOptions, isLoading: isUpdatingOptions } = useAgentSession(sessionId);
+  const { sessions, refresh } = useSessionList();
   const { logs, clearLogs } = useLogs(sessionId);
 
   const runtime = session?.info.runtime;
+  const sessionInfo = sessions.find((s) => s.sessionId === sessionId);
 
   const [isExpanded, setIsExpanded] = useState(defaultExpanded);
   const [activeSection, setActiveSection] = useState<
@@ -168,6 +175,11 @@ export function ExecutionMonitor({
     "error",
   ]);
   const [autoScroll, setAutoScroll] = useState(true);
+
+  // Session header state
+  const [isDeleting, setIsDeleting] = useState(false);
+  const [showConfirm, setShowConfirm] = useState(false);
+  const [copied, setCopied] = useState(false);
 
   const logsEndRef = useRef<HTMLDivElement>(null);
 
@@ -191,6 +203,46 @@ export function ExecutionMonitor({
     );
   };
 
+  const handleCopyId = async () => {
+    await navigator.clipboard.writeText(sessionId);
+    setCopied(true);
+    setTimeout(() => setCopied(false), 2000);
+  };
+
+  const handleDelete = async () => {
+    if (!showConfirm) {
+      setShowConfirm(true);
+      return;
+    }
+
+    setIsDeleting(true);
+    try {
+      const response = await fetch(`${BACKEND_URL}/sessions/${sessionId}`, {
+        method: "DELETE",
+        headers: {
+          "x-api-key": API_KEY,
+        },
+      });
+
+      if (!response.ok) {
+        throw new Error("Failed to delete session");
+      }
+
+      await refresh();
+      onDelete?.();
+    } catch (error) {
+      console.error("Failed to delete session:", error);
+      alert("Failed to delete session. Please try again.");
+    } finally {
+      setIsDeleting(false);
+      setShowConfirm(false);
+    }
+  };
+
+  const handleCancelDelete = () => {
+    setShowConfirm(false);
+  };
+
   if (!runtime) {
     return (
       <div className="bg-white rounded-lg shadow p-4">
@@ -202,20 +254,107 @@ export function ExecutionMonitor({
   const ee = runtime.executionEnvironment;
 
   return (
-    <div className="bg-white rounded-lg shadow">
-      {/* Header */}
-      <div
-        className="px-4 py-3 border-b flex items-center justify-between cursor-pointer hover:bg-gray-50"
-        onClick={() => setIsExpanded(!isExpanded)}
-      >
-        <div className="flex items-center gap-3">
-          <h3 className="font-semibold text-gray-800">Execution Monitor</h3>
-          {ee && <StatusBadge status={ee.status} />}
-          {runtime.activeQuery && (
-            <QueryTimer startedAt={runtime.activeQuery.startedAt} />
-          )}
+    <div className="bg-white rounded-lg shadow mb-4">
+      {/* Header with session info */}
+      <div className="px-4 py-3 border-b">
+        <div className="flex items-center justify-between flex-wrap gap-2">
+          {/* Left side - Session info */}
+          <div className="flex items-center gap-4 flex-wrap">
+            {/* Session ID */}
+            <div className="flex items-center gap-2">
+              <span className="text-xs text-gray-500">ID:</span>
+              <code className="text-xs bg-gray-100 px-2 py-1 rounded font-mono">
+                {sessionId.slice(0, 12)}...
+              </code>
+              <button
+                onClick={handleCopyId}
+                className="text-xs text-blue-600 hover:text-blue-700"
+                title="Copy full session ID"
+              >
+                {copied ? "Copied!" : "Copy"}
+              </button>
+            </div>
+
+            {/* Type badge */}
+            {sessionInfo && (
+              <div className="flex items-center gap-2">
+                <span className="text-xs text-gray-500">Type:</span>
+                <span className="text-xs bg-purple-100 text-purple-700 px-2 py-0.5 rounded">
+                  {sessionInfo.type}
+                </span>
+              </div>
+            )}
+
+            {/* Session options (model selector) */}
+            {sessionInfo && (
+              <SessionOptionsPopover
+                architecture={sessionInfo.type as SupportedArchitecture}
+                currentModel={sessionInfo.sessionOptions?.model}
+                onModelChange={async (model) => {
+                  await updateSessionOptions({ model });
+                  await refresh();
+                }}
+                isUpdating={isUpdatingOptions}
+              />
+            )}
+
+            {/* Runtime status */}
+            <div className="flex items-center gap-2">
+              <span className="text-xs text-gray-500">Status:</span>
+              {ee && <StatusBadge status={ee.status} />}
+              {ee?.statusMessage && (
+                <span className="text-xs text-gray-500 italic">
+                  {ee.statusMessage}
+                </span>
+              )}
+            </div>
+
+            {/* Active query indicator */}
+            {runtime.activeQuery && (
+              <QueryTimer startedAt={runtime.activeQuery.startedAt} />
+            )}
+          </div>
+
+          {/* Right side - Delete and expand/collapse */}
+          <div className="flex items-center gap-3">
+            {/* Delete button */}
+            {showConfirm ? (
+              <div className="flex items-center gap-2">
+                <span className="text-xs text-red-600">Delete?</span>
+                <button
+                  onClick={handleDelete}
+                  disabled={isDeleting}
+                  className="px-2 py-1 text-xs bg-red-500 text-white rounded hover:bg-red-600 disabled:bg-gray-300"
+                >
+                  {isDeleting ? "..." : "Yes"}
+                </button>
+                <button
+                  onClick={handleCancelDelete}
+                  disabled={isDeleting}
+                  className="px-2 py-1 text-xs bg-gray-200 text-gray-700 rounded hover:bg-gray-300"
+                >
+                  No
+                </button>
+              </div>
+            ) : (
+              <button
+                onClick={handleDelete}
+                className="px-3 py-1 text-xs bg-red-100 text-red-700 rounded hover:bg-red-200 transition-colors"
+                title="Delete session permanently"
+              >
+                Delete
+              </button>
+            )}
+
+            {/* Expand/collapse toggle */}
+            <button
+              onClick={() => setIsExpanded(!isExpanded)}
+              className="px-2 py-1 text-xs bg-gray-100 text-gray-600 rounded hover:bg-gray-200"
+            >
+              {isExpanded ? "[-]" : "[+]"}
+            </button>
+          </div>
         </div>
-        <span className="text-gray-400">{isExpanded ? "[-]" : "[+]"}</span>
       </div>
 
       {isExpanded && (
