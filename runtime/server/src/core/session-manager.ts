@@ -6,7 +6,10 @@
  * - Create new AgentSession instances
  * - Load existing AgentSession from persistence
  * - Unload AgentSession instances (triggered by sandbox termination)
- * - Emit domain events to EventBus
+ * - Emit global events to GlobalEventBus (sessions:changed)
+ *
+ * Note: Session-scoped events are handled by each AgentSession's own
+ * SessionEventBus → ClientBroadcastListener → ClientHub flow.
  *
  * Note: Idle timeout is handled by Modal - when sandbox terminates,
  * the AgentSession notifies us via callback to unload the session.
@@ -22,6 +25,8 @@ import type {
 } from '@ai-systems/shared-types';
 import { AgentSession } from './agent-session.js';
 import type { EventBus } from './event-bus.js';
+import type { ClientHub } from './session/client-hub.js';
+import { MockClientHub } from './session/client-hub.js';
 
 /**
  * SessionManager - Container for all agent sessions
@@ -33,23 +38,44 @@ export class SessionManager {
   private loadedSessions: Map<string, AgentSession> = new Map();
 
   // Dependencies
-  private readonly eventBus: EventBus;
+  private readonly globalEventBus: EventBus;
+  private clientHub: ClientHub;
   private readonly executionConfig: RuntimeConfig['executionEnvironment'];
   private readonly adapters: {
     persistence: PersistenceAdapter;
   };
 
   constructor(
-    eventBus: EventBus,
+    globalEventBus: EventBus,
     executionConfig: RuntimeConfig['executionEnvironment'],
     adapters: {
       persistence: PersistenceAdapter;
     },
+    clientHub?: ClientHub,
   ) {
-    this.eventBus = eventBus;
+    this.globalEventBus = globalEventBus;
     this.executionConfig = executionConfig;
     this.adapters = adapters;
+    // Use provided clientHub or create a mock one
+    // The real clientHub is typically set via setClientHub after WebSocket server is created
+    this.clientHub = clientHub ?? new MockClientHub();
     logger.info('SessionManager initialized with injected adapters');
+  }
+
+  /**
+   * Set the ClientHub for broadcasting events to connected clients
+   * Called after WebSocket server is created
+   */
+  setClientHub(clientHub: ClientHub): void {
+    this.clientHub = clientHub;
+    logger.info('ClientHub updated on SessionManager');
+  }
+
+  /**
+   * Get the current ClientHub
+   */
+  getClientHub(): ClientHub {
+    return this.clientHub;
   }
 
   // ==========================================================================
@@ -104,17 +130,17 @@ export class SessionManager {
           architecture: request.architecture,
           sessionOptions: request.sessionOptions ?? {},
         },
-        this.eventBus,
         this.adapters.persistence,
         this.executionConfig,
+        this.clientHub,
         this.handleEETerminated.bind(this),
       );
 
       // Add to loaded sessions
       this.loadedSessions.set(session.sessionId, session);
 
-      // Emit domain events
-      this.eventBus.emit('sessions:changed');
+      // Emit global event (sessions list changed)
+      this.globalEventBus.emit('sessions:changed');
 
       return session;
     } catch (error) {
@@ -139,9 +165,9 @@ export class SessionManager {
       // Create AgentSession instance using static factory (loads from persistence internally)
       const session = await AgentSession.create(
         { sessionId },
-        this.eventBus,
         this.adapters.persistence,
         this.executionConfig,
+        this.clientHub,
         this.handleEETerminated.bind(this),
       );
 
@@ -153,8 +179,8 @@ export class SessionManager {
         'Session loaded successfully'
       );
 
-      // Emit domain events
-      this.eventBus.emit('sessions:changed');
+      // Emit global event (sessions list changed)
+      this.globalEventBus.emit('sessions:changed');
 
       return session;
     } catch (error) {
@@ -198,12 +224,13 @@ export class SessionManager {
 
       logger.info({ sessionId, loadedCount: this.loadedSessions.size }, 'Session unloaded');
 
-      // Emit status update (session is now unloaded)
-      this.eventBus.emit('session:status', {
+      // Broadcast status update via ClientHub (session is now unloaded)
+      this.clientHub.broadcast(sessionId, 'session:status', {
         sessionId,
         runtime: { isLoaded: false, executionEnvironment: null },
       });
-      this.eventBus.emit('sessions:changed');
+      // Emit global event (sessions list changed)
+      this.globalEventBus.emit('sessions:changed');
     } catch (error) {
       logger.error({ error, sessionId }, 'Failed to unload session');
       // Remove from map even if unloading failed

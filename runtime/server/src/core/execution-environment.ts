@@ -15,6 +15,7 @@ import { getEnvironmentPrimitive } from "../lib/environment-primitives/factory";
 import { RuntimeExecutionEnvironmentOptions } from "../types/runtime";
 import { getRunnerBundleContent } from "@hhopkins/agent-runner";
 import { getAdapterBundleContent } from "@ai-systems/opencode-claude-adapter/bundle";
+import type { SessionEventBus } from "./session/session-event-bus.js";
 
 import { join } from "path";
 
@@ -54,6 +55,8 @@ export interface ExecutionEnvironmentConfig {
     architecture: AgentArchitecture;
     agentProfile: AgentProfile;
     environmentOptions: RuntimeExecutionEnvironmentOptions;
+    /** Event bus for emitting session events (required for new architecture) */
+    eventBus: SessionEventBus;
 }
 
 /**
@@ -75,20 +78,22 @@ export class ExecutionEnvironment {
     private readonly architecture: AgentArchitecture;
     private readonly sessionId: string;
     private readonly agentProfile: AgentProfile;
-    private transcriptUpdateCallback?: (event: TranscriptChangeEvent) => void;
+    private readonly eventBus: SessionEventBus;
 
     private constructor(
         primitives: EnvironmentPrimitive,
         paths: SessionPaths,
         architecture: AgentArchitecture,
         sessionId: string,
-        agentProfile: AgentProfile
+        agentProfile: AgentProfile,
+        eventBus: SessionEventBus
     ) {
         this.primitives = primitives;
         this.paths = paths;
         this.architecture = architecture;
         this.sessionId = sessionId;
         this.agentProfile = agentProfile;
+        this.eventBus = eventBus;
     }
 
     /**
@@ -132,7 +137,8 @@ export class ExecutionEnvironment {
             paths,
             config.architecture,
             config.sessionId,
-            config.agentProfile
+            config.agentProfile,
+            config.eventBus
         );
     }
 
@@ -232,12 +238,12 @@ export class ExecutionEnvironment {
 
     /**
      * Execute a query against the agent
-     * Yields StreamEvents as they are produced by the agent
+     * Emits StreamEvents to the SessionEventBus as they are produced
      */
-    async *executeQuery(args: {
+    async executeQuery(args: {
         query: string;
         options?: AgentArchitectureSessionOptions;
-    }): AsyncGenerator<StreamEvent> {
+    }): Promise<void> {
         // Prepare input for stdin
         const executeInput = {
             prompt: args.query,
@@ -258,7 +264,7 @@ export class ExecutionEnvironment {
 
         try {
             for await (const event of this.parseRunnerStream(process.stdout)) {
-                yield event;
+                this.emitStreamEvent(event);
             }
         } finally {
             await process.wait();
@@ -268,14 +274,83 @@ export class ExecutionEnvironment {
     }
 
     /**
-     * Helper to send transcript update to registered callback
+     * Convert a StreamEvent to SessionEventBus events and emit
+     */
+    private emitStreamEvent(event: StreamEvent): void {
+        switch (event.type) {
+            case 'block_start':
+                this.eventBus.emit('block:start', {
+                    conversationId: event.conversationId,
+                    block: event.block,
+                });
+                break;
+
+            case 'text_delta':
+                this.eventBus.emit('block:delta', {
+                    conversationId: event.conversationId,
+                    blockId: event.blockId,
+                    delta: event.delta,
+                });
+                break;
+
+            case 'block_update':
+                this.eventBus.emit('block:update', {
+                    conversationId: event.conversationId,
+                    blockId: event.blockId,
+                    updates: event.updates,
+                });
+                break;
+
+            case 'block_complete':
+                this.eventBus.emit('block:complete', {
+                    conversationId: event.conversationId,
+                    blockId: event.blockId,
+                    block: event.block,
+                });
+                break;
+
+            case 'metadata_update':
+                this.eventBus.emit('metadata:update', {
+                    conversationId: event.conversationId,
+                    metadata: event.metadata,
+                });
+                break;
+
+            case 'log':
+                this.eventBus.emit('log', {
+                    level: event.level,
+                    message: event.message,
+                    data: event.data,
+                });
+                break;
+
+            case 'error':
+                this.eventBus.emit('error', {
+                    message: event.message,
+                    code: event.code,
+                });
+                break;
+
+            case 'status':
+                // Status events from runner are handled at AgentSession level
+                // since they need to update SessionState
+                // We emit a log for debugging
+                logger.debug({ status: event.status, message: event.message }, 'Runner status event');
+                break;
+
+            case 'script_output':
+                // Script output is internal, not emitted to bus
+                break;
+        }
+    }
+
+    /**
+     * Helper to send transcript update to event bus
      */
     private async sendTranscriptUpdate(): Promise<void> {
-        if (this.transcriptUpdateCallback) {
-            const transcript = await this.readSessionTranscript();
-            if (transcript) {
-                this.transcriptUpdateCallback({ content: transcript });
-            }
+        const transcript = await this.readSessionTranscript();
+        if (transcript) {
+            this.eventBus.emit('transcript:changed', { content: transcript });
         }
     }
 
@@ -418,16 +493,29 @@ export class ExecutionEnvironment {
 
     /**
      * Watch for workspace file changes
-     * Callback is invoked for each file add/change/unlink event
+     * Emits file events to the SessionEventBus
      * Promise resolves when watcher is ready
      */
-    async watchWorkspaceFiles(callback: (event: WorkspaceFileEvent) => void): Promise<void> {
+    async watchWorkspaceFiles(): Promise<void> {
         await this.primitives.watch(this.paths.workspaceDir, (event: WatchEvent) => {
-            callback({
-                type: event.type,
-                path: event.path,
-                content: event.content,
-            });
+            // Skip files with no content for created/modified events
+            if (event.type !== 'unlink' && event.content === undefined) {
+                return;
+            }
+
+            if (event.type === 'add' && event.content !== undefined) {
+                this.eventBus.emit('file:created', {
+                    file: { path: event.path, content: event.content },
+                });
+            } else if (event.type === 'change' && event.content !== undefined) {
+                this.eventBus.emit('file:modified', {
+                    file: { path: event.path, content: event.content },
+                });
+            } else if (event.type === 'unlink') {
+                this.eventBus.emit('file:deleted', {
+                    path: event.path,
+                });
+            }
         }, {
             ignorePatterns : [
                 '**/.git/**',
@@ -449,12 +537,13 @@ export class ExecutionEnvironment {
 
     /**
      * Watch for session transcript changes
-     * Callback is invoked when the transcript is updated (at end of each executeQuery)
-     * Promise resolves immediately - callback will be invoked after each query completes
+     * Transcript updates are now emitted directly at the end of executeQuery()
+     * This method is kept for backwards compatibility but does nothing
+     * @deprecated Transcript changes are now emitted automatically by executeQuery
      */
-    async watchSessionTranscriptChanges(callback: (event: TranscriptChangeEvent) => void): Promise<void> {
-        this.transcriptUpdateCallback = callback;
-        // Callback will be invoked at the end of executeQuery() via sendTranscriptUpdate()
+    async watchSessionTranscriptChanges(): Promise<void> {
+        // Transcript updates are now emitted directly in sendTranscriptUpdate()
+        // which is called at the end of executeQuery()
     }
 
     /**

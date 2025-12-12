@@ -1,12 +1,12 @@
 /**
- * WebSocket Server - Socket.io setup with EventBus architecture
+ * WebSocket Server - Socket.io setup with Session Event Architecture
  *
  * Provides real-time event streaming between server and clients via WebSocket.
  * Mutations are handled via REST API, WebSocket is for subscription and streaming only.
  *
- * Architecture:
- * - Business logic emits domain events → EventBus
- * - event-listeners.ts translates EventBus → Socket.io (granular events)
+ * Architecture (New):
+ * - Session-scoped events: AgentSession → SessionEventBus → ClientBroadcastListener → SocketIOClientHub → Socket.io rooms
+ * - Global events: SessionManager → GlobalEventBus → Socket.io broadcast
  * - handlers/ handle session room join/leave operations
  */
 
@@ -21,25 +21,26 @@ import type {
   InterServerEvents,
   SocketData,
 } from '../../types/events.js';
-import { setupEventListeners } from './event-listeners.js';
+import { setupGlobalEventListeners } from './event-listeners.js';
 import { setupSessionLifecycleHandlers } from './handlers/session-lifecycle.js';
+import { SocketIOClientHub } from './socket-io-client-hub.js';
 
 /**
- * Create and configure WebSocket server with EventBus architecture
+ * Create and configure WebSocket server with Session Event Architecture
  *
  * @param httpServer - HTTP server instance to attach Socket.io to
  * @param sessionManager - SessionManager instance
- * @param eventBus - EventBus instance for domain events
- * @returns Configured Socket.io server
+ * @param eventBus - GlobalEventBus instance for global events only
+ * @returns Configured Socket.io server and ClientHub
  */
 export function createWebSocketServer(
   httpServer: HTTPServer,
   sessionManager: SessionManager,
   eventBus: EventBus
-): SocketIOServer<ClientToServerEvents, ServerToClientEvents, InterServerEvents, SocketData> {
- 
- 
- 
+): {
+  io: SocketIOServer<ClientToServerEvents, ServerToClientEvents, InterServerEvents, SocketData>;
+  clientHub: SocketIOClientHub;
+} {
   // Create Socket.io server
   const io = new SocketIOServer<
     ClientToServerEvents,
@@ -54,13 +55,22 @@ export function createWebSocketServer(
     path: '/socket.io',
   });
 
-  logger.info('Initializing WebSocket server (EventBus architecture)...');
+  logger.info('Initializing WebSocket server (Session Event Architecture)...');
 
   // ==========================================================================
-  // Setup Domain Event Listeners (EventBus → Socket.io)
+  // Create SocketIOClientHub and inject into SessionManager
   // ==========================================================================
 
-  setupEventListeners(io, sessionManager, eventBus);
+  const clientHub = new SocketIOClientHub(io);
+  sessionManager.setClientHub(clientHub);
+  logger.info('SocketIOClientHub created and injected into SessionManager');
+
+  // ==========================================================================
+  // Setup Global Event Listeners (GlobalEventBus → Socket.io broadcast)
+  // Session-scoped events are now handled by ClientBroadcastListener
+  // ==========================================================================
+
+  setupGlobalEventListeners(io, sessionManager, eventBus);
 
   // ==========================================================================
   // Connection Handler (Socket.io → Business Logic)
@@ -104,7 +114,7 @@ export function createWebSocketServer(
     });
   });
 
-  logger.info('WebSocket server initialized successfully (EventBus architecture)');
+  logger.info('WebSocket server initialized successfully (Session Event Architecture)');
 
-  return io;
+  return { io, clientHub };
 }

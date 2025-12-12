@@ -143,13 +143,14 @@ export async function createAgentRuntime(
 
     /**
      * Create a WebSocket server attached to an HTTP server
+     * Also creates and injects SocketIOClientHub into SessionManager
      * @param httpServer - HTTP server instance (from @hono/node-server or similar)
      * @returns Socket.IO server instance
      */
     createWebSocketServer(httpServer: Server) {
-      const wsServer = createWSServer(httpServer, sessionManager, eventBus);
-      logger.info('WebSocket server created');
-      return wsServer;
+      const { io, clientHub } = createWSServer(httpServer, sessionManager, eventBus);
+      logger.info('WebSocket server created with SocketIOClientHub');
+      return io;
     },
 
     async start(): Promise<void> {

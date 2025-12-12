@@ -1,16 +1,18 @@
 /**
- * AgentSession - Individual session management
+ * AgentSession - Session coordinator
+ *
+ * This class coordinates the session components:
+ * - SessionState: manages session data
+ * - SessionEventBus: per-session event emitter
+ * - ClientBroadcastListener: broadcasts events to connected clients
+ * - PersistenceListener: syncs state to storage
+ * - ExecutionEnvironment: runs agent queries
  *
  * Responsibilities:
- * - Load session state from persistence on initialization
- * - Parse transcripts using static parser (no sandbox needed)
- * - Lazily create execution environment only when sendMessage is called
- * - Execute agent queries in execution environment
- * - Track main transcript + subagent transcripts
- * - Monitor workspace file changes
- * - Sync state to persistence periodically
- * - Emit domain events to EventBus
- * - Notify SessionManager when sandbox terminates
+ * - Coordinate session lifecycle
+ * - Wire up event listeners
+ * - Manage ExecutionEnvironment lifecycle
+ * - Handle periodic sync and health monitoring
  */
 
 import { randomUUID } from 'crypto';
@@ -23,16 +25,18 @@ import type {
   WorkspaceFile,
   AgentArchitecture,
   SessionRuntimeState,
-  ExecutionEnvironmentStatus,
-  ExecutionEnvironmentError,
   CreateSessionArgs,
   AgentArchitectureSessionOptions,
 } from '@ai-systems/shared-types';
 import type { ConversationBlock } from '@ai-systems/shared-types';
-import type { EventBus } from './event-bus.js';
 import type { RuntimeConfig } from '../types/runtime.js';
-import { ExecutionEnvironment, WorkspaceFileEvent, TranscriptChangeEvent } from './execution-environment.js';
+import type { ClientHub } from './session/client-hub.js';
+import { ExecutionEnvironment } from './execution-environment.js';
 import { parseTranscript } from '@hhopkins/agent-converters';
+import { SessionEventBus } from './session/session-event-bus.js';
+import { SessionState } from './session/session-state.js';
+import { PersistenceListener } from './session/persistence-listener.js';
+import { ClientBroadcastListener } from './session/client-broadcast-listener.js';
 
 /**
  * Generate a session ID in the appropriate format for the architecture
@@ -55,43 +59,26 @@ function generateSessionId(architecture: AgentArchitecture): string {
 export type OnExecutionEnvironmentTerminatedCallback = (sessionId: string) => void;
 
 /**
- * AgentSession class - manages individual session lifecycle
+ * AgentSession class - coordinates session components
  */
 export class AgentSession {
-  // Identifiers
+  // Core identity
   public readonly sessionId: string;
+
+  // Session components (new architecture)
+  private readonly state: SessionState;
+  private readonly eventBus: SessionEventBus;
+  private readonly persistenceListener: PersistenceListener;
+  private readonly clientBroadcastListener: ClientBroadcastListener;
 
   // Execution environment (lazy - created on first sendMessage)
   private executionEnvironment?: ExecutionEnvironment;
-  private executionEnvironmentId?: string;
-  private eeStatus: ExecutionEnvironmentStatus | null = null;
-  private statusMessage?: string;
-  private lastHealthCheck?: number;
-  private eeRestartCount: number = 0;
-  private lastError?: ExecutionEnvironmentError;
 
-  // Query execution state
-  private activeQueryStartedAt?: number;
-
-  // Session metadata
-  private createdAt?: number;
-  private lastActivity?: number;
-
-  // Session data
-  private blocks: ConversationBlock[];
-  private rawTranscript?: string;  // Combined transcript (main + subagents as JSON)
-  private subagents: { id: string; blocks: ConversationBlock[] }[];
-  private workspaceFiles: WorkspaceFile[];
-  private sessionOptions?: AgentArchitectureSessionOptions;
-
-  // Agent Details
-  private agentProfile: AgentProfile;
-  private architecture: AgentArchitecture;
-
-  // Services
-  private readonly eventBus: EventBus;
+  // External dependencies
+  private readonly agentProfile: AgentProfile;
   private readonly persistenceAdapter: PersistenceAdapter;
   private readonly executionConfig: RuntimeConfig['executionEnvironment'];
+  private readonly clientHub: ClientHub;
 
   // Callback for execution environment termination (set by SessionManager)
   private onEETerminated?: OnExecutionEnvironmentTerminatedCallback;
@@ -104,9 +91,9 @@ export class AgentSession {
     input: {
       sessionId: string
     } | CreateSessionArgs,
-    eventBus: EventBus,
     persistenceAdapter: PersistenceAdapter,
     executionConfig: RuntimeConfig['executionEnvironment'],
+    clientHub: ClientHub,
     onEETerminated?: OnExecutionEnvironmentTerminatedCallback,
   ): Promise<AgentSession> {
 
@@ -133,20 +120,36 @@ export class AgentSession {
         subagents = parsed.subagents;
       }
 
-      return new AgentSession({
-        eventBus,
-        persistenceAdapter,
-        executionConfig,
-        agentProfile,
-        onEETerminated,
-        architecture: sessionData.type,
+      // Create session event bus
+      const eventBus = new SessionEventBus(sessionData.sessionId);
+
+      // Create session state
+      const state = new SessionState({
         sessionId: sessionData.sessionId,
+        architecture: sessionData.type,
+        agentProfileId: agentProfile.id,
         blocks,
         subagents,
         workspaceFiles: sessionData.workspaceFiles,
         sessionOptions: sessionData.sessionOptions,
         createdAt: sessionData.createdAt,
         rawTranscript: sessionData.rawTranscript,
+      });
+
+      // Create listeners
+      const persistenceListener = new PersistenceListener(sessionData.sessionId, eventBus, persistenceAdapter);
+      const clientBroadcastListener = new ClientBroadcastListener(sessionData.sessionId, eventBus, clientHub);
+
+      return new AgentSession({
+        state,
+        eventBus,
+        persistenceListener,
+        clientBroadcastListener,
+        persistenceAdapter,
+        executionConfig,
+        agentProfile,
+        clientHub,
+        onEETerminated,
       });
     } else {
       // Create a new session
@@ -156,20 +159,35 @@ export class AgentSession {
         throw new Error(`Agent profile ${input.agentProfileRef} not found in persistence`);
       }
 
-      const session = new AgentSession({
-        eventBus,
-        persistenceAdapter,
-        executionConfig,
-        agentProfile,
-        onEETerminated,
-        architecture: input.architecture,
+      // Create session event bus
+      const eventBus = new SessionEventBus(newSessionId);
+
+      // Create session state
+      const state = new SessionState({
         sessionId: newSessionId,
+        architecture: input.architecture,
+        agentProfileId: agentProfile.id,
         blocks: [],
         subagents: [],
         workspaceFiles: [...(agentProfile.defaultWorkspaceFiles ?? []), ...(input.defaultWorkspaceFiles ?? [])],
         sessionOptions: input.sessionOptions,
         createdAt: Date.now(),
-        rawTranscript: undefined,
+      });
+
+      // Create listeners
+      const persistenceListener = new PersistenceListener(newSessionId, eventBus, persistenceAdapter);
+      const clientBroadcastListener = new ClientBroadcastListener(newSessionId, eventBus, clientHub);
+
+      const session = new AgentSession({
+        state,
+        eventBus,
+        persistenceListener,
+        clientBroadcastListener,
+        persistenceAdapter,
+        executionConfig,
+        agentProfile,
+        clientHub,
+        onEETerminated,
       });
 
       // create a new session record in persistence
@@ -190,39 +208,75 @@ export class AgentSession {
 
   private constructor(
     props: {
-      eventBus: EventBus;
+      state: SessionState;
+      eventBus: SessionEventBus;
+      persistenceListener: PersistenceListener;
+      clientBroadcastListener: ClientBroadcastListener;
       persistenceAdapter: PersistenceAdapter;
       executionConfig: RuntimeConfig['executionEnvironment'];
       agentProfile: AgentProfile;
+      clientHub: ClientHub;
       onEETerminated?: OnExecutionEnvironmentTerminatedCallback;
-
-      // Session Data
-      architecture: AgentArchitecture;
-      sessionId: string;
-      blocks: ConversationBlock[];
-      subagents: { id: string; blocks: ConversationBlock[] }[];
-      workspaceFiles: WorkspaceFile[];
-      sessionOptions?: AgentArchitectureSessionOptions;
-      createdAt?: number;
-      rawTranscript?: string;
     }
   ) {
+    this.state = props.state;
     this.eventBus = props.eventBus;
+    this.persistenceListener = props.persistenceListener;
+    this.clientBroadcastListener = props.clientBroadcastListener;
     this.persistenceAdapter = props.persistenceAdapter;
     this.executionConfig = props.executionConfig;
     this.agentProfile = props.agentProfile;
+    this.clientHub = props.clientHub;
     this.onEETerminated = props.onEETerminated;
 
-    this.architecture = props.architecture;
-    this.sessionId = props.sessionId;
-    this.blocks = props.blocks;
-    this.subagents = props.subagents;
-    this.workspaceFiles = props.workspaceFiles;
-    this.sessionOptions = props.sessionOptions;
-    this.createdAt = props.createdAt;
-    this.rawTranscript = props.rawTranscript;
+    this.sessionId = props.state.sessionId;
 
-    this.lastActivity = Date.now();
+    // Set up internal event listeners for state updates
+    this.setupEventListeners();
+  }
+
+  /**
+   * Set up internal event listeners for state management
+   */
+  private setupEventListeners(): void {
+    // Update state when blocks are received
+    this.eventBus.on('block:complete', (data) => {
+      // Blocks are updated from transcript changes, not individual block events
+      // This is kept for potential future use
+    });
+
+    // Update state when transcript changes
+    this.eventBus.on('transcript:changed', (data) => {
+      this.state.setRawTranscript(data.content);
+      const parsed = parseTranscript(this.state.architecture, data.content);
+      this.state.setBlocks(parsed.blocks);
+      this.state.setSubagents(parsed.subagents.map(sub => ({
+        id: sub.id,
+        blocks: sub.blocks,
+      })));
+    });
+
+    // Update state when files change
+    this.eventBus.on('file:created', (data) => {
+      this.state.updateWorkspaceFile(data.file);
+    });
+
+    this.eventBus.on('file:modified', (data) => {
+      this.state.updateWorkspaceFile(data.file);
+    });
+
+    this.eventBus.on('file:deleted', (data) => {
+      this.state.removeWorkspaceFile(data.path);
+    });
+
+    // Handle errors
+    this.eventBus.on('error', (data) => {
+      this.state.setLastError({
+        message: data.message,
+        code: data.code,
+        timestamp: Date.now(),
+      });
+    });
   }
 
   /**
@@ -237,42 +291,48 @@ export class AgentSession {
     // This ensures clients get immediate feedback before the environment creation process
 
     // Step 1: Create the execution environment
-    this.emitRuntimeStatus("Creating execution environment...");
+    this.state.setStatusMessage("Creating execution environment...");
+    this.emitRuntimeStatus();
     this.executionEnvironment = await ExecutionEnvironment.create({
       sessionId: this.sessionId,
-      architecture: this.architecture,
+      architecture: this.state.architecture,
       agentProfile: this.agentProfile,
       environmentOptions: this.executionConfig,
+      eventBus: this.eventBus,
     });
-    this.executionEnvironmentId = this.executionEnvironment.getId();
+    this.state.setEEId(this.executionEnvironment.getId());
 
     // Step 2: Prepare the session
-    this.emitRuntimeStatus("Setting up session files...");
+    this.state.setStatusMessage("Setting up session files...");
+    this.emitRuntimeStatus();
     await this.executionEnvironment.prepareSession({
       sessionId: this.sessionId,
       agentProfile: this.agentProfile,
-      workspaceFiles: this.workspaceFiles,
-      sessionTranscript: this.rawTranscript,
-      sessionOptions: this.sessionOptions,
+      workspaceFiles: this.state.workspaceFiles,
+      sessionTranscript: this.state.rawTranscript,
+      sessionOptions: this.state.sessionOptions,
     });
 
     // Step 3: Start watchers
-    this.emitRuntimeStatus("Initializing file watchers...");
+    this.state.setStatusMessage("Initializing file watchers...");
+    this.emitRuntimeStatus();
     await this.startWatchers();
 
     // Step 4: Start monitoring and sync
     this.startPeriodicSync();
     this.startHealthMonitoring();
 
-    this.eeStatus = 'ready';
-    this.lastHealthCheck = Date.now();
-    this.emitRuntimeStatus("Ready");
+    this.state.setEEStatus('ready');
+    this.state.setLastHealthCheck(Date.now());
+    this.state.setStatusMessage("Ready");
+    this.emitRuntimeStatus();
 
-    logger.info({ sessionId: this.sessionId, sandboxId: this.executionEnvironmentId }, 'Execution environment activated');
+    logger.info({ sessionId: this.sessionId, sandboxId: this.state.eeId }, 'Execution environment activated');
   }
 
   /**
    * Start file watchers for workspace and transcript directories
+   * With the new architecture, watchers emit directly to the event bus
    */
   private async startWatchers(): Promise<void> {
     if (!this.executionEnvironment) {
@@ -281,118 +341,39 @@ export class AgentSession {
 
     logger.info({ sessionId: this.sessionId }, 'Starting file watchers...');
 
-    // Start both watchers using execution environment methods and wait for them to be ready
+    // Start both watchers - they emit directly to the event bus now
     await Promise.all([
-      this.executionEnvironment.watchWorkspaceFiles((event) => {
-        this.handleWorkspaceFileChange(event);
-      }),
-      this.executionEnvironment.watchSessionTranscriptChanges((event) => {
-        this.handleTranscriptChange(event);
-      }),
+      this.executionEnvironment.watchWorkspaceFiles(),
+      this.executionEnvironment.watchSessionTranscriptChanges(),
     ]);
 
     logger.info({ sessionId: this.sessionId }, 'File watchers ready');
   }
 
   /**
-   * Handle workspace file change events from execution environment
+   * Emit the current runtime status to event bus
    */
-  private handleWorkspaceFileChange(event: WorkspaceFileEvent): void {
-    // Skip files with no content (unlink events or binary/large files)
-    if (event.content === undefined) {
-      logger.debug({ sessionId: this.sessionId, path: event.path, type: event.type }, 'Skipping file with no content');
-      return;
-    }
-
-    logger.debug({
-      sessionId: this.sessionId,
-      path: event.path,
-      type: event.type,
-      contentLength: event.content.length
-    }, 'Workspace file changed');
-
-    const file: WorkspaceFile = { path: event.path, content: event.content };
-
-    // Direct state update
-    const existingIndex = this.workspaceFiles.findIndex(f => f.path === file.path);
-    if (existingIndex >= 0) {
-      this.workspaceFiles[existingIndex] = file;
-    } else {
-      this.workspaceFiles.push(file);
-    }
-
-    // Persist immediately (fire and forget, log errors)
-    this.persistenceAdapter.saveWorkspaceFile(this.sessionId, file)
-      .then(() => logger.debug({ sessionId: this.sessionId, path: file.path }, 'Persisted workspace file'))
-      .catch(error => logger.error({ error, sessionId: this.sessionId, path: file.path }, 'Failed to persist workspace file'));
-
-    // Emit for WebSocket clients
-    this.eventBus.emit('session:file:modified', {
-      sessionId: this.sessionId,
-      file,
+  private emitRuntimeStatus(): void {
+    this.eventBus.emit('status:changed', {
+      runtime: this.state.getRuntimeState(),
     });
   }
 
   /**
-   * Handle transcript change events from execution environment.
-   * Receives the full combined transcript (main + subagents) on any change.
-   */
-  private handleTranscriptChange(event: TranscriptChangeEvent): void {
-    if (!this.executionEnvironment) return;
-
-    logger.debug({
-      sessionId: this.sessionId,
-      contentLength: event.content.length,
-    }, 'Transcript changed');
-
-    // Store the combined transcript
-    this.rawTranscript = event.content;
-
-    // Parse into blocks
-    const parsed = parseTranscript(this.architecture, event.content);
-    this.blocks = parsed.blocks;
-    this.subagents = parsed.subagents.map(sub => ({
-      id: sub.id,
-      blocks: sub.blocks,
-    }));
-
-    // Persist immediately
-    this.persistenceAdapter.saveTranscript(this.sessionId, event.content)
-      .then(() => logger.debug({ sessionId: this.sessionId }, 'Persisted transcript'))
-      .catch(error => logger.error({ error, sessionId: this.sessionId }, 'Failed to persist transcript'));
-
-    // Emit for WebSocket clients
-    this.eventBus.emit('session:transcript:changed', {
-      sessionId: this.sessionId,
-      content: event.content,
-    });
-  }
-
-  /**
-   * Emit the current runtime status
-   * @param message Optional human-readable status message for UI display
-   */
-  private emitRuntimeStatus(message?: string): void {
-    this.statusMessage = message;
-    this.eventBus.emit('session:status', {
-      sessionId: this.sessionId,
-      runtime: this.getRuntimeState(),
-    });
-  }
-
-  /**
-   * Send message to agent and stream responses
+   * Send message to agent
+   * Events are emitted directly by ExecutionEnvironment to the event bus
    */
   async sendMessage(message: string): Promise<void> {
     // Emit 'starting' status immediately when execution environment doesn't exist
     // This provides feedback to clients before environment creation (which can take a while)
     if (!this.executionEnvironment) {
-      this.eeStatus = 'starting';
-      this.emitRuntimeStatus("Preparing...");
+      this.state.setEEStatus('starting');
+      this.state.setStatusMessage("Preparing...");
+      this.emitRuntimeStatus();
     }
 
     // Track query start
-    this.activeQueryStartedAt = Date.now();
+    this.state.setActiveQueryStartedAt(Date.now());
     this.emitRuntimeStatus();
 
     try {
@@ -400,7 +381,7 @@ export class AgentSession {
       await this.activateExecutionEnvironment();
 
       // Update lastActivity timestamp
-      this.lastActivity = Date.now();
+      this.state.setLastActivity(Date.now());
 
       // Emit user message block before agent processing
       const userBlockId = randomUUID();
@@ -411,131 +392,57 @@ export class AgentSession {
         timestamp: new Date().toISOString(),
       };
 
-      this.eventBus.emit('session:block:start', {
-        sessionId: this.sessionId,
+      this.eventBus.emit('block:start', {
         conversationId: 'main',
         block: userBlock,
       });
-      this.eventBus.emit('session:block:complete', {
-        sessionId: this.sessionId,
+      this.eventBus.emit('block:complete', {
         conversationId: 'main',
         blockId: userBlockId,
         block: userBlock,
       });
+
       logger.info(
         {
           sessionId: this.sessionId,
-          architecture: this.architecture,
+          architecture: this.state.architecture,
           messageLength: message.length,
         },
         'Sending message to agent...'
       );
 
-      for await (const event of this.executionEnvironment!.executeQuery({ query: message, options: this.sessionOptions })) {
-        switch (event.type) {
-          case 'block_start':
-            this.eventBus.emit('session:block:start', {
-              sessionId: this.sessionId,
-              conversationId: event.conversationId,
-              block: event.block,
-            });
-            break;
-
-          case 'text_delta':
-            this.eventBus.emit('session:block:delta', {
-              sessionId: this.sessionId,
-              conversationId: event.conversationId,
-              blockId: event.blockId,
-              delta: event.delta,
-            });
-            break;
-
-          case 'block_update':
-            this.eventBus.emit('session:block:update', {
-              sessionId: this.sessionId,
-              conversationId: event.conversationId,
-              blockId: event.blockId,
-              updates: event.updates,
-            });
-            break;
-
-          case 'block_complete':
-            this.eventBus.emit('session:block:complete', {
-              sessionId: this.sessionId,
-              conversationId: event.conversationId,
-              blockId: event.blockId,
-              block: event.block,
-            });
-            break;
-
-          case 'metadata_update':
-            this.eventBus.emit('session:metadata:update', {
-              sessionId: this.sessionId,
-              conversationId: event.conversationId,
-              metadata: event.metadata,
-            });
-            break;
-
-          case 'log':
-            this.eventBus.emit('session:log', {
-              sessionId: this.sessionId,
-              level: event.level,
-              message: event.message,
-              data: event.data,
-            });
-            break;
-
-          case 'error':
-            this.lastError = {
-              message: event.message,
-              code: event.code,
-              timestamp: Date.now(),
-            };
-            this.eventBus.emit('session:error', {
-              sessionId: this.sessionId,
-              error: {
-                message: event.message,
-                code: event.code,
-              },
-            });
-            break;
-
-          case 'status':
-            this.eeStatus = event.status;
-            this.statusMessage = event.message;
-            this.emitRuntimeStatus();
-            break;
-        }
-      }
+      // Execute query - events are emitted directly to the event bus by ExecutionEnvironment
+      await this.executionEnvironment!.executeQuery({
+        query: message,
+        options: this.state.sessionOptions
+      });
 
       // Update lastActivity after message processing completes
-      this.lastActivity = Date.now();
+      this.state.setLastActivity(Date.now());
     } catch (error) {
-      logger.error({ error, sessionId: this.sessionId, architecture: this.architecture }, 'Failed to send message');
+      logger.error({ error, sessionId: this.sessionId, architecture: this.state.architecture }, 'Failed to send message');
 
       // Update execution environment state to error
-      this.eeStatus = 'error';
+      this.state.setEEStatus('error');
       const errorMessage = error instanceof Error ? error.message : String(error);
-      this.lastError = {
+      this.state.setLastError({
         message: errorMessage,
         timestamp: Date.now(),
-      };
+      });
+      this.state.setStatusMessage(errorMessage);
 
-      // Emit status update first so UI reflects the error state
-      this.emitRuntimeStatus(errorMessage);
+      // Emit status update so UI reflects the error state
+      this.emitRuntimeStatus();
 
-      // Then emit error event for error block display
-      this.eventBus.emit('session:error', {
-        sessionId: this.sessionId,
-        error: {
-          message: errorMessage,
-        },
+      // Emit error event for error block display
+      this.eventBus.emit('error', {
+        message: errorMessage,
       });
 
       throw error;
     } finally {
       // Clear query state
-      this.activeQueryStartedAt = undefined;
+      this.state.setActiveQueryStartedAt(undefined);
       this.emitRuntimeStatus();
     }
   }
@@ -552,38 +459,26 @@ export class AgentSession {
     // Read workspace files from execution environment
     const workspaceFiles = await this.executionEnvironment.getWorkspaceFiles();
 
-    this.workspaceFiles = workspaceFiles;
-    this.rawTranscript = transcript ?? undefined;
+    this.state.setWorkspaceFiles(workspaceFiles);
+    this.state.setRawTranscript(transcript ?? undefined);
 
     // Parse blocks
     if (transcript) {
-      const parsed = parseTranscript(this.architecture, transcript);
-      this.blocks = parsed.blocks;
-      this.subagents = parsed.subagents.map(sub => ({
+      const parsed = parseTranscript(this.state.architecture, transcript);
+      this.state.setBlocks(parsed.blocks);
+      this.state.setSubagents(parsed.subagents.map(sub => ({
         id: sub.id,
         blocks: sub.blocks,
-      }));
+      })));
     } else {
-      this.blocks = [];
-      this.subagents = [];
+      this.state.setBlocks([]);
+      this.state.setSubagents([]);
     }
   }
 
   private async persistFullSessionState(): Promise<void> {
-    // Save the combined transcript
-    await this.persistenceAdapter.saveTranscript(this.sessionId, this.rawTranscript ?? "");
-
-    // Save all the workspace files
-    await Promise.all(
-      this.workspaceFiles.map(file =>
-        this.persistenceAdapter.saveWorkspaceFile(this.sessionId, file)
-      )
-    );
-
-    // Update lastActivity
-    await this.persistenceAdapter.updateSessionRecord(this.sessionId, {
-      lastActivity: this.lastActivity,
-    });
+    // Use PersistenceListener for full sync
+    await this.persistenceListener.syncFullState(this.state);
   }
 
   async syncSessionStateToStorage(): Promise<void> {
@@ -609,29 +504,27 @@ export class AgentSession {
       await this.executionEnvironment.cleanup();
 
       this.executionEnvironment = undefined;
-      this.executionEnvironmentId = undefined;
-      this.eeStatus = 'terminated';
-      this.statusMessage = 'Execution environment terminated';
-      this.emitRuntimeStatus(this.statusMessage);
+      this.state.setEEId(undefined);
+      this.state.setEEStatus('terminated');
+      this.state.setStatusMessage('Execution environment terminated');
+      this.emitRuntimeStatus();
 
       logger.info({ sessionId: this.sessionId }, 'Execution environment terminated successfully');
     } catch (error) {
       logger.error({ error, sessionId: this.sessionId }, 'Failed to terminate execution environment');
-      this.eeStatus = 'error';
+      this.state.setEEStatus('error');
       const errorMessage = error instanceof Error ? error.message : String(error);
-      this.lastError = { message: errorMessage, timestamp: Date.now() };
-      this.emitRuntimeStatus(errorMessage);
+      this.state.setLastError({ message: errorMessage, timestamp: Date.now() });
+      this.state.setStatusMessage(errorMessage);
+      this.emitRuntimeStatus();
       throw error;
     }
   }
 
   async updateSessionOptions(sessionOptions: AgentArchitectureSessionOptions): Promise<void> {
-    this.sessionOptions = sessionOptions;
-    await this.persistenceAdapter.updateSessionRecord(this.sessionId, {
-      sessionOptions: sessionOptions,
-    });
-    this.eventBus.emit('session:options:update', {
-      sessionId: this.sessionId,
+    this.state.setSessionOptions(sessionOptions);
+    // Emit to event bus - PersistenceListener and ClientBroadcastListener will handle it
+    this.eventBus.emit('options:update', {
       options: sessionOptions,
     });
   }
@@ -650,6 +543,11 @@ export class AgentSession {
         await this.executionEnvironment.cleanup();
         this.executionEnvironment = undefined;
       }
+
+      // Cleanup listeners
+      this.persistenceListener.destroy();
+      this.clientBroadcastListener.destroy();
+      this.eventBus.destroy();
 
       logger.info({ sessionId: this.sessionId }, 'Session destroyed');
     } catch (error) {
@@ -673,55 +571,21 @@ export class AgentSession {
    * Get full session state for clients
    */
   getState(): RuntimeSessionData {
-    return {
-      sessionId: this.sessionId,
-      agentProfileReference: this.agentProfile.id,
-      lastActivity: this.lastActivity,
-      createdAt: this.createdAt,
-      type: this.architecture,
-      sessionOptions: this.sessionOptions,
-      runtime: this.getRuntimeState(),
-      blocks: this.blocks,
-      workspaceFiles: this.workspaceFiles,
-      subagents: this.subagents.map(s => ({
-        id: s.id,
-        blocks: s.blocks,
-      })),
-    };
+    return this.state.toRuntimeSessionData();
   }
 
   /**
    * Get minimal session data for persistence
    */
   getPersistedListData(): PersistedSessionListData {
-    return {
-      sessionId: this.sessionId,
-      type: this.architecture,
-      agentProfileReference: this.agentProfile.id,
-      sessionOptions: this.sessionOptions,
-      lastActivity: this.lastActivity,
-      createdAt: this.createdAt,
-    };
+    return this.state.toPersistedListData();
   }
 
   /**
    * Get runtime state (isLoaded, sandbox info)
    */
   getRuntimeState(): SessionRuntimeState {
-    return {
-      isLoaded: true, // If this method is called, session is loaded
-      executionEnvironment: this.eeStatus ? {
-        id: this.executionEnvironmentId,
-        status: this.eeStatus,
-        statusMessage: this.statusMessage,
-        restartCount: this.eeRestartCount,
-        lastHealthCheck: this.lastHealthCheck,
-        lastError: this.lastError,
-      } : null,
-      activeQuery: this.activeQueryStartedAt ? {
-        startedAt: this.activeQueryStartedAt,
-      } : undefined,
-    };
+    return this.state.getRuntimeState();
   }
 
   private startPeriodicSync(): void {
@@ -746,12 +610,12 @@ export class AgentSession {
       if (!this.executionEnvironment) return;
 
       const isHealthy = await this.executionEnvironment.isHealthy();
-      this.lastHealthCheck = Date.now();
+      this.state.setLastHealthCheck(Date.now());
 
       if (!isHealthy) {
         // Execution environment has terminated
         logger.warn({ sessionId: this.sessionId }, 'Execution environment terminated');
-        this.eeStatus = 'terminated';
+        this.state.setEEStatus('terminated');
         this.emitRuntimeStatus();
 
         // Stop monitoring and watchers
@@ -763,8 +627,8 @@ export class AgentSession {
         }
       } else {
         // Execution environment is healthy
-        if (this.eeStatus !== 'ready') {
-          this.eeStatus = 'ready';
+        if (this.state.eeStatus !== 'ready') {
+          this.state.setEEStatus('ready');
           this.emitRuntimeStatus();
         }
       }
