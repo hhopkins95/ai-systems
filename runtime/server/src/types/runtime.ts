@@ -2,7 +2,7 @@
  * Runtime configuration types
  */
 
-import { EXECUTION_ENVIRONMENTS, LocalExecutionEnvironmentOptions, ModalExecutionEnvironmentOptions } from './execution-environment';
+import { EXECUTION_ENVIRONMENTS, LocalExecutionEnvironmentOptions, ModalExecutionEnvironmentOptions, DockerExecutionEnvironmentOptions } from './execution-environment';
 import type {
   PersistenceAdapter,
 } from './persistence-adapter';
@@ -48,6 +48,7 @@ export interface RuntimeConfig {
     type: EXECUTION_ENVIRONMENTS;
     modal?: ModalExecutionEnvironmentOptions;
     local?: LocalExecutionEnvironmentOptions;
+    docker?: DockerExecutionEnvironmentOptions;
   }
 
 
