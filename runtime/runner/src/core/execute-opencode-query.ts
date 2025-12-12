@@ -11,7 +11,7 @@ import { exec } from 'child_process';
 import { promisify } from 'util';
 import { createStreamEventParser } from '@hhopkins/agent-converters/opencode';
 import type { StreamEvent } from '@ai-systems/shared-types';
-import { getOpencodeConnection, closeOpencodeServer } from '../clients/opencode.js';
+import { getOpencodeConnection } from '../clients/opencode.js';
 import { emptyAsyncIterable } from '../clients/channel.js';
 import { createLogEvent, createErrorEvent, errorEventFromError } from './execution-events.js';
 import type { ExecuteQueryInput, UserMessage } from './types.js';
@@ -178,9 +178,10 @@ export async function* executeOpencodeQuery(
   } catch (error) {
     yield errorEventFromError(error, 'QUERY_EXECUTION_ERROR');
     throw error;
-  } finally {
-    await closeOpencodeServer();
   }
+  // Note: We don't close the server here anymore to allow sharing
+  // between multiple local sessions. The server will be cleaned up
+  // when the process exits.
 
   // Note: streaming input mode with messages will be implemented
   // when needed. For now, we use single-prompt mode.
