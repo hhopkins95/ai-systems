@@ -8,7 +8,7 @@
 
 import type { createOpencode as CreateOpencodeType } from '@opencode-ai/sdk';
 import { writeStreamEvent } from '../cli/shared/output.js';
-import { createLogEvent } from '../core/execution-events.js';
+import { createLogEvent } from '../helpers/create-stream-events.js';
 
 type OpencodeResult = Awaited<ReturnType<typeof CreateOpencodeType>>;
 type OpencodeClient = OpencodeResult['client'];

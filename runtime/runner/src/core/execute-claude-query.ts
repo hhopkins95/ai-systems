@@ -11,7 +11,7 @@ import { parseStreamEvent } from '@hhopkins/agent-converters/claude-sdk';
 import type { StreamEvent } from '@ai-systems/shared-types';
 import { findClaudeExecutable } from '../clients/claude.js';
 import { emptyAsyncIterable } from '../clients/channel.js';
-import { createLogEvent, createErrorEvent, errorEventFromError } from './execution-events.js';
+import { createLogEvent, createErrorEvent, errorEventFromError } from '../helpers/create-stream-events.js';
 import type { ExecuteQueryInput, UserMessage } from './types.js';
 
 /**

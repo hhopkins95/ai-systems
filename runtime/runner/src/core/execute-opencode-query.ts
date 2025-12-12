@@ -13,7 +13,7 @@ import { createStreamEventParser } from '@hhopkins/agent-converters/opencode';
 import type { StreamEvent } from '@ai-systems/shared-types';
 import { getOpencodeConnection } from '../clients/opencode.js';
 import { emptyAsyncIterable } from '../clients/channel.js';
-import { createLogEvent, createErrorEvent, errorEventFromError } from './execution-events.js';
+import { createLogEvent, createErrorEvent, errorEventFromError } from '../helpers/create-stream-events.js';
 import type { ExecuteQueryInput, UserMessage } from './types.js';
 
 const execAsync = promisify(exec);
