@@ -96,14 +96,44 @@ interface ToolResultBlock {
 
 ### StreamEvent
 
+Stream events are divided into two categories:
+
+**Conversation-level events** (for building the transcript):
 ```typescript
-type StreamEvent =
-  | { type: 'text_delta'; delta: string }
-  | { type: 'tool_use_start'; toolName: string; toolId: string }
-  | { type: 'tool_use_delta'; delta: string }
-  | { type: 'tool_result'; result: unknown }
-  | { type: 'message_complete'; content: string }
-  | { type: 'error'; message: string };
+type ConversationStreamEvent =
+  | BlockStartEvent      // New block begins
+  | TextDeltaEvent       // Incremental text content
+  | BlockUpdateEvent     // Block metadata changes
+  | BlockCompleteEvent   // Block finalized
+  | MetadataUpdateEvent; // Session metadata (tokens, cost)
+```
+
+**Execution-level events** (operational/diagnostic):
+```typescript
+type ExecutionStreamEvent =
+  | StatusEvent   // Execution environment state transitions
+  | LogEvent      // Informational messages with level
+  | ErrorEvent;   // Failures and errors
+
+interface StatusEvent {
+  type: 'status';
+  status: ExecutionEnvironmentStatus;
+  message?: string;
+}
+
+interface LogEvent {
+  type: 'log';
+  level?: 'debug' | 'info' | 'warn' | 'error';
+  message: string;
+  data?: Record<string, unknown>;
+}
+
+interface ErrorEvent {
+  type: 'error';
+  message: string;
+  code?: string;
+  data?: Record<string, unknown>;
+}
 ```
 
 ### Entity Types
@@ -154,12 +184,35 @@ interface SessionListItem {
   runtime: SessionRuntimeState;
 }
 
+type ExecutionEnvironmentStatus =
+  | 'inactive'     // No environment exists
+  | 'starting'     // Being created/initialized
+  | 'ready'        // Healthy and running
+  | 'error'        // Encountered an error
+  | 'terminated';  // Shut down
+
 interface SessionRuntimeState {
+  /** Whether the session is loaded in memory on the server */
   isLoaded: boolean;
-  sandbox: {
-    id: string;
-    status: 'starting' | 'running' | 'stopped';
+
+  /** Execution environment state (null if no environment exists) */
+  executionEnvironment: {
+    id?: string;
+    status: ExecutionEnvironmentStatus;
+    statusMessage?: string;
+    lastHealthCheck?: number;
+    restartCount?: number;
+    lastError?: {
+      message: string;
+      code?: string;
+      timestamp: number;
+    };
   } | null;
+
+  /** Active query state (undefined if no query running) */
+  activeQuery?: {
+    startedAt: number;
+  };
 }
 ```
 

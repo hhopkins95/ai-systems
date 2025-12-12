@@ -1,7 +1,8 @@
 ---
 title: Refactor Session Runtime State & Execution Events
 created: 2025-12-11
-status: active
+completed: 2025-12-11
+status: completed
 ---
 
 # Refactor Session Runtime State & Execution Events
@@ -43,7 +44,7 @@ Currently:
 - [x] `session:log` event flows to WebSocket clients
 - [x] All references to 'sandbox' renamed in agent-session.ts
 - [x] Type-check passes across all packages
-- [ ] Documentation updated
+- [x] Documentation updated
 
 ## Design Decisions
 
@@ -106,9 +107,22 @@ Runner (emits LogEvent/ErrorEvent/StatusEvent)
 
 ## Current Status
 
-**Implementation complete** (2025-12-11). All code changes merged to `update-runner` branch. Full build passes.
+**COMPLETED** (2025-12-11). All code changes merged to `update-runner` branch. Full build passes.
 
-Remaining: Update package documentation to reflect new types.
+### Additional Work Done
+
+Added **ExecutionMonitor** component to example-frontend for visualizing runtime state and logs:
+
+- New `useLogs` hook in agent-client for accessing session logs
+- `ExecutionMonitor.tsx` component with three tabs:
+  - **Status**: Full execution environment details (status, id, health check, restart count, errors, active query timer)
+  - **Logs**: Live log stream with level filtering (debug/info/warn/error), auto-scroll, clear
+  - **State**: Real-time JSON view of `SessionRuntimeState`
+
+### Documentation Updated
+
+- `docs/packages/shared-types.md` - Updated StreamEvent and SessionRuntimeState types
+- `docs/packages/agent-client.md` - Added useLogs and useEvents hooks
 
 ## Quick Links
 

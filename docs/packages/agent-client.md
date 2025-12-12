@@ -28,11 +28,13 @@ flowchart LR
 
 | Component | File | Purpose |
 |-----------|------|---------|
-| AgentServiceProvider | `src/provider.tsx` | Context provider |
+| AgentServiceProvider | `src/context/AgentServiceProvider.tsx` | Context provider |
 | useAgentSession | `src/hooks/useAgentSession.ts` | Session lifecycle |
 | useMessages | `src/hooks/useMessages.ts` | Conversation blocks |
 | useWorkspaceFiles | `src/hooks/useWorkspaceFiles.ts` | File tracking |
 | useSubagents | `src/hooks/useSubagents.ts` | Subagent support |
+| useLogs | `src/hooks/useLogs.ts` | Session log streaming |
+| useEvents | `src/hooks/useEvents.ts` | Debug event log |
 
 ## Usage
 
@@ -64,8 +66,8 @@ function ChatUI() {
 
 ```typescript
 interface UseAgentSessionReturn {
-  session: Session | null;
-  status: SessionStatus;
+  session: SessionState | null;
+  runtime: SessionRuntimeState | null;
   createSession: (profileRef: string, arch: string) => Promise<string>;
   loadSession: (id: string) => Promise<void>;
   destroySession: () => Promise<void>;
@@ -77,7 +79,69 @@ interface UseMessagesReturn {
   sendMessage: (content: string) => Promise<void>;
 }
 
-type SessionStatus = 'pending' | 'active' | 'inactive' | 'completed' | 'failed';
+interface UseLogsReturn {
+  logs: SessionLogEntry[];
+  clearLogs: () => void;
+  getFilteredLogs: (levels: LogLevel[]) => SessionLogEntry[];
+}
+
+interface SessionLogEntry {
+  id: string;
+  timestamp: number;
+  sessionId: string;
+  level: 'debug' | 'info' | 'warn' | 'error';
+  message: string;
+  data?: Record<string, unknown>;
+}
+
+type LogLevel = 'debug' | 'info' | 'warn' | 'error';
+```
+
+## Hooks
+
+### useLogs
+
+Access session logs streamed from the execution environment.
+
+```tsx
+function LogPanel({ sessionId }: { sessionId: string }) {
+  const { logs, clearLogs, getFilteredLogs } = useLogs(sessionId);
+
+  // Show only warnings and errors
+  const importantLogs = getFilteredLogs(['warn', 'error']);
+
+  return (
+    <div>
+      <button onClick={clearLogs}>Clear</button>
+      {importantLogs.map(log => (
+        <div key={log.id}>
+          [{log.level}] {log.message}
+        </div>
+      ))}
+    </div>
+  );
+}
+```
+
+### useEvents
+
+Access raw WebSocket events for debugging.
+
+```tsx
+function DebugPanel() {
+  const { events, clearEvents } = useEvents();
+
+  return (
+    <div>
+      <button onClick={clearEvents}>Clear</button>
+      {events.map(event => (
+        <div key={event.id}>
+          [{event.eventName}] {JSON.stringify(event.payload)}
+        </div>
+      ))}
+    </div>
+  );
+}
 ```
 
 ## How It Connects
