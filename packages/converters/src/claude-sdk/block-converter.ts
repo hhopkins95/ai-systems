@@ -14,7 +14,7 @@ import type {
   StreamEvent,
   LogEvent,
 } from '@ai-systems/shared-types';
-import { generateId, noopLogger, type Logger } from '../utils.js';
+import { generateId, noopLogger } from '../utils.js';
 import type { ConvertOptions } from '../types.js';
 
 /**
@@ -79,33 +79,44 @@ export function parseStreamEvent(
     return streamEvent ? [streamEvent] : [];
   }
 
-  // Handle result messages (final metadata)
-  if (event.type === 'result' && event.subtype === 'success') {
-    const metadataEvent: StreamEvent = {
-      type: 'metadata_update',
-      conversationId,
-      metadata: {
-        usage: {
-          inputTokens: event.usage.input_tokens,
-          outputTokens: event.usage.output_tokens,
-          cacheReadTokens: event.usage.cache_read_input_tokens,
-          cacheWriteTokens: event.usage.cache_creation_input_tokens,
-          totalTokens: event.usage.input_tokens + event.usage.output_tokens,
-        },
-        costUSD: event.total_cost_usd,
+  // Handle result messages (final metadata + log)
+  if (event.type === 'result') {
+    const isSuccess = event.subtype === 'success';
+
+    // Emit result as LogEvent instead of block
+    const logEvent: LogEvent = {
+      type: 'log',
+      level: isSuccess ? 'info' : 'error',
+      message: isSuccess
+        ? `Session completed (${event.num_turns} turns, $${event.total_cost_usd.toFixed(4)})`
+        : `Session ended: ${event.subtype}`,
+      data: {
+        subtype: event.subtype,
+        duration_ms: event.duration_ms,
+        num_turns: event.num_turns,
+        total_cost_usd: event.total_cost_usd,
       },
     };
 
-    // Also emit result as a system block
-    const blocks = sdkMessageToBlocks(event, options);
-    const blockEvents: StreamEvent[] = blocks.map((block) => ({
-      type: 'block_complete' as const,
-      blockId: block.id,
-      block,
-      conversationId,
-    }));
+    if (isSuccess) {
+      const metadataEvent: StreamEvent = {
+        type: 'metadata_update',
+        conversationId,
+        metadata: {
+          usage: {
+            inputTokens: event.usage.input_tokens,
+            outputTokens: event.usage.output_tokens,
+            cacheReadTokens: event.usage.cache_read_input_tokens,
+            cacheWriteTokens: event.usage.cache_creation_input_tokens,
+            totalTokens: event.usage.input_tokens + event.usage.output_tokens,
+          },
+          costUSD: event.total_cost_usd,
+        },
+      };
+      return [metadataEvent, logEvent];
+    }
 
-    return [metadataEvent, ...blockEvents];
+    return [logEvent];
   }
 
   // Handle tool progress messages
@@ -188,17 +199,24 @@ export function sdkMessageToBlocks(
         return convertAssistantMessage(msg);
 
       case 'system':
-        return convertSystemMessage(msg, logger);
+        // System messages are operational logs, not conversation content
+        // During streaming: parseStreamEvent() converts them to LogEvent
+        // During transcript load: skip them (were already logged originally)
+        return [];
 
       case 'result':
-        return convertResultMessage(msg);
+        // Result messages are handled as LogEvent in parseStreamEvent
+        // During transcript load: skip them
+        return [];
 
       case 'tool_progress':
         // Tool progress is handled via block updates, not new blocks
         return [];
 
       case 'auth_status':
-        return convertAuthStatus(msg);
+        // Auth status is handled as LogEvent in parseStreamEvent
+        // During transcript load: skip them
+        return [];
 
       case 'stream_event':
         // Streaming events are handled by parseStreamEvent, not here
@@ -374,120 +392,6 @@ function convertAssistantMessage(msg: Extract<SDKMessage, { type: 'assistant' }>
   }
 
   return blocks;
-}
-
-/**
- * Convert SDK system message to SystemBlock or SubagentBlock
- */
-function convertSystemMessage(
-  msg: Extract<SDKMessage, { type: 'system' }>,
-  logger: Logger
-): ConversationBlock[] {
-  switch (msg.subtype) {
-    case 'init':
-      return [{
-        type: 'system',
-        id: msg.uuid,
-        timestamp: new Date().toISOString(),
-        subtype: 'session_start',
-        message: `Session initialized with ${msg.model}`,
-        metadata: {
-          model: msg.model,
-          tools: msg.tools,
-          permissionMode: msg.permissionMode,
-          agents: msg.agents,
-          mcp_servers: msg.mcp_servers,
-        },
-      }];
-
-    case 'status':
-      return [{
-        type: 'system',
-        id: msg.uuid,
-        timestamp: new Date().toISOString(),
-        subtype: 'status',
-        message: `Status: ${msg.status || 'ready'}`,
-        metadata: { status: msg.status },
-      }];
-
-    case 'hook_response':
-      return [{
-        type: 'system',
-        id: msg.uuid,
-        timestamp: new Date().toISOString(),
-        subtype: 'hook_response',
-        message: `Hook ${msg.hook_name} (${msg.hook_event})`,
-        metadata: {
-          hook_name: msg.hook_name,
-          hook_event: msg.hook_event,
-          stdout: msg.stdout,
-          stderr: msg.stderr,
-          exit_code: msg.exit_code,
-        },
-      }];
-
-    case 'compact_boundary':
-      return [{
-        type: 'system',
-        id: msg.uuid,
-        timestamp: new Date().toISOString(),
-        subtype: 'status',
-        message: `Compact boundary (${msg.compact_metadata.trigger})`,
-        metadata: msg.compact_metadata,
-      }];
-
-    default:
-      logger.warn({ subtype: (msg as any).subtype }, 'Unknown system message subtype');
-      return [];
-  }
-}
-
-/**
- * Convert SDK result message to SystemBlock
- */
-function convertResultMessage(
-  msg: Extract<SDKMessage, { type: 'result' }>
-): ConversationBlock[] {
-  const isSuccess = msg.subtype === 'success';
-
-
-  return [{
-    type: 'system',
-    id: msg.uuid,
-    timestamp: new Date().toISOString(),
-    subtype: isSuccess ? 'session_end' : 'error',
-    message: isSuccess
-      ? `Session completed successfully (${msg.num_turns} turns, $${msg.total_cost_usd.toFixed(4)})`
-      : `Session ended with error: ${msg.subtype}`,
-    metadata: {
-      duration_ms: msg.duration_ms,
-      num_turns: msg.num_turns,
-      total_cost_usd: msg.total_cost_usd,
-      usage: msg.usage,
-      modelUsage: msg.modelUsage,
-      errors: 'errors' in msg ? msg.errors : undefined,
-    },
-  }];
-}
-
-/**
- * Convert SDK auth status to SystemBlock
- */
-function convertAuthStatus(
-  msg: Extract<SDKMessage, { type: 'auth_status' }>
-): ConversationBlock[] {
-  return [{
-    type: 'system',
-    id: msg.uuid,
-    timestamp: new Date().toISOString(),
-    subtype: 'auth_status',
-    message: msg.isAuthenticating ? 'Authenticating...' : 'Authentication complete',
-    metadata: {
-      isAuthenticating: msg.isAuthenticating,
-      output: msg.output,
-      error: msg.error,
-    },
-  }];
 }
 
 /**
