@@ -6,7 +6,7 @@
  */
 
 import { executeQuery as executeQueryCore } from '../../core/index.js';
-import type { ExecuteQueryInput } from '../../core/types.js';
+import type { ExecuteQueryArgs } from '../../types.js';
 import { readStdinJson } from '../shared/input.js';
 import { writeStreamEvent, writeError, writeLog } from '../shared/output.js';
 import { setupSignalHandlers, setupExceptionHandlers } from '../shared/signal-handlers.js';
@@ -16,7 +16,7 @@ setupExceptionHandlers();
 
 export async function executeQuery(): Promise<void> {
   // Read input from stdin
-  const input = await readStdinJson<ExecuteQueryInput>();
+  const input = await readStdinJson<ExecuteQueryArgs>();
 
   writeStreamEvent({
     type: 'log',

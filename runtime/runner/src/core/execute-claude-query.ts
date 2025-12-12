@@ -8,11 +8,11 @@ import * as fs from 'fs';
 import * as path from 'path';
 import { query, Options } from '@anthropic-ai/claude-agent-sdk';
 import { parseStreamEvent } from '@hhopkins/agent-converters/claude-sdk';
-import type { StreamEvent } from '@ai-systems/shared-types';
+import type { StreamEvent, UserMessageBlock } from '@ai-systems/shared-types';
 import { findClaudeExecutable } from '../clients/claude.js';
 import { emptyAsyncIterable } from '../clients/channel.js';
 import { createLogEvent, createErrorEvent, errorEventFromError } from '../helpers/create-stream-events.js';
-import type { ExecuteQueryInput, UserMessage } from './types.js';
+import type { ExecuteQueryArgs } from '../types.js';
 
 /**
  * Check if a Claude SDK session transcript exists.
@@ -47,8 +47,8 @@ function claudeSessionExists(sessionId: string): boolean {
  * @yields StreamEvent objects converted from Claude SDK messages
  */
 export async function* executeClaudeQuery(
-  input: ExecuteQueryInput,
-  _messages: AsyncIterable<UserMessage> = emptyAsyncIterable()
+  input: ExecuteQueryArgs,
+  _messages: AsyncIterable<UserMessageBlock> = emptyAsyncIterable()
 ): AsyncGenerator<StreamEvent> {
   yield createLogEvent('Starting Claude SDK query execution', 'info', {
     sessionId: input.sessionId,

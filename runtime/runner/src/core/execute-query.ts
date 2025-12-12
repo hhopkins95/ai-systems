@@ -4,11 +4,11 @@
  * Routes queries to the appropriate SDK implementation based on architecture.
  */
 
-import type { StreamEvent } from '@ai-systems/shared-types';
+import type { StreamEvent, UserMessageBlock } from '@ai-systems/shared-types';
 import { emptyAsyncIterable } from '../clients/channel.js';
 import { executeClaudeQuery } from './execute-claude-query.js';
 import { executeOpencodeQuery } from './execute-opencode-query.js';
-import type { ExecuteQueryInput, UserMessage } from './types.js';
+import type { ExecuteQueryArgs } from '../types.js';
 
 /**
  * Execute a query using the specified architecture.
@@ -37,8 +37,8 @@ import type { ExecuteQueryInput, UserMessage } from './types.js';
  * ```
  */
 export async function* executeQuery(
-  input: ExecuteQueryInput,
-  messages: AsyncIterable<UserMessage> = emptyAsyncIterable()
+  input: ExecuteQueryArgs,
+  messages: AsyncIterable<UserMessageBlock> = emptyAsyncIterable()
 ): AsyncGenerator<StreamEvent> {
   if (input.architecture === 'claude-sdk') {
     yield* executeClaudeQuery(input, messages);

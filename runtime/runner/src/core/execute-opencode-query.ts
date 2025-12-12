@@ -10,11 +10,11 @@ import os from 'os';
 import { exec } from 'child_process';
 import { promisify } from 'util';
 import { createStreamEventParser } from '@hhopkins/agent-converters/opencode';
-import type { StreamEvent } from '@ai-systems/shared-types';
+import type { StreamEvent, UserMessageBlock } from '@ai-systems/shared-types';
 import { getOpencodeConnection } from '../clients/opencode.js';
 import { emptyAsyncIterable } from '../clients/channel.js';
 import { createLogEvent, createErrorEvent, errorEventFromError } from '../helpers/create-stream-events.js';
-import type { ExecuteQueryInput, UserMessage } from './types.js';
+import type { ExecuteQueryArgs } from '../types.js';
 
 const execAsync = promisify(exec);
 
@@ -68,8 +68,8 @@ async function createOpencodeSession(sessionId: string, cwd: string): Promise<vo
  * @yields StreamEvent objects converted from OpenCode events
  */
 export async function* executeOpencodeQuery(
-  input: ExecuteQueryInput,
-  _messages: AsyncIterable<UserMessage> = emptyAsyncIterable()
+  input: ExecuteQueryArgs,
+  _messages: AsyncIterable<UserMessageBlock> = emptyAsyncIterable()
 ): AsyncGenerator<StreamEvent> {
   yield createLogEvent('Starting OpenCode SDK query execution', 'info', {
     sessionId: input.sessionId,
