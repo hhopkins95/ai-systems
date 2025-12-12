@@ -110,7 +110,7 @@ export async function* executeOpencodeQuery(
     });
 
     if (!existingSession.data) {
-      yield createLogEvent('Creating new OpenCode session', 'info', { sessionId: input.sessionId });
+      yield createLogEvent('Creating new OpenCode session', 'info', { sessionId: input.sessionId, cwd: input.cwd });
       await createOpencodeSession(input.sessionId, input.cwd || '/workspace');
     } else {
       yield createLogEvent('Resuming existing OpenCode session', 'info', { sessionId: input.sessionId });
