@@ -114,6 +114,10 @@ export class ExecutionEnvironment {
         const { APP_DIR } = primitives.getBasePaths();
         const runnerContent = getRunnerBundleContent();
         await primitives.writeFile(join(APP_DIR, 'runner.js'), runnerContent);
+        await primitives.writeFile(join(APP_DIR, 'package.json'), JSON.stringify({
+            name: "agent-runner",
+            type: "module"
+        }));
 
         // Install opencode adapter bundle for opencode architecture support
         const adapterDir = join(APP_DIR, 'opencode-adapter');
