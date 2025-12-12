@@ -10,7 +10,7 @@ import {
   type ReadSessionTranscriptInput,
 } from '../../core/index.js';
 import { readStdinJson } from '../shared/input.js';
-import { writeError } from '../shared/output.js';
+import { writeOutput } from '../shared/output.js';
 import { setupSignalHandlers, setupExceptionHandlers } from '../shared/signal-handlers.js';
 
 // Set up exception handlers early
@@ -27,15 +27,15 @@ export async function readSessionTranscript(): Promise<void> {
     const result = await readSessionTranscriptCore(input);
 
     if (!result.success || !result.transcript) {
-      throw new Error(result.error || `No transcript found for session: ${input.sessionId}`);
+      const errorMsg = result.error || `No transcript found for session: ${input.sessionId}`;
+      writeOutput({ success: false, error: errorMsg });
+      process.exit(1);
     }
 
-    // Write the transcript to stdout
-    process.stdout.write(result.transcript);
-
-    process.exit(0);
+    writeOutput({ success: true, data: { transcript: result.transcript } });
   } catch (error) {
-    writeError(error as Error);
+    const errorMessage = error instanceof Error ? error.message : String(error);
+    writeOutput({ success: false, error: errorMessage });
     process.exit(1);
   }
 }

@@ -10,7 +10,7 @@ import {
   type LoadSessionTranscriptInput,
 } from '../../core/index.js';
 import { readStdinJson } from '../shared/input.js';
-import { writeJson, writeLog } from '../shared/output.js';
+import { writeOutput, writeLog } from '../shared/output.js';
 import { setupExceptionHandlers } from '../shared/signal-handlers.js';
 
 // Set up exception handlers early
@@ -27,22 +27,17 @@ export async function loadSessionTranscript(): Promise<void> {
 
     const result = await loadSessionTranscriptCore(input);
 
+    if (!result.success) {
+      const errorMsg = result.errors?.join(', ') || 'Unknown error';
+      writeOutput({ success: false, error: errorMsg });
+      process.exit(1);
+    }
+
     writeLog('info', 'Session transcript loaded');
-
-    writeJson({
-      success: result.success,
-      errors: result.errors,
-    });
-
-    process.exit(result.success ? 0 : 1);
+    writeOutput({ success: true });
   } catch (error) {
     const errorMessage = error instanceof Error ? error.message : String(error);
-
-    writeJson({
-      success: false,
-      errors: [errorMessage],
-    });
-
+    writeOutput({ success: false, error: errorMessage });
     process.exit(1);
   }
 }

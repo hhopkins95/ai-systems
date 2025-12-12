@@ -293,6 +293,36 @@ export interface ErrorEvent {
   data?: Record<string, unknown>;
 }
 
+/**
+ * Script Output Event
+ *
+ * Final result from a non-streaming runner script command.
+ * Emitted as the last line of stdout for commands that produce a result.
+ *
+ * Use cases:
+ * - load-agent-profile completion status
+ * - load-session-transcript completion status
+ * - read-session-transcript returning transcript data
+ */
+export interface ScriptOutput<T = unknown> {
+  type: 'script_output';
+
+  /**
+   * Whether the script completed successfully
+   */
+  success: boolean;
+
+  /**
+   * Result data (type varies by command)
+   */
+  data?: T;
+
+  /**
+   * Error message if success is false
+   */
+  error?: string;
+}
+
 // ============================================================================
 // Union Type
 // ============================================================================
@@ -314,7 +344,8 @@ export type StreamEvent =
   // Execution environment events
   | StatusEvent
   | LogEvent
-  | ErrorEvent;
+  | ErrorEvent
+  | ScriptOutput;
 // ============================================================================
 // Type Guards
 // ============================================================================
@@ -349,4 +380,8 @@ export function isLogEvent(event: StreamEvent): event is LogEvent {
 
 export function isErrorEvent(event: StreamEvent): event is ErrorEvent {
   return event.type === 'error';
+}
+
+export function isScriptOutput(event: StreamEvent): event is ScriptOutput {
+  return event.type === 'script_output';
 }

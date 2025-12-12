@@ -5,7 +5,9 @@ import {
     StreamEvent,
     WorkspaceFile,
     LogEvent,
+    ScriptOutput,
     isLogEvent,
+    isScriptOutput,
 } from "@ai-systems/shared-types";
 import { logger } from '../config/logger.js';
 import { EnvironmentPrimitive, WatchEvent } from "../lib/environment-primitives/base";
@@ -15,24 +17,6 @@ import { getRunnerBundleContent } from "@hhopkins/agent-runner";
 import { getAdapterBundleContent } from "@ai-systems/opencode-claude-adapter/bundle";
 
 import { join } from "path";
-
-/**
- * Helper to read a ReadableStream to string
- */
-async function readStreamToString(stream: ReadableStream): Promise<string> {
-    const reader = stream.getReader();
-    const chunks: string[] = [];
-    try {
-        while (true) {
-            const { done, value } = await reader.read();
-            if (done) break;
-            chunks.push(typeof value === 'string' ? value : new TextDecoder().decode(value));
-        }
-    } finally {
-        reader.releaseLock();
-    }
-    return chunks.join('');
-}
 
 /**
  * Forward a LogEvent to the server logger
@@ -195,15 +179,14 @@ export class ExecutionEnvironment {
         await profileProcess.stdin.writeText(JSON.stringify(loadProfileInput));
         await profileProcess.stdin.close();
 
-        // Capture logs while waiting for process
-        const [exitCode] = await Promise.all([
+        // Consume output and wait for process
+        const [, profileOutput] = await Promise.all([
             profileProcess.wait(),
-            this.captureRunnerLogs(profileProcess)
+            this.consumeRunnerOutput(profileProcess.stdout)
         ]);
 
-        if (exitCode !== 0) {
-            const stderr = await readStreamToString(profileProcess.stderr);
-            throw new Error(`Failed to load agent profile: ${stderr}`);
+        if (!profileOutput?.success) {
+            throw new Error(`Failed to load agent profile: ${profileOutput?.error || 'Unknown error'}`);
         }
 
         // 3. Load session transcript if resuming
@@ -222,15 +205,14 @@ export class ExecutionEnvironment {
             await transcriptProcess.stdin.writeText(JSON.stringify(loadTranscriptInput));
             await transcriptProcess.stdin.close();
 
-            // Capture logs while waiting for process
-            const [transcriptExit] = await Promise.all([
+            // Consume output and wait for process
+            const [, transcriptOutput] = await Promise.all([
                 transcriptProcess.wait(),
-                this.captureRunnerLogs(transcriptProcess)
+                this.consumeRunnerOutput(transcriptProcess.stdout)
             ]);
 
-            if (transcriptExit !== 0) {
-                const stderr = await readStreamToString(transcriptProcess.stderr);
-                throw new Error(`Failed to load session transcript: ${stderr}`);
+            if (!transcriptOutput?.success) {
+                throw new Error(`Failed to load session transcript: ${transcriptOutput?.error || 'Unknown error'}`);
             }
         }
     }
@@ -341,14 +323,21 @@ export class ExecutionEnvironment {
     }
 
     /**
-     * Capture and log runner log events from a process's stdout
-     * Used to capture logs from prepareSession scripts
+     * Consume runner output and return the final ScriptOutput
+     * Forwards log events to server logger while consuming
      */
-    private async captureRunnerLogs(process: { stdout: ReadableStream }): Promise<void> {
-        // Consume the stream, forwarding logs (side effect of parseRunnerStream)
-        for await (const _event of this.parseRunnerStream(process.stdout)) {
-            // Events consumed but not used - logs forwarded inside parseRunnerStream
+    private async consumeRunnerOutput<T = unknown>(
+        stdout: ReadableStream
+    ): Promise<ScriptOutput<T> | null> {
+        let lastScriptOutput: ScriptOutput<T> | null = null;
+
+        for await (const event of this.parseRunnerStream(stdout)) {
+            if (isScriptOutput(event)) {
+                lastScriptOutput = event as ScriptOutput<T>;
+            }
         }
+
+        return lastScriptOutput;
     }
 
     /**
@@ -374,13 +363,17 @@ export class ExecutionEnvironment {
         await process.stdin.writeText(JSON.stringify(readTranscriptInput));
         await process.stdin.close();
 
-        const exitCode = await process.wait();
-        if (exitCode !== 0) {
+        // Consume output and wait for process
+        const [, output] = await Promise.all([
+            process.wait(),
+            this.consumeRunnerOutput<{ transcript: string }>(process.stdout)
+        ]);
+
+        if (!output?.success || !output.data?.transcript) {
             return null;
         }
 
-        const stdout = await readStreamToString(process.stdout);
-        return stdout || null;
+        return output.data.transcript;
     }
 
     /**

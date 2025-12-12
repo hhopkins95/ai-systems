@@ -5,7 +5,7 @@
  * and result objects.
  */
 
-import type { StreamEvent, SystemBlock } from '@ai-systems/shared-types';
+import type { StreamEvent, SystemBlock, ScriptOutput } from '@ai-systems/shared-types';
 
 /**
  * Write a StreamEvent as JSONL to stdout
@@ -66,9 +66,24 @@ export function writePlainError(error: Error | string): void {
 
 /**
  * Write a generic JSON object to stdout
+ * @deprecated Use writeOutput() for script results
  */
 export function writeJson(obj: unknown): void {
   console.log(JSON.stringify(obj));
+}
+
+/**
+ * Write a script output result as a ScriptOutput StreamEvent
+ *
+ * Use this for the final result of non-streaming commands.
+ * The data type T should match what the consumer expects.
+ */
+export function writeOutput<T>(result: { success: true; data?: T } | { success: false; error: string }): void {
+  const output: ScriptOutput<T> = {
+    type: 'script_output',
+    ...result,
+  };
+  process.stdout.write(JSON.stringify(output) + '\n');
 }
 
 /**
