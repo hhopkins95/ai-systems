@@ -66,6 +66,12 @@ export interface UseAgentSessionResult {
   updateSessionOptions: (
     sessionOptions: AgentArchitectureSessionOptions
   ) => Promise<void>;
+
+  /**
+   * Terminate execution environment while keeping session loaded.
+   * Environment will lazily restart on next message.
+   */
+  terminateExecutionEnvironment: () => Promise<void>;
 }
 
 /**
@@ -262,6 +268,30 @@ export function useAgentSession(sessionId?: string): UseAgentSessionResult {
     [currentSessionId, restClient, dispatch]
   );
 
+  const terminateExecutionEnvironment = useCallback(async () => {
+    if (!currentSessionId) {
+      throw new Error('No session to terminate environment for');
+    }
+
+    setIsLoading(true);
+    setError(null);
+
+    try {
+      const response = await restClient.terminateExecutionEnvironment(currentSessionId);
+      dispatch({
+        type: 'SESSION_RUNTIME_UPDATED',
+        sessionId: currentSessionId,
+        runtime: response.runtime,
+      });
+    } catch (err) {
+      const error = err instanceof Error ? err : new Error(String(err));
+      setError(error);
+      throw error;
+    } finally {
+      setIsLoading(false);
+    }
+  }, [currentSessionId, restClient, dispatch]);
+
   return {
     session,
     runtime,
@@ -272,5 +302,6 @@ export function useAgentSession(sessionId?: string): UseAgentSessionResult {
     destroySession,
     syncSession,
     updateSessionOptions,
+    terminateExecutionEnvironment,
   };
 }

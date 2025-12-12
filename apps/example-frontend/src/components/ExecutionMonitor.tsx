@@ -158,7 +158,7 @@ export function ExecutionMonitor({
   defaultExpanded = true,
   onDelete,
 }: ExecutionMonitorProps) {
-  const { session, updateSessionOptions, isLoading: isUpdatingOptions } = useAgentSession(sessionId);
+  const { session, updateSessionOptions, terminateExecutionEnvironment, isLoading: isUpdatingOptions } = useAgentSession(sessionId);
   const { sessions, refresh } = useSessionList();
   const { logs, clearLogs } = useLogs(sessionId);
 
@@ -180,6 +180,10 @@ export function ExecutionMonitor({
   const [isDeleting, setIsDeleting] = useState(false);
   const [showConfirm, setShowConfirm] = useState(false);
   const [copied, setCopied] = useState(false);
+
+  // Terminate environment state
+  const [isTerminating, setIsTerminating] = useState(false);
+  const [showTerminateConfirm, setShowTerminateConfirm] = useState(false);
 
   const logsEndRef = useRef<HTMLDivElement>(null);
 
@@ -241,6 +245,28 @@ export function ExecutionMonitor({
 
   const handleCancelDelete = () => {
     setShowConfirm(false);
+  };
+
+  const handleTerminate = async () => {
+    if (!showTerminateConfirm) {
+      setShowTerminateConfirm(true);
+      return;
+    }
+
+    setIsTerminating(true);
+    try {
+      await terminateExecutionEnvironment();
+    } catch (error) {
+      console.error("Failed to terminate environment:", error);
+      alert("Failed to terminate environment. Please try again.");
+    } finally {
+      setIsTerminating(false);
+      setShowTerminateConfirm(false);
+    }
+  };
+
+  const handleCancelTerminate = () => {
+    setShowTerminateConfirm(false);
   };
 
   if (!runtime) {
@@ -315,8 +341,39 @@ export function ExecutionMonitor({
             )}
           </div>
 
-          {/* Right side - Delete and expand/collapse */}
+          {/* Right side - Terminate, Delete and expand/collapse */}
           <div className="flex items-center gap-3">
+            {/* Terminate environment button - only show when environment is running */}
+            {ee && (ee.status === "ready" || ee.status === "starting") && (
+              showTerminateConfirm ? (
+                <div className="flex items-center gap-2">
+                  <span className="text-xs text-orange-600">Terminate env?</span>
+                  <button
+                    onClick={handleTerminate}
+                    disabled={isTerminating}
+                    className="px-2 py-1 text-xs bg-orange-500 text-white rounded hover:bg-orange-600 disabled:bg-gray-300"
+                  >
+                    {isTerminating ? "..." : "Yes"}
+                  </button>
+                  <button
+                    onClick={handleCancelTerminate}
+                    disabled={isTerminating}
+                    className="px-2 py-1 text-xs bg-gray-200 text-gray-700 rounded hover:bg-gray-300"
+                  >
+                    No
+                  </button>
+                </div>
+              ) : (
+                <button
+                  onClick={handleTerminate}
+                  className="px-3 py-1 text-xs bg-orange-100 text-orange-700 rounded hover:bg-orange-200 transition-colors"
+                  title="Terminate execution environment (session stays loaded)"
+                >
+                  Terminate Env
+                </button>
+              )
+            )}
+
             {/* Delete button */}
             {showConfirm ? (
               <div className="flex items-center gap-2">
