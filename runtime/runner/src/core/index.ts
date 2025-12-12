@@ -5,7 +5,6 @@
  * without subprocess spawning.
  */
 
-export { executeQuery } from './execute-query.js';
 export { executeClaudeQuery } from './execute-claude-query.js';
 export { executeOpencodeQuery } from './execute-opencode-query.js';
 
@@ -26,11 +25,6 @@ export {
   type ReadSessionTranscriptInput,
   type ReadSessionTranscriptResult,
 } from './read-session-transcript.js';
-
-export type {
-  ExecuteQueryInput,
-  UserMessage,
-} from './types.js';
 
 // Execution event helpers
 export {

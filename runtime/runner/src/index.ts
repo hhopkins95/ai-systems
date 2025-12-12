@@ -16,7 +16,7 @@
  * - runner read-session-transcript: Read current session transcript
  *
  * Core functions can be imported directly for testing:
- * - executeQuery, executeClaudeQuery, executeOpencodeQuery
+ * - executeClaudeQuery, executeOpencodeQuery
  * - loadAgentProfile, loadSessionTranscript, readSessionTranscript
  */
 

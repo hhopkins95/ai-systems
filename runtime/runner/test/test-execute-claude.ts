@@ -1,14 +1,14 @@
 /**
  * Test: Execute Query with Claude SDK
  *
- * Calls executeQuery directly with claude-sdk architecture.
+ * Calls executeClaudeQuery directly.
  * Run with: npx tsx test/test-execute-claude.ts
  */
 
 import { randomUUID } from 'crypto';
 import { resolve } from 'path';
 import { mkdir } from 'fs/promises';
-import { executeQuery } from '../src/core/index.js';
+import { executeClaudeQuery } from '../src/core/index.js';
 
 // ============================================================================
 // Configuration - Edit these as needed
@@ -49,7 +49,7 @@ async function main() {
   const startTime = Date.now();
 
   try {
-    for await (const event of executeQuery(input)) {
+    for await (const event of executeClaudeQuery(input)) {
       eventCount++;
 
       // Pretty print the event

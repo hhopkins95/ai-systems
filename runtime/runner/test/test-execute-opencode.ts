@@ -1,7 +1,7 @@
 /**
  * Test: Execute Query with OpenCode SDK
  *
- * Calls executeQuery directly with opencode architecture.
+ * Calls executeOpencodeQuery directly.
  * Run with: npx tsx test/test-execute-opencode.ts
  *
  * Requires:
@@ -12,7 +12,7 @@
 import { randomUUID } from 'crypto';
 import { resolve } from 'path';
 import { mkdir } from 'fs/promises';
-import { executeQuery } from '../src/core/index.js';
+import { executeOpencodeQuery } from '../src/core/index.js';
 
 // ============================================================================
 // Configuration - Edit these as needed
@@ -62,7 +62,7 @@ async function main() {
   const startTime = Date.now();
 
   try {
-    for await (const event of executeQuery(input)) {
+    for await (const event of executeOpencodeQuery(input)) {
       eventCount++;
 
       // Pretty print the event

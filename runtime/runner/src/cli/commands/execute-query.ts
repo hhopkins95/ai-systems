@@ -1,11 +1,12 @@
 /**
  * Execute Query CLI Command
  *
- * Thin wrapper that reads input from stdin, calls core function,
+ * Reads input from stdin, dispatches to the appropriate SDK implementation,
  * and writes output to stdout.
  */
 
-import { executeQuery as executeQueryCore } from '../../core/index.js';
+import { executeClaudeQuery } from '../../core/execute-claude-query.js';
+import { executeOpencodeQuery } from '../../core/execute-opencode-query.js';
 import type { ExecuteQueryArgs } from '../../types.js';
 import { readStdinJson } from '../shared/input.js';
 import { writeStreamEvent, writeError, writeLog } from '../shared/output.js';
@@ -23,17 +24,27 @@ export async function executeQuery(): Promise<void> {
     level: 'info',
     message: 'Executing query',
     data: {
-    architecture: input.architecture,
-    sessionId: input.sessionId,
-    cwd: input.cwd,
-  }});
+      architecture: input.architecture,
+      sessionId: input.sessionId,
+      cwd: input.cwd,
+    },
+  });
 
   // Setup default signal handlers
   setupSignalHandlers();
 
   try {
-    for await (const event of executeQueryCore(input)) {
-      writeStreamEvent(event);
+    // Dispatch to appropriate SDK implementation
+    if (input.architecture === 'claude-sdk') {
+      for await (const event of executeClaudeQuery(input)) {
+        writeStreamEvent(event);
+      }
+    } else if (input.architecture === 'opencode') {
+      for await (const event of executeOpencodeQuery(input)) {
+        writeStreamEvent(event);
+      }
+    } else {
+      throw new Error(`Unknown architecture: ${input.architecture}`);
     }
 
     process.exit(0);
