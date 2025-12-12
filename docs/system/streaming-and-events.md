@@ -44,24 +44,34 @@ for await (const event of this.executionEnv.executeQuery({ query })) {
 
 ### 2. StreamEvent Types
 
+StreamEvents are divided into conversation events and execution events:
+
 ```typescript
 type StreamEvent =
-  | { type: 'text_delta'; delta: string }
-  | { type: 'tool_use_start'; toolName: string; toolId: string }
-  | { type: 'tool_use_delta'; delta: string }
-  | { type: 'tool_result'; result: unknown }
-  | { type: 'message_complete'; content: string }
-  | { type: 'error'; message: string };
+  // Conversation events
+  | BlockStartEvent       // New block begins (may be incomplete)
+  | TextDeltaEvent        // Incremental text for streaming
+  | BlockUpdateEvent      // Block metadata changes
+  | BlockCompleteEvent    // Block finalized
+  | MetadataUpdateEvent   // Token usage, cost updates
+  // Execution events
+  | StatusEvent           // Environment state changes
+  | LogEvent              // Operational logs
+  | ErrorEvent            // Operational errors
+  | ScriptOutput;         // Final result from non-streaming commands
 ```
 
 | Event | When Emitted |
 |-------|--------------|
-| `text_delta` | Each chunk of assistant text |
-| `tool_use_start` | Tool call begins |
-| `tool_use_delta` | Tool input chunks |
-| `tool_result` | Tool execution result |
-| `message_complete` | Full message finalized |
-| `error` | Execution error |
+| `block_start` | New conversation block begins |
+| `text_delta` | Each chunk of assistant/thinking text |
+| `block_update` | Block status changes (e.g., tool pending → running) |
+| `block_complete` | Block finalized with full content |
+| `metadata_update` | Token usage or cost information |
+| `status` | Execution environment state transitions |
+| `log` | Informational logs from runner |
+| `error` | Operational error occurred |
+| `script_output` | Final result from non-streaming CLI commands |
 
 ### 3. ConversationBlock Structure
 
@@ -133,10 +143,11 @@ StreamEvents are **low-level incremental updates** for real-time UI, while Conve
 
 | Concern | Location |
 |---------|----------|
-| StreamEvent types | `packages/types/src/streaming.ts` |
-| ConversationBlock types | `packages/types/src/blocks.ts` |
+| StreamEvent types | `packages/types/src/runtime/stream-events.ts` |
+| ConversationBlock types | `packages/types/src/runtime/blocks.ts` |
 | Event emission | `runtime/server/src/core/event-bus.ts` |
 | Transcript parsing | `packages/converters/src/` |
+| Runner output utilities | `runtime/runner/src/cli/shared/output.ts` |
 
 ## Related
 

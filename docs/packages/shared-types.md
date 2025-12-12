@@ -39,10 +39,10 @@ flowchart TB
 
 | Component | File | Purpose |
 |-----------|------|---------|
-| ConversationBlock | `src/blocks.ts` | Message block types |
-| StreamEvent | `src/streaming.ts` | Real-time event types |
-| Entity types | `src/entities.ts` | Skill, Command, Agent, Hook |
-| Session types | `src/session.ts` | Session data structures |
+| ConversationBlock | `src/runtime/blocks.ts` | Message block types |
+| StreamEvent | `src/runtime/stream-events.ts` | Real-time event types |
+| Entity types | `src/entities/` | Skill, Command, Agent, Hook |
+| Session types | `src/runtime/session.ts` | Session data structures |
 | AgentProfile | `src/agent-profile.ts` | Agent configuration |
 
 ## Usage
@@ -111,9 +111,10 @@ type ConversationStreamEvent =
 **Execution-level events** (operational/diagnostic):
 ```typescript
 type ExecutionStreamEvent =
-  | StatusEvent   // Execution environment state transitions
-  | LogEvent      // Informational messages with level
-  | ErrorEvent;   // Failures and errors
+  | StatusEvent    // Execution environment state transitions
+  | LogEvent       // Informational messages with level
+  | ErrorEvent     // Failures and errors
+  | ScriptOutput;  // Final result from non-streaming commands
 
 interface StatusEvent {
   type: 'status';
@@ -134,7 +135,16 @@ interface ErrorEvent {
   code?: string;
   data?: Record<string, unknown>;
 }
+
+interface ScriptOutput<T = unknown> {
+  type: 'script_output';
+  success: boolean;
+  data?: T;
+  error?: string;
+}
 ```
+
+**ScriptOutput** is used by runner CLI commands to return structured results. It enables unified JSONL parsing where all stdout from runner scripts is either a `StreamEvent` or `ScriptOutput`.
 
 ### Entity Types
 

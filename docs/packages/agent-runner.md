@@ -150,6 +150,46 @@ await sandbox.exec(['node', '/app/runner.js', 'execute-query', ...]);
 }
 ```
 
+### CLI Output Format
+
+All CLI commands emit JSONL to stdout. Output is always `StreamEvent | ScriptOutput`:
+
+| Command | Output Format |
+|---------|---------------|
+| `execute-query` | Streams `StreamEvent` lines (block_start, text_delta, etc.) |
+| `load-agent-profile` | Log events + final `ScriptOutput<void>` |
+| `load-session-transcript` | Log events + final `ScriptOutput<void>` |
+| `read-session-transcript` | `ScriptOutput<{ transcript: string }>` |
+
+**ScriptOutput** is the final result for non-streaming commands:
+
+```typescript
+interface ScriptOutput<T = unknown> {
+  type: 'script_output';
+  success: boolean;
+  data?: T;      // Result data on success
+  error?: string; // Error message on failure
+}
+```
+
+Example outputs:
+
+```jsonl
+// execute-query (streaming)
+{"type":"block_start","blockId":"msg-1","block":{...}}
+{"type":"text_delta","blockId":"msg-1","delta":"Hello"}
+{"type":"block_complete","blockId":"msg-1","block":{...}}
+
+// load-agent-profile (non-streaming)
+{"type":"block_complete","blockId":"log-123","block":{"type":"system","subtype":"log",...}}
+{"type":"script_output","success":true}
+
+// read-session-transcript
+{"type":"script_output","success":true,"data":{"transcript":"..."}}
+```
+
+This unified format allows `ExecutionEnvironment` to use a single JSONL parser for all commands.
+
 ## Key Types
 
 ```typescript
