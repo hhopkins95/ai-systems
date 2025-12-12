@@ -14,11 +14,15 @@ import { emptyAsyncIterable } from '../clients/channel.js';
 import { createLogEvent, createErrorEvent, errorEventFromError } from '../helpers/create-stream-events.js';
 import type { ExecuteQueryArgs } from '../types.js';
 
+import os from 'os';
+
 /**
  * Check if a Claude SDK session transcript exists.
+ * Uses CLAUDE_CONFIG_DIR if set, otherwise falls back to ~/.claude
  */
 function claudeSessionExists(sessionId: string): boolean {
-  const projectsDir = path.join(process.env.HOME || '~', '.claude', 'projects');
+  const claudeConfigDir = process.env.CLAUDE_CONFIG_DIR || path.join(os.homedir(), '.claude');
+  const projectsDir = path.join(claudeConfigDir, 'projects');
 
   if (!fs.existsSync(projectsDir)) {
     return false;

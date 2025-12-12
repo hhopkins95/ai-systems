@@ -10,7 +10,7 @@ import {
     isScriptOutput,
 } from "@ai-systems/shared-types";
 import { logger } from '../config/logger.js';
-import { EnvironmentPrimitive, WatchEvent } from "../lib/environment-primitives/base";
+import { deriveSessionPaths, EnvironmentPrimitive, SessionPaths, WatchEvent } from "../lib/environment-primitives/base";
 import { getEnvironmentPrimitive } from "../lib/environment-primitives/factory";
 import { RuntimeExecutionEnvironmentOptions } from "../types/runtime";
 import { getRunnerBundleContent } from "@hhopkins/agent-runner";
@@ -71,6 +71,7 @@ export interface ExecutionEnvironmentConfig {
  */
 export class ExecutionEnvironment {
     private readonly primitives: EnvironmentPrimitive;
+    private readonly paths: SessionPaths;
     private readonly architecture: AgentArchitecture;
     private readonly sessionId: string;
     private readonly agentProfile: AgentProfile;
@@ -78,11 +79,13 @@ export class ExecutionEnvironment {
 
     private constructor(
         primitives: EnvironmentPrimitive,
+        paths: SessionPaths,
         architecture: AgentArchitecture,
         sessionId: string,
         agentProfile: AgentProfile
     ) {
         this.primitives = primitives;
+        this.paths = paths;
         this.architecture = architecture;
         this.sessionId = sessionId;
         this.agentProfile = agentProfile;
@@ -94,17 +97,28 @@ export class ExecutionEnvironment {
     static async create(config: ExecutionEnvironmentConfig): Promise<ExecutionEnvironment> {
         const primitives = await getEnvironmentPrimitive(config.environmentOptions);
 
+        // Derive all paths from session root
+        const { SESSION_DIR } = primitives.getBasePaths();
+        const paths = deriveSessionPaths(SESSION_DIR);
+
+        // Create session subdirectories
+        await Promise.all([
+            primitives.createDirectory(paths.appDir),
+            primitives.createDirectory(paths.workspaceDir),
+            primitives.createDirectory(paths.mcpDir),
+            primitives.createDirectory(paths.claudeConfigDir),
+        ]);
+
         // Install runner bundle into the execution environment
-        const { APP_DIR } = primitives.getBasePaths();
         const runnerContent = getRunnerBundleContent();
-        await primitives.writeFile(join(APP_DIR, 'runner.js'), runnerContent);
-        await primitives.writeFile(join(APP_DIR, 'package.json'), JSON.stringify({
+        await primitives.writeFile(join(paths.appDir, 'runner.js'), runnerContent);
+        await primitives.writeFile(join(paths.appDir, 'package.json'), JSON.stringify({
             name: "agent-runner",
             type: "module"
         }));
 
         // Install opencode adapter bundle for opencode architecture support
-        const adapterDir = join(APP_DIR, 'opencode-adapter');
+        const adapterDir = join(paths.appDir, 'opencode-adapter');
         await primitives.createDirectory(adapterDir);
         await primitives.writeFile(join(adapterDir, 'index.js'), getAdapterBundleContent());
         await primitives.writeFile(join(adapterDir, 'package.json'), JSON.stringify({
@@ -115,6 +129,7 @@ export class ExecutionEnvironment {
 
         return new ExecutionEnvironment(
             primitives,
+            paths,
             config.architecture,
             config.sessionId,
             config.agentProfile
@@ -129,10 +144,10 @@ export class ExecutionEnvironment {
     }
 
     /**
-     * Get the base paths for this environment
+     * Get the derived session paths for this environment
      */
-    getBasePaths() {
-        return this.primitives.getBasePaths();
+    getPaths(): SessionPaths {
+        return this.paths;
     }
 
     /**
@@ -152,13 +167,11 @@ export class ExecutionEnvironment {
         sessionTranscript?: string;
         sessionOptions?: AgentArchitectureSessionOptions;
     }): Promise<void> {
-        const { APP_DIR, WORKSPACE_DIR } = this.primitives.getBasePaths();
-
         // 1. Write workspace files
         if (args.workspaceFiles.length > 0) {
             await this.primitives.writeFiles(
                 args.workspaceFiles.map(f => ({
-                    path: join(WORKSPACE_DIR, f.path),
+                    path: join(this.paths.workspaceDir, f.path),
                     content: f.content
                 }))
             );
@@ -166,15 +179,15 @@ export class ExecutionEnvironment {
 
         // 2. Load agent profile via runner
         const loadProfileInput = {
-            projectDirPath: WORKSPACE_DIR,
+            projectDirPath: this.paths.workspaceDir,
             sessionId: args.sessionId,
             agentProfile: args.agentProfile,
             architectureType: this.architecture
         };
 
         const profileProcess = await this.primitives.exec(
-            ['node', join(APP_DIR, 'runner.js'), 'load-agent-profile'],
-            { cwd: APP_DIR }
+            ['node', join(this.paths.appDir, 'runner.js'), 'load-agent-profile'],
+            { cwd: this.paths.appDir }
         );
         await profileProcess.stdin.writeText(JSON.stringify(loadProfileInput));
         await profileProcess.stdin.close();
@@ -192,15 +205,15 @@ export class ExecutionEnvironment {
         // 3. Load session transcript if resuming
         if (args.sessionTranscript) {
             const loadTranscriptInput = {
-                projectDirPath: WORKSPACE_DIR,
+                projectDirPath: this.paths.workspaceDir,
                 sessionTranscript: args.sessionTranscript,
                 sessionId: args.sessionId,
                 architectureType: this.architecture
             };
 
             const transcriptProcess = await this.primitives.exec(
-                ['node', join(APP_DIR, 'runner.js'), 'load-session-transcript'],
-                { cwd: APP_DIR }
+                ['node', join(this.paths.appDir, 'runner.js'), 'load-session-transcript'],
+                { cwd: this.paths.appDir }
             );
             await transcriptProcess.stdin.writeText(JSON.stringify(loadTranscriptInput));
             await transcriptProcess.stdin.close();
@@ -225,20 +238,18 @@ export class ExecutionEnvironment {
         query: string;
         options?: AgentArchitectureSessionOptions;
     }): AsyncGenerator<StreamEvent> {
-        const { APP_DIR, WORKSPACE_DIR } = this.primitives.getBasePaths();
-
         // Prepare input for stdin
         const executeInput = {
             prompt: args.query,
             architecture: this.architecture,
             sessionId: this.sessionId,
-            cwd: WORKSPACE_DIR,
+            cwd: this.paths.workspaceDir,
             model: args.options?.model,
         };
 
         const process = await this.primitives.exec(
-            ['node', join(APP_DIR, 'runner.js'), 'execute-query'],
-            { cwd: APP_DIR }
+            ['node', join(this.paths.appDir, 'runner.js'), 'execute-query'],
+            { cwd: this.paths.appDir }
         );
 
         // Write input to stdin and close
@@ -345,18 +356,16 @@ export class ExecutionEnvironment {
      * Returns the raw transcript content or null if not available
      */
     async readSessionTranscript(): Promise<string | null> {
-        const { APP_DIR, WORKSPACE_DIR } = this.primitives.getBasePaths();
-
         // Prepare input for stdin
         const readTranscriptInput = {
             sessionId: this.sessionId,
             architecture: this.architecture,
-            projectDir: WORKSPACE_DIR,
+            projectDir: this.paths.workspaceDir,
         };
 
         const process = await this.primitives.exec(
-            ['node', join(APP_DIR, 'runner.js'), 'read-session-transcript'],
-            { cwd: APP_DIR }
+            ['node', join(this.paths.appDir, 'runner.js'), 'read-session-transcript'],
+            { cwd: this.paths.appDir }
         );
 
         // Write input to stdin and close
@@ -381,15 +390,14 @@ export class ExecutionEnvironment {
      * Returns files with their current content
      */
     async getWorkspaceFiles(): Promise<WorkspaceFile[]> {
-        const { WORKSPACE_DIR } = this.primitives.getBasePaths();
-        const filePaths = await this.primitives.listFiles(WORKSPACE_DIR);
+        const filePaths = await this.primitives.listFiles(this.paths.workspaceDir);
         const workspaceFiles: WorkspaceFile[] = [];
 
         for (const filePath of filePaths) {
             // Get relative path from workspace dir
             let relativePath = filePath;
-            if (filePath.startsWith(WORKSPACE_DIR)) {
-                relativePath = filePath.slice(WORKSPACE_DIR.length);
+            if (filePath.startsWith(this.paths.workspaceDir)) {
+                relativePath = filePath.slice(this.paths.workspaceDir.length);
                 if (relativePath.startsWith('/')) {
                     relativePath = relativePath.slice(1);
                 }
@@ -414,9 +422,7 @@ export class ExecutionEnvironment {
      * Promise resolves when watcher is ready
      */
     async watchWorkspaceFiles(callback: (event: WorkspaceFileEvent) => void): Promise<void> {
-        const { WORKSPACE_DIR } = this.primitives.getBasePaths();
-
-        await this.primitives.watch(WORKSPACE_DIR, (event: WatchEvent) => {
+        await this.primitives.watch(this.paths.workspaceDir, (event: WatchEvent) => {
             callback({
                 type: event.type,
                 path: event.path,

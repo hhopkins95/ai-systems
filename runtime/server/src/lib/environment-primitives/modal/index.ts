@@ -12,6 +12,9 @@ import { createModalSandbox } from "./create-sandbox";
 const __filename = fileURLToPath(import.meta.url);
 const __dirname = path.dirname(__filename);
 
+/** Session root in container - matches Docker and local structure */
+const CONTAINER_SESSION_DIR = '/session';
+
 
 export class ModalSandbox implements EnvironmentPrimitive {
 
@@ -65,13 +68,9 @@ export class ModalSandbox implements EnvironmentPrimitive {
         
     }
 
-    public getBasePaths(): { APP_DIR: string, WORKSPACE_DIR: string, HOME_DIR: string , BUNDLED_MCP_DIR: string } {
-        return {
-            APP_DIR: "/app",
-            WORKSPACE_DIR: "/workspace",
-            HOME_DIR: "/root", 
-            BUNDLED_MCP_DIR: "/mcps"
-        };
+    public getBasePaths() {
+        // Return container session dir - paths derived by ExecutionEnvironment
+        return { SESSION_DIR: CONTAINER_SESSION_DIR };
     }
 
     /**

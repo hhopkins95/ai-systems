@@ -32,18 +32,21 @@ export const TOOL_INSTALL_COMMANDS = [
 /**
  * Create and start a Docker container.
  * The container uses volume mounts for file operations.
+ * Session folder structure: /session/{.claude,app,workspace,mcps}
  */
 export async function createContainer(config: ContainerConfig): Promise<void> {
     const args = [
         'run',
         '-d',  // detached
         '--name', config.id,
-        '-w', '/workspace',
-        // Mount session directories
-        '-v', `${config.hostBasePath}/app:/app`,
-        '-v', `${config.hostBasePath}/workspace:/workspace`,
-        '-v', `${config.hostBasePath}/home:/root`,
-        '-v', `${config.hostBasePath}/mcps:/mcps`,
+        '-w', '/session/workspace',
+        // Mount session directories using /session/* structure
+        '-v', `${config.hostBasePath}/.claude:/session/.claude`,
+        '-v', `${config.hostBasePath}/app:/session/app`,
+        '-v', `${config.hostBasePath}/workspace:/session/workspace`,
+        '-v', `${config.hostBasePath}/mcps:/session/mcps`,
+        // Set CLAUDE_CONFIG_DIR for session isolation
+        '-e', 'CLAUDE_CONFIG_DIR=/session/.claude',
     ];
 
     // Add resource limits

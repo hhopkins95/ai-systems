@@ -5,7 +5,7 @@ import chokidar, { type FSWatcher } from 'chokidar';
 import { randomUUID } from 'crypto';
 import { logger } from '../../../config/logger';
 import { RuntimeExecutionEnvironmentOptions } from '../../../types/runtime';
-import { EnvironmentPrimitive, WatchEvent, WatchEventType, WriteFilesResult } from '../base';
+import { deriveSessionPaths, EnvironmentPrimitive, WatchEvent, WatchEventType, WriteFilesResult } from '../base';
 import { createProcessHandle, ProcessHandle } from '../utils/process-handle';
 import { streamToString } from '../utils/stream-converter';
 
@@ -14,12 +14,6 @@ export class LocalPrimitive implements EnvironmentPrimitive {
 
     private readonly id: string;
     private readonly sessionPath: string;
-    private readonly basePaths: {
-        APP_DIR: string;
-        WORKSPACE_DIR: string;
-        HOME_DIR: string;
-        BUNDLED_MCP_DIR: string;
-    };
     private readonly shouldCleanup: boolean;
     private isTerminated: boolean = false;
     private watchers: FSWatcher[] = [];
@@ -33,32 +27,21 @@ export class LocalPrimitive implements EnvironmentPrimitive {
         const sessionId = randomUUID();
         const sessionPath = path.join(args.local.sessionsDirectoryPath, sessionId);
 
-        // Create session directories
-        const basePaths = {
-            APP_DIR: path.join(sessionPath, 'app'),
-            WORKSPACE_DIR: path.join(sessionPath, 'workspace'),
-            HOME_DIR: path.join(sessionPath, 'home'),
-            BUNDLED_MCP_DIR: path.join(sessionPath, 'mcps'),
-        };
-
-        for (const dir of Object.values(basePaths)) {
-            await fs.mkdir(dir, { recursive: true });
-        }
+        // Create session root directory only - subdirs created by ExecutionEnvironment
+        await fs.mkdir(sessionPath, { recursive: true });
 
         logger.info({ sessionId, sessionPath }, 'LocalPrimitive created');
 
-        return new LocalPrimitive(sessionId, sessionPath, basePaths, args.local.shouldCleanup);
+        return new LocalPrimitive(sessionId, sessionPath, args.local.shouldCleanup);
     }
 
     private constructor(
         id: string,
         sessionPath: string,
-        basePaths: typeof LocalPrimitive.prototype.basePaths,
         shouldCleanup: boolean
     ) {
         this.id = id;
         this.sessionPath = sessionPath;
-        this.basePaths = basePaths;
         this.shouldCleanup = shouldCleanup;
     }
 
@@ -67,7 +50,7 @@ export class LocalPrimitive implements EnvironmentPrimitive {
     }
 
     getBasePaths() {
-        return this.basePaths;
+        return { SESSION_DIR: this.sessionPath };
     }
 
     async exec(command: string[], options?: { cwd?: string }): Promise<ProcessHandle> {
@@ -79,15 +62,16 @@ export class LocalPrimitive implements EnvironmentPrimitive {
             throw new Error('Command array must not be empty');
         }
 
+        const paths = deriveSessionPaths(this.sessionPath);
         const cmd = command[0]!;
         const args = command.slice(1);
-        const cwd = options?.cwd || this.basePaths.WORKSPACE_DIR;
+        const cwd = options?.cwd || paths.workspaceDir;
 
         const child: ChildProcess = spawn(cmd, args, {
             cwd,
             env: {
                 ...process.env,
-                HOME: this.basePaths.HOME_DIR,
+                CLAUDE_CONFIG_DIR: paths.claudeConfigDir,
             },
         });
 

@@ -22,6 +22,11 @@ const __dirname = path.dirname(__filename);
 
 const localSandboxAppDir = path.resolve(__dirname, '../../../../../execution');
 
+/** Session paths in the container - matches Docker and local structure */
+const CONTAINER_SESSION_DIR = '/session';
+const CONTAINER_WORKSPACE_DIR = '/session/workspace';
+const CONTAINER_CLAUDE_CONFIG_DIR = '/session/.claude';
+
 /**
  * Create a new Modal sandbox with standard configuration
  *
@@ -33,8 +38,6 @@ export async function createModalSandbox(
   modalContext: ModalContext,
   agentProfile? : AgentProfile
 ): Promise<Sandbox> {
-
-  const workdir = "/workspace";
 
   const { modal, app } = modalContext;
 
@@ -72,20 +75,21 @@ export async function createModalSandbox(
         'RUN npm install -g tsx',
 
         'RUN npm install -g chokidar-cli',
-        // Set working directory to /workspace for SDK operations
-        `WORKDIR ${workdir}`
+        // Set working directory to workspace for SDK operations
+        `WORKDIR ${CONTAINER_WORKSPACE_DIR}`
       ])
 
     logger.info('Building/using cached image with Node.js 22 and sandbox application...');
 
     // Create sandbox with configuration
     const sandbox = await modal.sandboxes.create(app, image, {
-      workdir: workdir,
+      workdir: CONTAINER_WORKSPACE_DIR,
       timeoutMs : 1000 * 60 * 60 * 24, // 24 hours
       idleTimeoutMs : 1000 * 60 * 15, // 15 minutes
       env: {
         ANTHROPIC_API_KEY: env.ANTHROPIC_API_KEY,
-        CLAUDE_CODE_CWD: workdir,
+        CLAUDE_CODE_CWD: CONTAINER_WORKSPACE_DIR,
+        CLAUDE_CONFIG_DIR: CONTAINER_CLAUDE_CONFIG_DIR,
         OPENCODE_API_KEY: process.env.OPENCODE_API_KEY || "",
         IS_SANDBOX: "1", // see https://github.com/anthropics/claude-agent-sdk-typescript/issues/54
       },

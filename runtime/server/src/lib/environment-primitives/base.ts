@@ -1,3 +1,4 @@
+import { join } from 'path';
 
 export interface WriteFilesResult {
     success: { path: string }[];
@@ -13,31 +14,49 @@ export interface WatchEvent {
 }
 
 /**
+ * Paths derived from a session directory root.
+ * All session-related files live within SESSION_DIR using these conventions.
+ */
+export interface SessionPaths {
+    /** Root of the session folder */
+    sessionDir: string;
+    /** Runner bundle (runner.js, package.json, adapter) */
+    appDir: string;
+    /** Working directory for the session */
+    workspaceDir: string;
+    /** Bundled MCP servers */
+    mcpDir: string;
+    /** Claude config directory (set as CLAUDE_CONFIG_DIR) */
+    claudeConfigDir: string;
+}
+
+/**
+ * Derive all session paths from the session root directory.
+ * This enforces the convention: one session = one folder = one source of truth.
+ */
+export function deriveSessionPaths(sessionDir: string): SessionPaths {
+    return {
+        sessionDir,
+        appDir: join(sessionDir, 'app'),
+        workspaceDir: join(sessionDir, 'workspace'),
+        mcpDir: join(sessionDir, 'mcps'),
+        claudeConfigDir: join(sessionDir, '.claude'),
+    };
+}
+
+/**
  * Primitives for basic file system operations for the execution environment.
  */
-export interface EnvironmentPrimitive { 
+export interface EnvironmentPrimitive {
 
     getId : () => string,
 
+    /**
+     * Returns the root session directory. All other paths are derived from this
+     * using deriveSessionPaths() convention.
+     */
     getBasePaths : () => {
-        /**
-         * The directory where the sandbox application files (executing sdk queries / file watcher scripts) are located
-         */
-        APP_DIR : string, 
-        /**
-         * The directory where the workspace files are located. Will contain the workspace files and the agent profile (.claude/ or .gemini/)
-         */
-        WORKSPACE_DIR : string, 
-        /**
-         * Home dir
-         */
-        HOME_DIR : string,
-
-        /**
-         * The directory where the bundled MCPs are located.
-         */
-        BUNDLED_MCP_DIR : string,
-        
+        SESSION_DIR: string;
     }
 
     exec : (command : string[], options? : {cwd? : string}) => Promise<{

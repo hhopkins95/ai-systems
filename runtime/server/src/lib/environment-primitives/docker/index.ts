@@ -4,22 +4,18 @@ import * as path from 'path';
 import { randomUUID } from 'crypto';
 import { logger } from '../../../config/logger';
 import { RuntimeExecutionEnvironmentOptions } from '../../../types/runtime';
-import { EnvironmentPrimitive, WatchEvent, WatchEventType, WriteFilesResult } from '../base';
+import { deriveSessionPaths, EnvironmentPrimitive, WatchEvent, WatchEventType, WriteFilesResult } from '../base';
 import { createProcessHandle, ProcessHandle } from '../utils/process-handle';
 import { streamToString } from '../utils/stream-converter';
 import { createContainer, removeContainer, isContainerRunning, installTools, DEFAULT_IMAGE } from './container';
 
+/** Container session root - all paths are under /session */
+const CONTAINER_SESSION_DIR = '/session';
 
 export class DockerPrimitive implements EnvironmentPrimitive {
 
     private readonly containerId: string;
-    private readonly hostBasePath: string;
-    private readonly containerBasePaths = {
-        APP_DIR: '/app',
-        WORKSPACE_DIR: '/workspace',
-        HOME_DIR: '/root',
-        BUNDLED_MCP_DIR: '/mcps',
-    };
+    private readonly hostSessionDir: string;
     private readonly shouldCleanup: boolean;
     private isTerminated: boolean = false;
     private watcherProcess: ChildProcess | null = null;
@@ -30,19 +26,10 @@ export class DockerPrimitive implements EnvironmentPrimitive {
         }
 
         const sessionId = `ai-session-${randomUUID().slice(0, 8)}`;
-        const hostBasePath = path.join(args.docker.sessionsDirectoryPath, sessionId);
+        const hostSessionDir = path.join(args.docker.sessionsDirectoryPath, sessionId);
 
-        // Create host directories
-        const hostPaths = {
-            app: path.join(hostBasePath, 'app'),
-            workspace: path.join(hostBasePath, 'workspace'),
-            home: path.join(hostBasePath, 'home'),
-            mcps: path.join(hostBasePath, 'mcps'),
-        };
-
-        for (const dir of Object.values(hostPaths)) {
-            await fs.mkdir(dir, { recursive: true });
-        }
+        // Create host session directory only - subdirs created by ExecutionEnvironment
+        await fs.mkdir(hostSessionDir, { recursive: true });
 
         // Determine image
         const image = args.docker.image || DEFAULT_IMAGE;
@@ -52,11 +39,8 @@ export class DockerPrimitive implements EnvironmentPrimitive {
         await createContainer({
             id: sessionId,
             image,
-            hostBasePath,
-            env: {
-                ...args.docker.env,
-                HOME: '/root',
-            },
+            hostBasePath: hostSessionDir,
+            env: args.docker.env,
             resources: args.docker.resources,
         });
 
@@ -65,18 +49,18 @@ export class DockerPrimitive implements EnvironmentPrimitive {
             await installTools(sessionId);
         }
 
-        logger.info({ sessionId, hostBasePath, image }, 'DockerPrimitive created');
+        logger.info({ sessionId, hostSessionDir, image }, 'DockerPrimitive created');
 
-        return new DockerPrimitive(sessionId, hostBasePath, args.docker.shouldCleanup);
+        return new DockerPrimitive(sessionId, hostSessionDir, args.docker.shouldCleanup);
     }
 
     private constructor(
         containerId: string,
-        hostBasePath: string,
+        hostSessionDir: string,
         shouldCleanup: boolean
     ) {
         this.containerId = containerId;
-        this.hostBasePath = hostBasePath;
+        this.hostSessionDir = hostSessionDir;
         this.shouldCleanup = shouldCleanup;
     }
 
@@ -85,7 +69,8 @@ export class DockerPrimitive implements EnvironmentPrimitive {
     }
 
     getBasePaths() {
-        return this.containerBasePaths;
+        // Return container session dir - paths derived by ExecutionEnvironment
+        return { SESSION_DIR: CONTAINER_SESSION_DIR };
     }
 
     async exec(command: string[], options?: { cwd?: string }): Promise<ProcessHandle> {
@@ -93,7 +78,9 @@ export class DockerPrimitive implements EnvironmentPrimitive {
             throw new Error('DockerPrimitive has been terminated');
         }
 
-        const cwd = options?.cwd || this.containerBasePaths.WORKSPACE_DIR;
+        // Default cwd is workspace dir in container
+        const containerPaths = deriveSessionPaths(CONTAINER_SESSION_DIR);
+        const cwd = options?.cwd || containerPaths.workspaceDir;
 
         // Build docker exec command
         const dockerArgs = ['exec', '-i', '-w', cwd, this.containerId, ...command];
@@ -108,23 +95,17 @@ export class DockerPrimitive implements EnvironmentPrimitive {
     /**
      * Convert container path to host path for file operations.
      * Since we use volume mounts, files can be accessed directly on the host.
+     * Container: /session/* -> Host: {hostSessionDir}/*
      */
     private hostPath(containerPath: string): string {
-        const baseMappings: Record<string, string> = {
-            '/app': path.join(this.hostBasePath, 'app'),
-            '/workspace': path.join(this.hostBasePath, 'workspace'),
-            '/root': path.join(this.hostBasePath, 'home'),
-            '/mcps': path.join(this.hostBasePath, 'mcps'),
-        };
-
-        for (const [containerBase, hostBase] of Object.entries(baseMappings)) {
-            if (containerPath.startsWith(containerBase)) {
-                return containerPath.replace(containerBase, hostBase);
-            }
+        if (containerPath.startsWith('/session/')) {
+            return path.join(this.hostSessionDir, containerPath.slice('/session/'.length));
         }
-
-        // Default: assume it's under workspace
-        return path.join(this.hostBasePath, 'workspace', containerPath);
+        if (containerPath === '/session') {
+            return this.hostSessionDir;
+        }
+        // Default: assume it's a relative path under workspace
+        return path.join(this.hostSessionDir, 'workspace', containerPath);
     }
 
     async readFile(filePath: string): Promise<string | null> {
@@ -298,10 +279,10 @@ export class DockerPrimitive implements EnvironmentPrimitive {
         // Cleanup host workspace if configured
         if (this.shouldCleanup) {
             try {
-                await fs.rm(this.hostBasePath, { recursive: true, force: true });
-                logger.info({ hostBasePath: this.hostBasePath }, 'DockerPrimitive workspace cleaned up');
+                await fs.rm(this.hostSessionDir, { recursive: true, force: true });
+                logger.info({ hostSessionDir: this.hostSessionDir }, 'DockerPrimitive workspace cleaned up');
             } catch (err) {
-                logger.warn({ hostBasePath: this.hostBasePath, error: err }, 'Failed to cleanup workspace');
+                logger.warn({ hostSessionDir: this.hostSessionDir, error: err }, 'Failed to cleanup workspace');
             }
         }
 

@@ -107,18 +107,21 @@ The primitive's job is simple:
 ## Completion Criteria
 
 - [x] Strategy defined and documented
-- [ ] `BasePaths` interface simplified to `SESSION_DIR` only
-- [ ] Path derivation moved to `ExecutionEnvironment` (or shared utility)
-- [ ] `LocalPrimitive` updated
-- [ ] `DockerPrimitive` updated with `/session/*` mount mappings
-- [ ] `ModalSandbox` updated
-- [ ] `CLAUDE_CONFIG_DIR` set in process spawn environment
-- [ ] `getClaudeTranscriptDir` updated or removed
-- [ ] All execution types tested and working
+- [x] Implementation plan created
+- [x] `BasePaths` interface simplified to `SESSION_DIR` only
+- [x] Path derivation moved to `ExecutionEnvironment` (via `deriveSessionPaths` utility)
+- [x] `LocalPrimitive` updated
+- [x] `DockerPrimitive` updated with `/session/*` mount mappings
+- [x] `ModalSandbox` updated
+- [x] `CLAUDE_CONFIG_DIR` set in process spawn environment
+- [x] `getClaudeTranscriptDir` updated to use `CLAUDE_CONFIG_DIR`
+- [ ] All execution types tested and working (needs manual testing)
 
 ## Current Status
 
-Strategy clarified. Ready for implementation.
+**Implementation complete.** Build passes. Needs manual testing with actual sessions.
+
+See [implementation-plan.md](plans/implementation-plan.md) for detailed changes.
 
 ## Quick Links
 
