@@ -7,6 +7,8 @@
  */
 
 import type { createOpencode as CreateOpencodeType } from '@opencode-ai/sdk';
+import { writeStreamEvent } from '../cli/shared/output.js';
+import { createLogEvent } from '../core/execution-events.js';
 
 type OpencodeResult = Awaited<ReturnType<typeof CreateOpencodeType>>;
 type OpencodeClient = OpencodeResult['client'];
@@ -28,17 +30,26 @@ export interface OpencodeClientOptions {
  * Check if an OpenCode server is already running by trying to connect.
  */
 async function tryConnectExisting(baseUrl: string): Promise<OpencodeClient | null> {
+  writeStreamEvent(createLogEvent(`Checking for existing OpenCode server at ${baseUrl}`, 'debug'));
+
   try {
     const { createOpencodeClient } = await import('@opencode-ai/sdk');
+    writeStreamEvent(createLogEvent(`Creating OpenCode client for ${baseUrl}`, 'debug'));
     const client = createOpencodeClient({ baseUrl });
 
-    // Try a simple request to verify server is running
+    writeStreamEvent(createLogEvent('Testing connection with project.list()', 'debug'));
     const result = await client.project.list();
+
     if (result.error) {
+      writeStreamEvent(createLogEvent(`Server responded with error`, 'debug', { error: result.error }));
       return null;
     }
+
+    writeStreamEvent(createLogEvent(`Successfully connected to existing OpenCode server at ${baseUrl}`, 'info'));
     return client;
-  } catch {
+  } catch (error) {
+    const msg = error instanceof Error ? error.message : String(error);
+    writeStreamEvent(createLogEvent(`Failed to connect to existing server: ${msg}`, 'debug'));
     return null;
   }
 }
@@ -57,10 +68,11 @@ export async function getOpencodeConnection(
       const port = options.port ?? 4096;
       const baseUrl = `http://${hostname}:${port}`;
 
+      writeStreamEvent(createLogEvent(`Attempting OpenCode connection to ${baseUrl}`, 'debug'));
+
       // First, try to connect to an existing server
       const existingClient = await tryConnectExisting(baseUrl);
       if (existingClient) {
-        console.log(`[opencode] Connected to existing server at ${baseUrl}`);
         return {
           client: existingClient,
           server: undefined, // We didn't start this server, so don't track it
@@ -68,18 +80,27 @@ export async function getOpencodeConnection(
       }
 
       // No existing server, start a new one
-      console.log(`[opencode] Starting new server at ${baseUrl}`);
-      const { createOpencode } = await import('@opencode-ai/sdk');
+      writeStreamEvent(createLogEvent(`No existing server found, starting new OpenCode server at ${baseUrl}`, 'info'));
 
-      const result = await createOpencode({
-        hostname,
-        port,
-      });
+      try {
+        const { createOpencode } = await import('@opencode-ai/sdk');
 
-      return {
-        client: result.client,
-        server: result.server,
-      };
+        writeStreamEvent(createLogEvent(`Calling createOpencode({ hostname: '${hostname}', port: ${port} })`, 'debug'));
+        const result = await createOpencode({
+          hostname,
+          port,
+        });
+
+        writeStreamEvent(createLogEvent('OpenCode server started successfully', 'info'));
+        return {
+          client: result.client,
+          server: result.server,
+        };
+      } catch (error) {
+        const msg = error instanceof Error ? error.message : String(error);
+        writeStreamEvent(createLogEvent(`Failed to start OpenCode server: ${msg}`, 'error'));
+        throw error;
+      }
     })();
   }
   return connectionPromise;
