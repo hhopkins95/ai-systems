@@ -230,7 +230,11 @@ export class SessionEventBus extends EventEmitter {
 
   /**
    * Destroy the event bus - removes all listeners
-   * Call this when the session is destroyed
+   *
+   * IMPORTANT: This method removes ALL listeners registered on this bus,
+   * including those from PersistenceListener and ClientBroadcastListener.
+   * Those classes rely on this method for cleanup and do not track their
+   * own listeners. Call this when the session is destroyed.
    */
   destroy(): void {
     this.removeAllListeners();

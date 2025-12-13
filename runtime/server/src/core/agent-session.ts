@@ -239,12 +239,6 @@ export class AgentSession {
    * Set up internal event listeners for state management
    */
   private setupEventListeners(): void {
-    // Update state when blocks are received
-    this.eventBus.on('block:complete', (data) => {
-      // Blocks are updated from transcript changes, not individual block events
-      // This is kept for potential future use
-    });
-
     // Update state when transcript changes
     this.eventBus.on('transcript:changed', (data) => {
       this.state.setRawTranscript(data.content);

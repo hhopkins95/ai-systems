@@ -14,6 +14,7 @@
  * - options:update → update session record
  */
 
+import type { AgentArchitectureSessionOptions } from '@ai-systems/shared-types';
 import { logger as baseLogger } from '../../config/logger.js';
 import type { PersistenceAdapter } from '../../types/persistence-adapter.js';
 import type { SessionEventBus } from './session-event-bus.js';
@@ -121,7 +122,7 @@ export class PersistenceListener {
   }
 
   private async handleOptionsUpdate(data: {
-    options: Record<string, unknown>;
+    options: AgentArchitectureSessionOptions;
   }): Promise<void> {
     try {
       await this.persistence.updateSessionRecord(this.sessionId, {
@@ -201,8 +202,13 @@ export class PersistenceListener {
 
   /**
    * Cleanup when session is destroyed
-   * Note: EventBus.destroy() will remove all listeners,
-   * so we don't need to explicitly remove them here
+   *
+   * Note: This class does NOT track its own event listeners.
+   * Cleanup relies on SessionEventBus.destroy() being called by AgentSession,
+   * which removes all listeners including ours. This is intentional to avoid
+   * duplicate bookkeeping.
+   *
+   * @see SessionEventBus.destroy
    */
   destroy(): void {
     this.logger.debug('PersistenceListener destroyed');

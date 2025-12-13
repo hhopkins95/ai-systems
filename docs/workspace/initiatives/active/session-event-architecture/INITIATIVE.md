@@ -110,7 +110,7 @@ interface ClientHub {
 
 ## Current Status
 
-Not started - initial design complete
+Complete - implementation done 2025-12-12. See [session log](sessions/2025-12-12-initial-implementation.md).
 
 ## Quick Links
 

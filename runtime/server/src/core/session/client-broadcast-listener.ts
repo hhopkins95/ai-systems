@@ -165,10 +165,15 @@ export class ClientBroadcastListener {
 
   /**
    * Cleanup when session is destroyed
-   * Note: EventBus.destroy() will remove all listeners,
-   * so we don't need to explicitly remove them here
+   *
+   * Note: This class does NOT track its own event listeners.
+   * Cleanup relies on SessionEventBus.destroy() being called by AgentSession,
+   * which removes all listeners including ours. This is intentional to avoid
+   * duplicate bookkeeping.
+   *
+   * @see SessionEventBus.destroy
    */
   destroy(): void {
-    // Nothing to cleanup - EventBus.destroy() handles listener removal
+    // Listeners are cleaned up by SessionEventBus.destroy()
   }
 }
