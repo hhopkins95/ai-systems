@@ -3,7 +3,7 @@ import { cors } from "hono/cors";
 import { logger } from "hono/logger";
 import { HTTPException } from "hono/http-exception";
 import type { Context, Next } from "hono";
-import type { LocalSessionHost } from "../../core/session/local-session-host";
+import type { SessionHost } from "../../core/host/session-host.js";
 import { createSessionRoutes } from "./routes/sessions";
 import { createMessageRoutes } from "./routes/messages";
 
@@ -49,7 +49,7 @@ export const createRestServer = ({
   sessionHost,
   config,
 }: {
-  sessionHost: LocalSessionHost;
+  sessionHost: SessionHost;
   config: {
     apiKey: string;
   };

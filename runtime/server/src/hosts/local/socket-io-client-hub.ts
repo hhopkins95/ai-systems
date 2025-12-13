@@ -8,7 +8,7 @@
  */
 
 import type { Server as SocketIOServer } from 'socket.io';
-import type { ClientHub, ClientHubEvents } from '../../core/session/client-hub.js';
+import type { ClientHub, ClientHubEvents } from '../../core/host/client-hub.js';
 import type {
   ServerToClientEvents,
   ClientToServerEvents,

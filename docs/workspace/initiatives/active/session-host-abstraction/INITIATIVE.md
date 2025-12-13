@@ -193,7 +193,7 @@ interface SessionHost {
 
 **COMPLETE** - Implemented on 2025-12-12
 
-### Implementation Summary
+### Phase 1: SessionHost Interface (Session 1)
 
 1. Created `SessionHost` interface (`core/session/session-host.ts`)
 2. Created `LocalSessionHost` implementing the interface (`core/session/local-session-host.ts`)
@@ -205,7 +205,40 @@ interface SessionHost {
 8. Removed `sessions:list` WebSocket event from server and client
 9. Updated example-backend to use new API
 
-Session list is now REST-only. Per-session events (block streaming, status, etc.) continue to work via `SessionEventBus` → `ClientBroadcastListener` → `ClientHub`.
+### Phase 2: Decouple Host from Transport (Session 2)
+
+1. Reorganized core folder structure:
+   - `core/session/` - Session internals (agent-session, execution-environment, events, state)
+   - `core/host/` - Host primitives (interfaces only)
+2. Created host factories in `hosts/local/`:
+   - `createLocalHost()` - bundles LocalSessionHost + Socket.IO transport
+   - ClientHub is now internal to host (callers never see it)
+3. Updated runtime to accept `sessionHost` in config (removed `createWebSocketServer`)
+4. REST routes now use `SessionHost` interface (not concrete type)
+5. Deleted `transport/websocket/` - Socket.IO setup moved to `hosts/local/`
+
+### Final Architecture
+
+```
+runtime/server/src/
+├── core/
+│   ├── session/          # Session internals
+│   └── host/             # Host primitives (interfaces)
+├── hosts/
+│   └── local/            # createLocalHost() + Socket.IO
+├── transport/
+│   └── rest/             # REST routes (use SessionHost interface)
+└── runtime.ts            # Accepts sessionHost
+```
+
+**New usage pattern:**
+```typescript
+const host = createLocalHost({ persistence, executionEnvironment });
+const runtime = await createAgentRuntime({ sessionHost: host.sessionHost });
+host.attachTransport(httpServer);
+```
+
+Session list is now REST-only. Per-session events continue via `SessionEventBus` → `ClientBroadcastListener` → `ClientHub`.
 
 ## Quick Links
 

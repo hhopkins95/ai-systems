@@ -1,5 +1,5 @@
 import { createServer } from "http";
-import { createAgentRuntime, type PersistenceAdapter } from "@hhopkins/agent-server";
+import { createAgentRuntime, createLocalHost, type PersistenceAdapter } from "@hhopkins/agent-server";
 import dotenv from "dotenv";
 import { InMemoryPersistenceAdapter, SqlitePersistenceAdapter } from "./persistence/index.js";
 import { config, validateConfig, createExampleAgentProfile } from "./config.js";
@@ -17,7 +17,7 @@ const agentSessionsDirectoryPath = path.join(dirname, "../../../.agent-sessions"
  * Main server entry point
  *
  * This example demonstrates:
- * 1. Setting up the agent runtime with in-memory persistence
+ * 1. Setting up a local host with in-memory persistence
  * 2. Configuring an agent profile (Claude SDK)
  * 3. Starting HTTP REST server and WebSocket server
  * 4. Graceful shutdown handling
@@ -46,8 +46,8 @@ async function main() {
       console.log("✅ In-memory persistence adapter initialized");
     }
 
-    // Create agent runtime
-    const runtime = await createAgentRuntime({
+    // Create local host (in-memory sessions + Socket.IO transport)
+    const host = createLocalHost({
       persistence,
       executionEnvironment: {
         type: "local",
@@ -56,12 +56,15 @@ async function main() {
           shouldCleanup: true,
         }
       },
+    });
+    console.log("✅ Local host created");
 
-      idleTimeoutMs: 15 * 60 * 1000, // 15 minutes
-      syncIntervalMs: 30 * 1000, // 30 seconds
+    // Create agent runtime with the host
+    const runtime = await createAgentRuntime({
+      sessionHost: host.sessionHost,
     });
 
-    // Start runtime (loads sessions, starts background jobs)
+    // Start runtime
     await runtime.start();
     console.log("✅ Agent runtime started");
 
@@ -177,9 +180,9 @@ async function main() {
       res.end(body);
     });
 
-    // Create WebSocket server on the same HTTP server
-    const wsServer = runtime.createWebSocketServer(httpServer);
-    console.log("✅ WebSocket server created");
+    // Attach WebSocket transport to HTTP server
+    const io = host.attachTransport(httpServer);
+    console.log("✅ WebSocket transport attached");
 
     // Start HTTP server
     httpServer.listen(config.port, () => {
@@ -210,7 +213,7 @@ async function main() {
       httpServer.close();
 
       // Close WebSocket server
-      wsServer.close();
+      io.close();
 
       // Shutdown runtime (sync sessions, terminate sandboxes)
       await runtime.shutdown();
@@ -246,4 +249,3 @@ function getRequestBody(req: any): Promise<string> {
 
 // Start the server
 main();
-console.log("STARTING EXAMPLE SERVEd");

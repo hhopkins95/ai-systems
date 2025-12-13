@@ -8,7 +8,7 @@
  * and the external client communication layer.
  */
 
-import type { ClientHub } from './client-hub.js';
+import type { ClientHub } from '../host/client-hub.js';
 import type { SessionEventBus } from './session-event-bus.js';
 
 // ============================================================================

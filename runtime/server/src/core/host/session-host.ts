@@ -10,7 +10,7 @@
  * It is NOT about where agent code executes - that's ExecutionEnvironment.
  */
 
-import type { AgentSession } from '../agent-session.js';
+import type { AgentSession } from '../session/agent-session.js';
 import type { CreateSessionArgs } from '@ai-systems/shared-types';
 import type { ClientHub } from './client-hub.js';
 
@@ -36,9 +36,19 @@ export interface SessionHost {
   /** Get all loaded session IDs */
   getLoadedSessionIds(): string[];
 
+  /** Get all sessions from persistence, enriched with runtime state */
+  getAllSessions(): Promise<Array<{
+    sessionId: string;
+    runtime: { isLoaded: boolean; executionEnvironment: unknown };
+    [key: string]: unknown;
+  }>>;
+
   /** Graceful shutdown */
   shutdown(): Promise<void>;
 
   /** Set the ClientHub for session event broadcasting */
   setClientHub(clientHub: ClientHub): void;
+
+  /** Health check */
+  isHealthy(): boolean;
 }

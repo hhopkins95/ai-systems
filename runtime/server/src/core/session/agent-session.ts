@@ -16,8 +16,8 @@
  */
 
 import { randomUUID } from 'crypto';
-import { logger } from '../config/logger.js';
-import type { PersistenceAdapter } from '../types/persistence-adapter.js';
+import { logger } from '../../config/logger.js';
+import type { PersistenceAdapter } from '../../types/persistence-adapter.js';
 import type { AgentProfile } from '@ai-systems/shared-types';
 import type {
   RuntimeSessionData,
@@ -29,14 +29,14 @@ import type {
   AgentArchitectureSessionOptions,
 } from '@ai-systems/shared-types';
 import type { ConversationBlock } from '@ai-systems/shared-types';
-import type { RuntimeConfig } from '../types/runtime.js';
-import type { ClientHub } from './session/client-hub.js';
+import type { RuntimeConfig } from '../../types/runtime.js';
+import type { ClientHub } from '../host/client-hub.js';
 import { ExecutionEnvironment } from './execution-environment.js';
 import { parseTranscript } from '@hhopkins/agent-converters';
-import { SessionEventBus } from './session/session-event-bus.js';
-import { SessionState } from './session/session-state.js';
-import { PersistenceListener } from './session/persistence-listener.js';
-import { ClientBroadcastListener } from './session/client-broadcast-listener.js';
+import { SessionEventBus } from './session-event-bus.js';
+import { SessionState } from './session-state.js';
+import { PersistenceListener } from './persistence-listener.js';
+import { ClientBroadcastListener } from './client-broadcast-listener.js';
 
 /**
  * Generate a session ID in the appropriate format for the architecture

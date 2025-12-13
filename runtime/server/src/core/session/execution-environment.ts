@@ -9,13 +9,13 @@ import {
     isLogEvent,
     isScriptOutput,
 } from "@ai-systems/shared-types";
-import { logger } from '../config/logger.js';
-import { deriveSessionPaths, EnvironmentPrimitive, SessionPaths, WatchEvent } from "../lib/environment-primitives/base";
-import { getEnvironmentPrimitive } from "../lib/environment-primitives/factory";
-import { RuntimeExecutionEnvironmentOptions } from "../types/runtime";
+import { logger } from '../../config/logger.js';
+import { deriveSessionPaths, EnvironmentPrimitive, SessionPaths, WatchEvent } from "../../lib/environment-primitives/base";
+import { getEnvironmentPrimitive } from "../../lib/environment-primitives/factory";
+import { RuntimeExecutionEnvironmentOptions } from "../../types/runtime";
 import { getRunnerBundleContent } from "@hhopkins/agent-runner";
 import { getAdapterBundleContent } from "@ai-systems/opencode-claude-adapter/bundle";
-import type { SessionEventBus } from "./session/session-event-bus.js";
+import type { SessionEventBus } from "./session-event-bus.js";
 
 import { join } from "path";
 

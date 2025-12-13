@@ -2,151 +2,110 @@
  * Runtime factory - creates and configures the agent runtime
  *
  * This is the main entry point for applications using the generic runtime.
- * Applications provide their own adapter implementations and configuration.
+ * Applications provide a pre-configured SessionHost and the runtime handles REST API.
  *
  * @example
  * ```typescript
  * import { serve } from "@hono/node-server";
- * import { createAgentRuntime } from './runtime';
- * 
+ * import { createAgentRuntime, createLocalHost } from '@hhopkins/agent-server';
  *
- * // Create and initialize runtime
+ * // Create host (includes transport setup)
+ * const host = createLocalHost({
+ *   persistence: myPersistenceAdapter,
+ *   executionEnvironment: config.executionEnvironment,
+ * });
+ *
+ * // Create runtime with the host
  * const runtime = await createAgentRuntime({
- *   persistence: new MyPersistenceAdapter(),
- *   profileLoader: new MyProfileLoader(),
- *   sandboxConfig: new MySandboxConfig(),
- *   modal: {
- *     tokenId: process.env.MODAL_TOKEN_ID,
- *     tokenSecret: process.env.MODAL_TOKEN_SECRET,
- *     appName: 'my-app-agents',
- *   },
+ *   sessionHost: host.sessionHost,
  * });
  *
  * await runtime.start();
  *
  * // Create Hono REST API
- * const honoApp = runtime.createRestServer({
- *   apiKey: process.env.API_KEY,
- * });
+ * const app = runtime.createRestServer({ apiKey: process.env.API_KEY });
  *
- * // Create HTTP server from Hono
- * const httpServer = serve({
- *   fetch: honoApp.fetch,
- *   port: 3000,
- * });
- *
- * // Create WebSocket server on same HTTP server
- * const wsServer = runtime.createWebSocketServer(httpServer);
+ * // Create HTTP server and attach transport
+ * const httpServer = serve({ fetch: app.fetch, port: 3000 });
+ * host.attachTransport(httpServer);
  *
  * console.log('Server running on http://localhost:3000');
  * ```
  */
 
-import { createServer, type Server } from 'http';
 import type { Hono } from 'hono';
-import { Server as SocketIOServer } from 'socket.io';
 import { logger } from './config/logger.js';
-import { LocalSessionHost } from './core/session/local-session-host.js';
-import type { SessionHost } from './core/session/session-host.js';
-import { createWebSocketServer as createWSServer } from './transport/websocket/index.js';
+import type { SessionHost } from './core/host/session-host.js';
 import { createRestServer } from './transport/rest/server.js';
-import type {
-  RuntimeConfig,
-} from './types/runtime.js';
-import type {
-  ServerToClientEvents,
-  ClientToServerEvents,
-  InterServerEvents,
-  SocketData,
-} from './types/events.js';
+
+/**
+ * Runtime configuration
+ */
+export interface AgentRuntimeConfig {
+  /** Pre-configured session host */
+  sessionHost: SessionHost;
+}
 
 /**
  * Agent runtime instance returned by createAgentRuntime
  */
 export type AgentRuntime = {
+  /** The session host instance */
   sessionHost: SessionHost;
+
+  /**
+   * Create a Hono REST API server
+   * @param config - REST server configuration
+   * @returns Hono application instance
+   */
   createRestServer: (config: { apiKey: string }) => Hono;
-  createWebSocketServer: (httpServer: Server) => SocketIOServer<
-    ClientToServerEvents,
-    ServerToClientEvents,
-    InterServerEvents,
-    SocketData
-  >;
+
+  /** Start the runtime */
   start: () => Promise<void>;
+
+  /** Shutdown the runtime gracefully */
   shutdown: () => Promise<void>;
+
+  /** Check if the runtime is healthy */
   isHealthy: () => boolean;
 };
 
 /**
  * Create and initialize the agent runtime
  *
- * @param config - Runtime configuration with all required adapters
+ * @param config - Runtime configuration with sessionHost
  * @returns Initialized runtime instance
  *
  * @example
  * ```typescript
- * const runtime = await createAgentRuntime({
- *   persistence: new ConvexPersistenceAdapter(...),
- *   profileLoader: new FileProfileLoader('./profiles'),
- *   sandboxConfig: new MyAppSandboxConfig(...),
- *   modal: {
- *     tokenId: process.env.MODAL_TOKEN_ID,
- *     tokenSecret: process.env.MODAL_TOKEN_SECRET,
- *     appName: 'my-app-agents',
- *   },
- * });
- *
+ * const host = createLocalHost({ persistence, executionEnvironment });
+ * const runtime = await createAgentRuntime({ sessionHost: host.sessionHost });
  * await runtime.start();
  * ```
  */
 export async function createAgentRuntime(
-  config: RuntimeConfig
+  config: AgentRuntimeConfig
 ): Promise<AgentRuntime> {
   logger.info('Creating agent runtime...');
 
-  // Create LocalSessionHost (replaces SessionManager + EventBus)
-  const sessionHost = new LocalSessionHost(
-    config.executionEnvironment,
-    config.persistence,
-  );
-  logger.debug('LocalSessionHost created');
+  const { sessionHost } = config;
 
   // Return runtime instance
-  const runtime = {
+  const runtime: AgentRuntime = {
     sessionHost,
 
-    /**
-     * Create a Hono REST API server
-     * @param config - REST server configuration
-     * @returns Hono application instance
-     */
-    createRestServer(config: { apiKey: string }) {
+    createRestServer(restConfig: { apiKey: string }) {
       const restServer = createRestServer({
         sessionHost,
-        config,
+        config: restConfig,
       });
       logger.info('REST server created');
       return restServer;
     },
 
-    /**
-     * Create a WebSocket server attached to an HTTP server
-     * Also creates and injects SocketIOClientHub into SessionHost
-     * @param httpServer - HTTP server instance (from @hono/node-server or similar)
-     * @returns Socket.IO server instance
-     */
-    createWebSocketServer(httpServer: Server) {
-      const { io, clientHub } = createWSServer(httpServer, sessionHost);
-      logger.info('WebSocket server created with SocketIOClientHub');
-      return io;
-    },
-
     async start(): Promise<void> {
       logger.info('Starting agent runtime...');
-
-      // Fetch initial session list from persistence (for logging/health check)
-      const sessions = await sessionHost.getAllSessions();
-      logger.info({ sessionCount: sessions.length }, 'Agent runtime started successfully');
+      logger.info('Agent runtime started successfully');
     },
 
     async shutdown(): Promise<void> {
@@ -159,7 +118,6 @@ export async function createAgentRuntime(
     },
 
     isHealthy(): boolean {
-      // Simple health check - SessionHost is responsive
       return sessionHost.isHealthy();
     },
   };

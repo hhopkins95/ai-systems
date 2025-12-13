@@ -2,12 +2,12 @@ import { Hono } from "hono";
 import { HTTPException } from "hono/http-exception";
 import { zValidator } from "@hono/zod-validator";
 import { z } from "zod";
-import type { LocalSessionHost } from "../../../core/session/local-session-host";
+import type { SessionHost } from "../../../core/host/session-host.js";
 import type { AgentArchitectureSessionOptions } from "@ai-systems/shared-types";
 import { errorResponse } from "../server";
 
 export function createSessionRoutes(
-  sessionHost: LocalSessionHost
+  sessionHost: SessionHost
 ): Hono {
   const app = new Hono()
 

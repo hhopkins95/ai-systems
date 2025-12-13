@@ -1,19 +1,31 @@
 /**
- * Session Lifecycle Handlers
+ * Connection Handlers
  *
  * WebSocket handlers for joining and leaving session rooms
  */
 
 import type { Socket } from 'socket.io';
-import type { LocalSessionHost } from '../../../core/session/local-session-host.js';
+import type { LocalSessionHost } from './local-session-host.js';
 import type {
   ServerToClientEvents,
   ClientToServerEvents,
   InterServerEvents,
   SocketData,
-} from '../../../types/events.js';
-import { logger } from '../../../config/logger.js';
-import { getErrorMessage } from './utils.js';
+} from '../../types/events.js';
+import { logger } from '../../config/logger.js';
+
+/**
+ * Extract error message from unknown error object
+ */
+function getErrorMessage(error: unknown): string {
+  if (error instanceof Error) {
+    return error.message;
+  }
+  if (typeof error === 'string') {
+    return error;
+  }
+  return 'Internal server error';
+}
 
 /**
  * Properly typed Socket with custom event interfaces
