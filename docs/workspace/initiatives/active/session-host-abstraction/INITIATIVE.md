@@ -1,7 +1,8 @@
 ---
 title: Session Host Abstraction
 created: 2025-12-12
-status: active
+completed: 2025-12-12
+status: complete
 depends_on: session-event-architecture
 ---
 
@@ -151,17 +152,17 @@ interface SessionHost {
 
 ## Completion Criteria
 
-- [ ] `SessionHost` interface defined in `runtime/server/src/core/session/`
-- [ ] `LocalSessionHost` implements interface with current behavior
-- [ ] `EventBus` class deleted
-- [ ] `sessions:changed` event removed
-- [ ] `sessions:list` WebSocket event removed
-- [ ] `event-listeners.ts` deleted or reduced to empty shell
-- [ ] `runtime.ts` exposes `sessionHost` instead of `sessionManager`
-- [ ] REST endpoint for listing sessions queries persistence directly
-- [ ] WebSocket server only handles `session:subscribe` / `session:unsubscribe`
-- [ ] All existing per-session functionality works unchanged
-- [ ] Build passes, no regressions
+- [x] `SessionHost` interface defined in `runtime/server/src/core/session/`
+- [x] `LocalSessionHost` implements interface with current behavior
+- [x] `EventBus` class deleted
+- [x] `sessions:changed` event removed
+- [x] `sessions:list` WebSocket event removed
+- [x] `event-listeners.ts` deleted
+- [x] `runtime.ts` exposes `sessionHost` instead of `sessionManager`
+- [x] REST endpoint for listing sessions queries persistence directly
+- [x] WebSocket server only handles `session:join` / `session:leave`
+- [x] All existing per-session functionality works unchanged
+- [x] Build passes, no regressions
 
 ## Files to Modify
 
@@ -190,7 +191,21 @@ interface SessionHost {
 
 ## Current Status
 
-Planning complete - ready for implementation
+**COMPLETE** - Implemented on 2025-12-12
+
+### Implementation Summary
+
+1. Created `SessionHost` interface (`core/session/session-host.ts`)
+2. Created `LocalSessionHost` implementing the interface (`core/session/local-session-host.ts`)
+3. Deleted global `EventBus` class and `event-listeners.ts`
+4. Deleted `SessionManager` (logic moved to `LocalSessionHost`)
+5. Updated `runtime.ts` to expose `sessionHost` instead of `sessionManager`
+6. Updated REST routes to use `LocalSessionHost`
+7. Updated WebSocket server to remove global event broadcasting
+8. Removed `sessions:list` WebSocket event from server and client
+9. Updated example-backend to use new API
+
+Session list is now REST-only. Per-session events (block streaming, status, etc.) continue to work via `SessionEventBus` → `ClientBroadcastListener` → `ClientHub`.
 
 ## Quick Links
 

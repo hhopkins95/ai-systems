@@ -46,8 +46,8 @@ import { createServer, type Server } from 'http';
 import type { Hono } from 'hono';
 import { Server as SocketIOServer } from 'socket.io';
 import { logger } from './config/logger.js';
-import { EventBus } from './core/event-bus.js';
-import { SessionManager } from './core/session-manager.js';
+import { LocalSessionHost } from './core/session/local-session-host.js';
+import type { SessionHost } from './core/session/session-host.js';
 import { createWebSocketServer as createWSServer } from './transport/websocket/index.js';
 import { createRestServer } from './transport/rest/server.js';
 import type {
@@ -64,8 +64,7 @@ import type {
  * Agent runtime instance returned by createAgentRuntime
  */
 export type AgentRuntime = {
-  sessionManager: SessionManager;
-  eventBus: EventBus;
+  sessionHost: SessionHost;
   createRestServer: (config: { apiKey: string }) => Hono;
   createWebSocketServer: (httpServer: Server) => SocketIOServer<
     ClientToServerEvents,
@@ -105,26 +104,16 @@ export async function createAgentRuntime(
 ): Promise<AgentRuntime> {
   logger.info('Creating agent runtime...');
 
-
-  // Create EventBus for domain events
-  const eventBus = new EventBus();
-  logger.debug('EventBus created');
-
-  // Create SessionManager with injected adapters
-  const sessionManager = new SessionManager(
-    eventBus,
+  // Create LocalSessionHost (replaces SessionManager + EventBus)
+  const sessionHost = new LocalSessionHost(
     config.executionEnvironment,
-    {
-      persistence: config.persistence,
-    },
+    config.persistence,
   );
-
-  logger.debug('SessionManager created');
+  logger.debug('LocalSessionHost created');
 
   // Return runtime instance
   const runtime = {
-    sessionManager,
-    eventBus,
+    sessionHost,
 
     /**
      * Create a Hono REST API server
@@ -133,8 +122,7 @@ export async function createAgentRuntime(
      */
     createRestServer(config: { apiKey: string }) {
       const restServer = createRestServer({
-        sessionManager,
-        eventBus,
+        sessionHost,
         config,
       });
       logger.info('REST server created');
@@ -143,12 +131,12 @@ export async function createAgentRuntime(
 
     /**
      * Create a WebSocket server attached to an HTTP server
-     * Also creates and injects SocketIOClientHub into SessionManager
+     * Also creates and injects SocketIOClientHub into SessionHost
      * @param httpServer - HTTP server instance (from @hono/node-server or similar)
      * @returns Socket.IO server instance
      */
     createWebSocketServer(httpServer: Server) {
-      const { io, clientHub } = createWSServer(httpServer, sessionManager, eventBus);
+      const { io, clientHub } = createWSServer(httpServer, sessionHost);
       logger.info('WebSocket server created with SocketIOClientHub');
       return io;
     },
@@ -156,24 +144,23 @@ export async function createAgentRuntime(
     async start(): Promise<void> {
       logger.info('Starting agent runtime...');
 
-      // Initialize SessionManager (fetch all sessions from persistence)
-      await sessionManager.initialize();
-
-      logger.info('Agent runtime started successfully');
+      // Fetch initial session list from persistence (for logging/health check)
+      const sessions = await sessionHost.getAllSessions();
+      logger.info({ sessionCount: sessions.length }, 'Agent runtime started successfully');
     },
 
     async shutdown(): Promise<void> {
       logger.info('Shutting down agent runtime...');
 
-      // Gracefully shutdown SessionManager (sync all sessions, terminate sandboxes)
-      await sessionManager.shutdown();
+      // Gracefully shutdown SessionHost (sync all sessions, terminate sandboxes)
+      await sessionHost.shutdown();
 
       logger.info('Agent runtime shutdown complete');
     },
 
     isHealthy(): boolean {
-      // Simple health check - SessionManager is responsive
-      return sessionManager.isHealthy();
+      // Simple health check - SessionHost is responsive
+      return sessionHost.isHealthy();
     },
   };
 

@@ -4,33 +4,21 @@
  * Event naming convention: resource:scope:action
  *
  * Examples:
- * - sessions:list - Global sessions list update
  * - session:main:message - Main transcript message
  * - session:subagent:discovered - New subagent detected
  * - session:file:modified - File changed in workspace
  * - session:status - Session lifecycle status change
+ *
+ * Note: Session list is REST-only (no WebSocket broadcast)
  */
 
-import type { ConversationBlock, SessionListItem, SessionRuntimeState, WorkspaceFile, AgentArchitectureSessionOptions } from "@ai-systems/shared-types";
+import type { ConversationBlock, SessionRuntimeState, WorkspaceFile, AgentArchitectureSessionOptions } from "@ai-systems/shared-types";
 
 // ============================================================================
 // Server → Client Events
 // ============================================================================
 
 export interface ServerToClientEvents {
-  // -------------------------------------------------------------------------
-  // Global Events (broadcast to all clients)
-  // -------------------------------------------------------------------------
-
-  /**
-   * Complete list of all sessions with runtime state
-   * Sent when:
-   * - Client first connects
-   * - Session created/loaded/unloaded
-   * - Session runtime state changes
-   */
-  'sessions:list': (sessions: SessionListItem[]) => void;
-
   // -------------------------------------------------------------------------
   // Block Streaming Events (session:block:*)
   // -------------------------------------------------------------------------

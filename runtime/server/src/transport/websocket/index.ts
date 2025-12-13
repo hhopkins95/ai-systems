@@ -4,16 +4,15 @@
  * Provides real-time event streaming between server and clients via WebSocket.
  * Mutations are handled via REST API, WebSocket is for subscription and streaming only.
  *
- * Architecture (New):
+ * Architecture:
  * - Session-scoped events: AgentSession → SessionEventBus → ClientBroadcastListener → SocketIOClientHub → Socket.io rooms
- * - Global events: SessionManager → GlobalEventBus → Socket.io broadcast
+ * - Session list is REST-only (no WebSocket broadcast)
  * - handlers/ handle session room join/leave operations
  */
 
 import { Server as SocketIOServer } from 'socket.io';
 import type { Server as HTTPServer } from 'http';
-import type { SessionManager } from '../../core/session-manager.js';
-import type { EventBus } from '../../core/event-bus.js';
+import type { LocalSessionHost } from '../../core/session/local-session-host.js';
 import { logger } from '../../config/logger.js';
 import type {
   ServerToClientEvents,
@@ -21,7 +20,6 @@ import type {
   InterServerEvents,
   SocketData,
 } from '../../types/events.js';
-import { setupGlobalEventListeners } from './event-listeners.js';
 import { setupSessionLifecycleHandlers } from './handlers/session-lifecycle.js';
 import { SocketIOClientHub } from './socket-io-client-hub.js';
 
@@ -29,14 +27,12 @@ import { SocketIOClientHub } from './socket-io-client-hub.js';
  * Create and configure WebSocket server with Session Event Architecture
  *
  * @param httpServer - HTTP server instance to attach Socket.io to
- * @param sessionManager - SessionManager instance
- * @param eventBus - GlobalEventBus instance for global events only
+ * @param sessionHost - SessionHost instance for session lifecycle
  * @returns Configured Socket.io server and ClientHub
  */
 export function createWebSocketServer(
   httpServer: HTTPServer,
-  sessionManager: SessionManager,
-  eventBus: EventBus
+  sessionHost: LocalSessionHost
 ): {
   io: SocketIOServer<ClientToServerEvents, ServerToClientEvents, InterServerEvents, SocketData>;
   clientHub: SocketIOClientHub;
@@ -58,19 +54,12 @@ export function createWebSocketServer(
   logger.info('Initializing WebSocket server (Session Event Architecture)...');
 
   // ==========================================================================
-  // Create SocketIOClientHub and inject into SessionManager
+  // Create SocketIOClientHub and inject into SessionHost
   // ==========================================================================
 
   const clientHub = new SocketIOClientHub(io);
-  sessionManager.setClientHub(clientHub);
-  logger.info('SocketIOClientHub created and injected into SessionManager');
-
-  // ==========================================================================
-  // Setup Global Event Listeners (GlobalEventBus → Socket.io broadcast)
-  // Session-scoped events are now handled by ClientBroadcastListener
-  // ==========================================================================
-
-  setupGlobalEventListeners(io, sessionManager, eventBus);
+  sessionHost.setClientHub(clientHub);
+  logger.info('SocketIOClientHub created and injected into SessionHost');
 
   // ==========================================================================
   // Connection Handler (Socket.io → Business Logic)
@@ -89,7 +78,7 @@ export function createWebSocketServer(
     socket.data.joinedAt = Date.now();
 
     // Setup socket event handlers
-    setupSessionLifecycleHandlers(socket, sessionManager);
+    setupSessionLifecycleHandlers(socket, sessionHost);
 
     // Handle disconnect
     socket.on('disconnect', (reason) => {

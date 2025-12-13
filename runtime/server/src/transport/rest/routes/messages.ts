@@ -2,13 +2,11 @@ import { Hono } from "hono";
 import { HTTPException } from "hono/http-exception";
 import { zValidator } from "@hono/zod-validator";
 import { z } from "zod";
-import type { SessionManager } from "../../../core/session-manager";
-import type { EventBus } from "../../../core/event-bus";
+import type { LocalSessionHost } from "../../../core/session/local-session-host";
 import { errorResponse } from "../server";
 
 export function createMessageRoutes(
-  sessionManager: SessionManager,
-  eventBus: EventBus
+  sessionHost: LocalSessionHost
 ) {
   const app = new Hono()
 
@@ -37,12 +35,12 @@ export function createMessageRoutes(
       const { content } = c.req.valid("json");
 
       // First check if session is already loaded in memory
-      let session = sessionManager.getSession(sessionId);
+      let session = sessionHost.getSession(sessionId);
 
       // If not loaded, try to load from persistence
       if (!session) {
         try {
-          session = await sessionManager.loadSession(sessionId);
+          session = await sessionHost.loadSession(sessionId);
         } catch {
           // Session doesn't exist in persistence either
           throw new HTTPException(404, {

@@ -78,14 +78,17 @@ async function main() {
         res.setHeader('Content-Type', 'application/json');
         res.setHeader('Access-Control-Allow-Origin', '*');
 
-        const loadedSessions = runtime.sessionManager.getLoadedSessions();
+        const loadedSessionIds = runtime.sessionHost.getLoadedSessionIds();
         const debugData = {
           timestamp: Date.now(),
-          loadedSessionCount: loadedSessions.length,
-          sessions: loadedSessions.map((session) => ({
-            sessionId: session.sessionId,
-            state: session.getState(),
-          })),
+          loadedSessionCount: loadedSessionIds.length,
+          sessions: loadedSessionIds.map((sessionId) => {
+            const session = runtime.sessionHost.getSession(sessionId);
+            return {
+              sessionId,
+              state: session?.getState(),
+            };
+          }),
         };
 
         res.statusCode = 200;
@@ -104,9 +107,9 @@ async function main() {
 
         try {
           // First unload from runtime (if loaded)
-          const session = runtime.sessionManager.getSession(sessionId);
+          const session = runtime.sessionHost.getSession(sessionId);
           if (session) {
-            await runtime.sessionManager.unloadSession(sessionId);
+            await runtime.sessionHost.unloadSession(sessionId);
           }
 
           // Delete from SQLite directly (app-level operation)

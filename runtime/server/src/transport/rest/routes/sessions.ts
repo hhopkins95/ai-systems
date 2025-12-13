@@ -2,14 +2,12 @@ import { Hono } from "hono";
 import { HTTPException } from "hono/http-exception";
 import { zValidator } from "@hono/zod-validator";
 import { z } from "zod";
-import type { SessionManager } from "../../../core/session-manager";
-import type { EventBus } from "../../../core/event-bus";
-import type { AgentArchitectureSessionOptions } from "@ai-systems/shared-types"; 
+import type { LocalSessionHost } from "../../../core/session/local-session-host";
+import type { AgentArchitectureSessionOptions } from "@ai-systems/shared-types";
 import { errorResponse } from "../server";
 
 export function createSessionRoutes(
-  sessionManager: SessionManager,
-  eventBus: EventBus
+  sessionHost: LocalSessionHost
 ): Hono {
   const app = new Hono()
 
@@ -31,7 +29,7 @@ export function createSessionRoutes(
       const { agentProfileRef, architecture, sessionOptions } = c.req.valid("json");
 
       try {
-        const session = await sessionManager.createSession({
+        const session = await sessionHost.createSession({
           agentProfileRef,
           architecture,
           sessionOptions: sessionOptions as AgentArchitectureSessionOptions,
@@ -67,7 +65,7 @@ export function createSessionRoutes(
    */
   .get("/", async (c) => {
     try {
-      const sessions = await sessionManager.getAllSessions();
+      const sessions = await sessionHost.getAllSessions();
 
       // Sessions are already in SessionListData format
       return c.json({ sessions });
@@ -92,12 +90,12 @@ export function createSessionRoutes(
 
     try {
       // First check if session is already active
-      let session = sessionManager.getSession(sessionId);
+      let session = sessionHost.getSession(sessionId);
 
       // If not active, try to load from persistence
       if (!session) {
         try {
-          session = await sessionManager.loadSession(sessionId);
+          session = await sessionHost.loadSession(sessionId);
         } catch {
           // Session doesn't exist in persistence either
           throw new HTTPException(404, {
@@ -135,7 +133,7 @@ export function createSessionRoutes(
   .delete("/:id", async (c) => {
     const sessionId = c.req.param("id");
 
-    const session = sessionManager.getSession(sessionId);
+    const session = sessionHost.getSession(sessionId);
     if (!session) {
       throw new HTTPException(404, {
         message: JSON.stringify(
@@ -145,7 +143,7 @@ export function createSessionRoutes(
     }
 
     try {
-      await sessionManager.unloadSession(sessionId);
+      await sessionHost.unloadSession(sessionId);
 
       return c.json({ success: true, sessionId });
     } catch (error) {
@@ -168,7 +166,7 @@ export function createSessionRoutes(
   .post("/:id/sync", async (c) => {
     const sessionId = c.req.param("id");
 
-    const session = sessionManager.getSession(sessionId);
+    const session = sessionHost.getSession(sessionId);
     if (!session) {
       throw new HTTPException(404, {
         message: JSON.stringify(
@@ -210,11 +208,11 @@ export function createSessionRoutes(
       const sessionId = c.req.param("id");
       const { sessionOptions } = c.req.valid("json");
 
-      let session = sessionManager.getSession(sessionId);
+      let session = sessionHost.getSession(sessionId);
 
       if (!session) {
         try {
-          session = await sessionManager.loadSession(sessionId);
+          session = await sessionHost.loadSession(sessionId);
         } catch {
           throw new HTTPException(404, {
             message: JSON.stringify(
@@ -248,7 +246,7 @@ export function createSessionRoutes(
   .post("/:id/environment/terminate", async (c) => {
     const sessionId = c.req.param("id");
 
-    const session = sessionManager.getSession(sessionId);
+    const session = sessionHost.getSession(sessionId);
     if (!session) {
       throw new HTTPException(404, {
         message: JSON.stringify(

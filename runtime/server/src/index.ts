@@ -53,8 +53,8 @@ export type {
 // Core Components (for advanced use cases)
 // ============================================================================
 
-export { EventBus } from './core/event-bus.js';
-export { SessionManager } from './core/session-manager.js';
+export type { SessionHost } from './core/session/session-host.js';
+export { LocalSessionHost } from './core/session/local-session-host.js';
 export type { AgentSession } from './core/agent-session.js';
 
 // ============================================================================

@@ -27,3 +27,7 @@ export type { ClientHub, ClientHubEvents } from './client-hub.js';
 // Event listeners
 export { PersistenceListener } from './persistence-listener.js';
 export { ClientBroadcastListener } from './client-broadcast-listener.js';
+
+// Session hosting
+export type { SessionHost } from './session-host.js';
+export { LocalSessionHost } from './local-session-host.js';

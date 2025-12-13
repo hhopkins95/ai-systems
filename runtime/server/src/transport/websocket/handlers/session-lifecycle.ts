@@ -5,7 +5,7 @@
  */
 
 import type { Socket } from 'socket.io';
-import type { SessionManager } from '../../../core/session-manager.js';
+import type { LocalSessionHost } from '../../../core/session/local-session-host.js';
 import type {
   ServerToClientEvents,
   ClientToServerEvents,
@@ -25,7 +25,7 @@ type TypedSocket = Socket<ClientToServerEvents, ServerToClientEvents, InterServe
  */
 export function setupSessionLifecycleHandlers(
   socket: TypedSocket,
-  sessionManager: SessionManager
+  sessionHost: LocalSessionHost
 ): void {
   /**
    * Join session room to receive updates
@@ -35,12 +35,12 @@ export function setupSessionLifecycleHandlers(
       logger.info({ socketId: socket.id, sessionId }, 'Client joining session room');
 
       // First check if session is already loaded in memory
-      let session = sessionManager.getSession(sessionId);
+      let session = sessionHost.getSession(sessionId);
 
       // If not loaded, try to load from persistence
       if (!session) {
         try {
-          session = await sessionManager.loadSession(sessionId);
+          session = await sessionHost.loadSession(sessionId);
         } catch {
           // Session doesn't exist in persistence either
           logger.warn({ socketId: socket.id, sessionId }, 'Session not found');

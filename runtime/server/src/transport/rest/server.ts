@@ -3,8 +3,7 @@ import { cors } from "hono/cors";
 import { logger } from "hono/logger";
 import { HTTPException } from "hono/http-exception";
 import type { Context, Next } from "hono";
-import { EventBus } from "../../core/event-bus";
-import { SessionManager } from "../../core/session-manager";
+import type { LocalSessionHost } from "../../core/session/local-session-host";
 import { createSessionRoutes } from "./routes/sessions";
 import { createMessageRoutes } from "./routes/messages";
 
@@ -47,12 +46,10 @@ function apiKeyAuth(apiKey: string) {
 }
 
 export const createRestServer = ({
-  sessionManager,
-  eventBus,
+  sessionHost,
   config,
 }: {
-  sessionManager: SessionManager;
-  eventBus: EventBus;
+  sessionHost: LocalSessionHost;
   config: {
     apiKey: string;
   };
@@ -91,11 +88,11 @@ export const createRestServer = ({
   // API routes (auth required)
   .use("/api/*", apiKeyAuth(config.apiKey))
 
-  // TODO: Session routes will go here (File 6)
-  .route("/api/sessions", createSessionRoutes(sessionManager, eventBus))
+  // Session routes
+  .route("/api/sessions", createSessionRoutes(sessionHost))
 
-  // TODO: Message routes will go here (File 7)
-  .route("/api/sessions/:id/messages", createMessageRoutes(sessionManager, eventBus));
+  // Message routes
+  .route("/api/sessions/:id/messages", createMessageRoutes(sessionHost));
 
   return app;
 };

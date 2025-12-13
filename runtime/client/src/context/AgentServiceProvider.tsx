@@ -96,16 +96,6 @@ export function AgentServiceProvider({
     };
 
     // =========================================================================
-    // Global Events
-    // =========================================================================
-
-    wsManager.on('sessions:list', (sessions) => {
-      logEvent('sessions:list', { count: sessions.length });
-      dispatch({ type: 'EVENT_LOGGED', eventName: 'sessions:list', payload: { count: sessions.length } });
-      dispatch({ type: 'SESSIONS_LIST_UPDATED', sessions });
-    });
-
-    // =========================================================================
     // Block Streaming Events
     // =========================================================================
 
