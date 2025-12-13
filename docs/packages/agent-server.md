@@ -18,49 +18,60 @@ flowchart TB
         HTTP[Hono HTTP Server]
         WS[Socket.IO Server]
 
-        HTTP --> Routes[API Routes]
-        WS --> Handlers[Socket Handlers]
+        HTTP --> Routes[REST Routes]
+        WS --> Handlers[Connection Handlers]
 
-        Routes --> SM[SessionManager]
-        Handlers --> SM
+        Routes --> SH[SessionHost]
+        Handlers --> SH
 
-        SM --> Sessions[AgentSession instances]
+        SH --> Sessions[AgentSession instances]
         Sessions --> EE[ExecutionEnvironment]
-        Sessions --> EB[EventBus]
+        Sessions --> SEB[SessionEventBus]
+        SEB --> CBL[ClientBroadcastListener]
+        CBL --> CH[ClientHub]
     end
 
     EE --> Modal[Modal Sandbox]
     Modal --> Runner[agent-runner]
+    CH --> WS
 ```
 
 ## Core Components
 
 | Component | File | Purpose |
 |-----------|------|---------|
-| Server Entry | `src/index.ts` | HTTP + WebSocket setup |
-| SessionManager | `src/core/session-manager.ts` | Session container |
-| AgentSession | `src/core/agent-session.ts` | Individual session state |
-| ExecutionEnvironment | `src/core/execution-environment.ts` | Sandbox abstraction |
-| EventBus | `src/core/event-bus.ts` | Domain events |
+| createLocalHost | `src/hosts/local/index.ts` | Factory for local session hosting |
+| SessionHost | `src/core/host/session-host.ts` | Session lifecycle interface |
+| LocalSessionHost | `src/hosts/local/local-session-host.ts` | In-memory session hosting |
+| AgentSession | `src/core/session/agent-session.ts` | Individual session with event bus |
+| ExecutionEnvironment | `src/core/session/execution-environment.ts` | Sandbox abstraction |
+| SessionEventBus | `src/core/session/session-event-bus.ts` | Per-session events |
+| ClientHub | `src/core/host/client-hub.ts` | Client broadcast interface |
 | EnvironmentPrimitives | `src/lib/environment-primitives/` | Modal/local implementations |
 
 ## Usage
 
 ```typescript
-import { AgentRuntime } from '@hhopkins/agent-server';
-import type { RuntimeConfig } from '@hhopkins/agent-server/types';
+import { createLocalHost, createAgentRuntime } from '@hhopkins/agent-server';
 
-const config: RuntimeConfig = {
+// Create local host with Socket.IO transport
+const host = createLocalHost({
   persistence: myPersistenceAdapter,
-  modal: {
-    tokenId: process.env.MODAL_TOKEN_ID!,
-    tokenSecret: process.env.MODAL_TOKEN_SECRET!,
-    appName: 'my-agents',
+  executionEnvironment: {
+    type: 'modal',
+    modal: {
+      tokenId: process.env.MODAL_TOKEN_ID!,
+      tokenSecret: process.env.MODAL_TOKEN_SECRET!,
+      appName: 'my-agents',
+    },
   },
-};
+});
 
-const runtime = new AgentRuntime(config);
-await runtime.start();
+// Create runtime with the session host
+const runtime = await createAgentRuntime({ sessionHost: host.sessionHost });
+
+// Attach Socket.IO transport to HTTP server
+host.attachTransport(httpServer);
 ```
 
 ### API Endpoints
@@ -113,7 +124,9 @@ interface CreateSessionArgs {
 
 ## Related
 
+- [Core Concepts](../system/core-concepts.md) - SessionHost, SessionEventBus, ClientHub patterns
 - [Architecture Overview](../system/architecture-overview.md) - System structure
 - [Session Lifecycle](../system/session-lifecycle.md) - Session management
+- [Hosting Strategies](../guides/hosting-strategies.md) - Deployment options
 - [agent-client](./agent-client.md) - Client connection
 - [agent-runner](./agent-runner.md) - Sandbox execution

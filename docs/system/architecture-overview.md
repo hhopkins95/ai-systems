@@ -21,8 +21,9 @@ flowchart TB
 
     subgraph Server
         AC -->|WebSocket| AS[agent-server]
-        AS --> SM[SessionManager]
-        SM --> EE[ExecutionEnvironment]
+        AS --> SH[SessionHost]
+        SH --> Sessions[AgentSession]
+        Sessions --> EE[ExecutionEnvironment]
     end
 
     subgraph Sandbox["Modal Sandbox"]
@@ -42,9 +43,9 @@ flowchart TB
 ### Data Flow
 
 1. **Client → Server**: User sends message via WebSocket
-2. **Server → Sandbox**: SessionManager routes to ExecutionEnvironment
+2. **Server → Sandbox**: SessionHost locates session, ExecutionEnvironment spawns sandbox
 3. **Sandbox Execution**: agent-runner executes query against SDK
-4. **Response Streaming**: StreamEvents flow back through the chain
+4. **Event Streaming**: Events emit to SessionEventBus, broadcast via ClientHub
 5. **Transcript Parsing**: converters parse raw output into ConversationBlocks
 
 ## Package Categories
@@ -61,9 +62,12 @@ flowchart TB
 
 | Component | Package | Purpose |
 |-----------|---------|---------|
-| SessionManager | agent-server | Orchestrates loaded sessions |
+| SessionHost | agent-server | Interface for session lifecycle and location |
+| LocalSessionHost | agent-server | In-memory session hosting implementation |
+| AgentSession | agent-server | Individual session with event bus and state |
 | ExecutionEnvironment | agent-server | Abstracts sandbox primitives |
-| AgentSession | agent-server | Individual session state machine |
+| SessionEventBus | agent-server | Per-session typed event emitter |
+| ClientHub | agent-server | Broadcasts events to connected clients |
 | agent-runner CLI | agent-runner | Executes queries in sandbox |
 | ClaudeEntityManager | claude-entity-manager | Loads skills, commands, agents |
 
@@ -80,7 +84,10 @@ The architecture separates **orchestration** (agent-server) from **execution** (
 | Concern | Location |
 |---------|----------|
 | Client hooks | `runtime/client/src/` |
-| Server orchestration | `runtime/server/src/core/` |
+| Session internals | `runtime/server/src/core/session/` |
+| Host interfaces | `runtime/server/src/core/host/` |
+| Local host implementation | `runtime/server/src/hosts/local/` |
+| REST routes | `runtime/server/src/transport/rest/` |
 | Execution scripts | `runtime/runner/src/` |
 | Transcript parsing | `packages/converters/src/` |
 | Entity management | `packages/claude-entity-manager/src/` |
@@ -88,6 +95,7 @@ The architecture separates **orchestration** (agent-server) from **execution** (
 
 ## Related
 
+- [Core Concepts](./core-concepts.md) - SessionHost, SessionEventBus, ClientHub patterns
 - [Agent Execution](./agent-execution.md) - How queries flow through the system
 - [Session Lifecycle](./session-lifecycle.md) - Session state management
 - [Entity Management](./entity-management.md) - Plugin and entity discovery

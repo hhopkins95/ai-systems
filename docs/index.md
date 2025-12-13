@@ -14,6 +14,7 @@ Cross-cutting concepts and capabilities:
 | Doc | Description |
 |-----|-------------|
 | [Architecture Overview](./system/architecture-overview.md) | Package relationships and data flow |
+| [Core Concepts](./system/core-concepts.md) | SessionHost, SessionEventBus, ClientHub patterns |
 | [Agent Execution](./system/agent-execution.md) | How queries flow through sandboxes |
 | [Session Lifecycle](./system/session-lifecycle.md) | Session state management |
 | [Streaming and Events](./system/streaming-and-events.md) | Real-time event types |
@@ -45,6 +46,7 @@ Cross-cutting concepts and capabilities:
 |-------|-------------|
 | [Getting Started](./guides/getting-started.md) | Installation and first run |
 | [Adding New Architecture](./guides/adding-new-agent-architecture.md) | Integrate new AI SDKs |
+| [Hosting Strategies](./guides/hosting-strategies.md) | SessionHost deployment options |
 
 ## Repository Structure
 

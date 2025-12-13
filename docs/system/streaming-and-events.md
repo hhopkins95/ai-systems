@@ -17,8 +17,9 @@ The streaming system handles real-time agent output:
 flowchart LR
     SDK[Claude SDK] -->|raw events| Runner[agent-runner]
     Runner -->|StreamEvent JSON| EE[ExecutionEnvironment]
-    EE -->|AsyncGenerator| Session[AgentSession]
-    Session -->|EventBus| WS[WebSocket]
+    EE -->|emits| SEB[SessionEventBus]
+    SEB -->|ClientBroadcastListener| CH[ClientHub]
+    CH -->|broadcast| WS[WebSocket]
     WS -->|message| Client[React Client]
 ```
 
@@ -27,19 +28,21 @@ flowchart LR
 Events originate from the SDK and flow through layers:
 
 ```typescript
-// In ExecutionEnvironment
-async *executeQuery(args) {
+// ExecutionEnvironment emits events to session's event bus
+executeQuery(args, eventBus: SessionEventBus) {
   const process = await this.primitives.exec([...]);
 
   for await (const line of readLines(process.stdout)) {
-    yield JSON.parse(line) as StreamEvent;
+    const event = JSON.parse(line) as StreamEvent;
+    // Emit to per-session event bus (no sessionId needed - implicit)
+    eventBus.emit('block:delta', { conversationId, blockId, delta: event.delta });
   }
 }
 
-// In AgentSession
-for await (const event of this.executionEnv.executeQuery({ query })) {
-  this.eventBus.emit('stream:event', { sessionId, event });
-}
+// ClientBroadcastListener subscribes and forwards to ClientHub
+eventBus.on('block:delta', (data) => {
+  clientHub.broadcast(sessionId, 'session:block:delta', { sessionId, ...data });
+});
 ```
 
 ### 2. StreamEvent Types
@@ -109,10 +112,12 @@ interface ToolResultBlock {
 
 | Component | Package | Purpose |
 |-----------|---------|---------|
-| StreamEvent types | shared-types | Event definitions |
+| StreamEvent types | shared-types | Event definitions from runner |
 | ConversationBlock | shared-types | Structured message blocks |
+| SessionEventBus | agent-server | Per-session event emitter |
+| ClientHub | agent-server | Broadcasts to connected clients |
+| ClientBroadcastListener | agent-server | Bridges SessionEventBus to ClientHub |
 | TranscriptParser | converters | Parse raw transcripts |
-| EventBus | agent-server | Event distribution |
 
 ## Client-Side Handling
 
@@ -145,12 +150,15 @@ StreamEvents are **low-level incremental updates** for real-time UI, while Conve
 |---------|----------|
 | StreamEvent types | `packages/types/src/runtime/stream-events.ts` |
 | ConversationBlock types | `packages/types/src/runtime/blocks.ts` |
-| Event emission | `runtime/server/src/core/event-bus.ts` |
+| SessionEventBus | `runtime/server/src/core/session/session-event-bus.ts` |
+| ClientHub interface | `runtime/server/src/core/host/client-hub.ts` |
+| ClientBroadcastListener | `runtime/server/src/core/session/client-broadcast-listener.ts` |
 | Transcript parsing | `packages/converters/src/` |
 | Runner output utilities | `runtime/runner/src/cli/shared/output.ts` |
 
 ## Related
 
+- [Core Concepts](./core-concepts.md) - SessionEventBus, ClientHub patterns
 - [Architecture Overview](./architecture-overview.md) - System structure
 - [Session Lifecycle](./session-lifecycle.md) - When events are emitted
 - [agent-converters](../packages/agent-converters.md) - Transcript parsing

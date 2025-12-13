@@ -29,17 +29,17 @@ stateDiagram-v2
 ### 1. Session Creation
 
 ```typescript
-const session = await sessionManager.createSession({
+const session = await sessionHost.createSession({
   agentProfileRef: 'my-agent',
   architecture: 'claude-sdk',
   sessionOptions: { model: 'claude-sonnet-4' }
 });
 ```
 
-The SessionManager:
-1. Creates AgentSession via static factory
+The SessionHost:
+1. Creates AgentSession with its own SessionEventBus
 2. Registers session in loaded sessions map
-3. Emits `sessions:changed` event
+3. Attaches ClientBroadcastListener and PersistenceListener
 
 ### 2. Session States
 
@@ -76,10 +76,12 @@ interface PersistenceAdapter {
 
 | Component | Package | Purpose |
 |-----------|---------|---------|
-| SessionManager | agent-server | Container for all sessions |
-| AgentSession | agent-server | Individual session state |
-| EventBus | agent-server | Domain event publishing |
+| SessionHost | agent-server | Interface for session lifecycle |
+| LocalSessionHost | agent-server | In-memory session hosting |
+| AgentSession | agent-server | Individual session with event bus |
+| SessionEventBus | agent-server | Per-session event publishing |
 | PersistenceAdapter | agent-server | Storage abstraction |
+| PersistenceListener | agent-server | Syncs events to storage |
 
 ## Session Data Types
 
@@ -112,19 +114,22 @@ interface SessionListItem extends PersistedSessionData {
 
 ## Key Insight
 
-The SessionManager uses **dependency injection** for all external dependencies (persistence, execution config). This makes testing straightforward and allows swapping implementations (e.g., SQLite vs. file-based persistence).
+The SessionHost interface enables **pluggable hosting strategies**. LocalSessionHost uses an in-memory Map for single-server deployments. Future implementations (DurableObjectSessionHost, ClusteredSessionHost) can swap in without changing application code. Each AgentSession owns its own SessionEventBus for event-driven state management.
 
 ## Where It Lives
 
 | Concern | Location |
 |---------|----------|
-| SessionManager | `runtime/server/src/core/session-manager.ts` |
-| AgentSession | `runtime/server/src/core/agent-session.ts` |
-| EventBus | `runtime/server/src/core/event-bus.ts` |
+| SessionHost interface | `runtime/server/src/core/host/session-host.ts` |
+| LocalSessionHost | `runtime/server/src/hosts/local/local-session-host.ts` |
+| AgentSession | `runtime/server/src/core/session/agent-session.ts` |
+| SessionEventBus | `runtime/server/src/core/session/session-event-bus.ts` |
+| PersistenceListener | `runtime/server/src/core/session/persistence-listener.ts` |
 | Persistence types | `runtime/server/src/types/persistence-adapter.ts` |
 
 ## Related
 
+- [Core Concepts](./core-concepts.md) - SessionHost, SessionEventBus, ClientHub patterns
 - [Architecture Overview](./architecture-overview.md) - System structure
 - [Agent Execution](./agent-execution.md) - Query execution flow
 - [Streaming and Events](./streaming-and-events.md) - Event types
