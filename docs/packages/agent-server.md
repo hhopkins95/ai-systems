@@ -40,7 +40,7 @@ flowchart TB
 
 | Component | File | Purpose |
 |-----------|------|---------|
-| createLocalHost | `src/hosts/local/index.ts` | Factory for local session hosting |
+| createAgentRuntime | `src/runtime.ts` | Factory for agent runtime (creates host internally) |
 | SessionHost | `src/core/host/session-host.ts` | Session lifecycle interface |
 | LocalSessionHost | `src/hosts/local/local-session-host.ts` | In-memory session hosting |
 | AgentSession | `src/core/session/agent-session.ts` | Individual session with event bus |

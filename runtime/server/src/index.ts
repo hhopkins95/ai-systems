@@ -45,27 +45,12 @@ export type {
 } from './types/host-config.js';
 
 // ============================================================================
-// Host Factories (Legacy - Deprecated)
-// ============================================================================
-
-/**
- * @deprecated Use createAgentRuntime with host: { type: 'local' } instead.
- */
-export {
-  createLocalHost,
-  LocalSessionHost,
-  type LocalHost,
-  type TransportOptions,
-} from './hosts/index.js';
-
-// ============================================================================
 // Core Types
 // ============================================================================
 
 export type {
   // Runtime configuration
   RuntimeConfig,
-  AgentRuntimeConfig as RuntimeConfigNew,
 
   // Adapter interfaces
   PersistenceAdapter,

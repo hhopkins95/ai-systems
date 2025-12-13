@@ -177,7 +177,10 @@ async function main() {
     });
 
     // Attach WebSocket transport to HTTP server (local host only)
-    const io = runtime.attachTransport!(httpServer);
+    if (!runtime.attachTransport) {
+      throw new Error("attachTransport not available - only supported for local host");
+    }
+    const io = runtime.attachTransport(httpServer);
     console.log("✅ WebSocket transport attached");
 
     // Start HTTP server

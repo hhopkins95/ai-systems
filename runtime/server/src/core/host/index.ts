@@ -5,7 +5,7 @@
  * - SessionHost: Interface for session lifecycle management
  * - ClientHub: Interface for broadcasting events to connected clients
  *
- * For pre-configured hosts, see the hosts/ module (e.g., createLocalHost).
+ * For creating a runtime with session hosting, use createAgentRuntime() from the main module.
  *
  * Note: SessionHost is about where the AgentSession coordinator lives.
  * It is NOT about where agent code executes - that's ExecutionEnvironment.
