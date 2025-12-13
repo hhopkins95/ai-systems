@@ -6,6 +6,7 @@ import { EXECUTION_ENVIRONMENTS, LocalExecutionEnvironmentOptions, ModalExecutio
 import type {
   PersistenceAdapter,
 } from './persistence-adapter';
+import type { HostConfig } from './host-config';
 
 // ============================================================================
 // Runtime Configuration
@@ -51,6 +52,11 @@ export interface RuntimeConfig {
     docker?: DockerExecutionEnvironmentOptions;
   }
 
+  /**
+   * Host configuration - determines WHERE sessions live and how they're located.
+   * The runtime creates the appropriate host internally based on host.type.
+   */
+  host: HostConfig;
 
   // ========================================
   // Optional Configuration
@@ -85,6 +91,42 @@ export interface RuntimeConfig {
    * @default 'info'
    */
   logLevel?: 'debug' | 'info' | 'warn' | 'error';
+}
+
+// ============================================================================
+// Agent Runtime Configuration (for createAgentRuntime)
+// ============================================================================
+
+/**
+ * Configuration for createAgentRuntime
+ *
+ * This is the main configuration interface for creating an agent runtime.
+ * The runtime creates the appropriate session host internally based on host.type.
+ *
+ * @example
+ * ```typescript
+ * const runtime = await createAgentRuntime({
+ *   persistence: myPersistenceAdapter,
+ *   executionEnvironment: { type: 'modal', modal: {...} },
+ *   host: { type: 'local', cors: {...} }
+ * });
+ * ```
+ */
+export interface AgentRuntimeConfig {
+  /**
+   * Persistence adapter for session storage
+   */
+  persistence: PersistenceAdapter;
+
+  /**
+   * Execution environment configuration
+   */
+  executionEnvironment: RuntimeConfig['executionEnvironment'];
+
+  /**
+   * Host configuration - determines WHERE sessions live
+   */
+  host: HostConfig;
 }
 
 

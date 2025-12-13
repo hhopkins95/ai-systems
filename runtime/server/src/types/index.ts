@@ -20,7 +20,19 @@ export type {
 
 export type {
   RuntimeConfig,
+  AgentRuntimeConfig,
 } from './runtime';
+
+// ============================================================================
+// Host Configuration
+// ============================================================================
+
+export type {
+  HostConfig,
+  LocalHostConfig,
+  DurableObjectHostConfig,
+  ClusteredHostConfig,
+} from './host-config';
 
 // ============================================================================
 // Session Types

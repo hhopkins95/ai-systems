@@ -52,10 +52,10 @@ flowchart TB
 ## Usage
 
 ```typescript
-import { createLocalHost, createAgentRuntime } from '@hhopkins/agent-server';
+import { createAgentRuntime } from '@hhopkins/agent-server';
 
-// Create local host with Socket.IO transport
-const host = createLocalHost({
+// Create runtime with full config
+const runtime = await createAgentRuntime({
   persistence: myPersistenceAdapter,
   executionEnvironment: {
     type: 'modal',
@@ -65,13 +65,20 @@ const host = createLocalHost({
       appName: 'my-agents',
     },
   },
+  host: { type: 'local' }
 });
 
-// Create runtime with the session host
-const runtime = await createAgentRuntime({ sessionHost: host.sessionHost });
+// Start runtime
+await runtime.start();
 
-// Attach Socket.IO transport to HTTP server
-host.attachTransport(httpServer);
+// Create REST API
+const app = runtime.createRestServer({ apiKey: process.env.API_KEY });
+
+// Attach Socket.IO transport to HTTP server (local host only)
+runtime.attachTransport?.(httpServer);
+
+// Access persistence directly if needed
+const sessions = await runtime.persistence.listAllSessions();
 ```
 
 ### API Endpoints

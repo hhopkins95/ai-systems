@@ -45,8 +45,9 @@ flowchart TB
 ### Key Design Decisions
 
 - Events are **session-scoped** - no sessionId in payloads (implicit from bus instance)
-- ClientHub is **internal to host implementations** - callers use `createLocalHost()` factory
+- ClientHub is **internal to host implementations** - callers use `createAgentRuntime()` with `host: { type: 'local' }`
 - Session list is **REST-only** - no WebSocket broadcast for list updates
+- Runtime creates host internally based on `host.type` configuration
 
 ## SessionHost
 

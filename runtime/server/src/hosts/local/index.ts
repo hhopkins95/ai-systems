@@ -6,15 +6,16 @@
  *
  * @example
  * ```typescript
- * import { createLocalHost } from '@hhopkins/agent-server';
+ * import { createAgentRuntime } from '@hhopkins/agent-server';
  *
- * const host = createLocalHost({
+ * const runtime = await createAgentRuntime({
  *   persistence: myPersistenceAdapter,
- *   executionEnvironment: config.executionEnvironment,
+ *   executionEnvironment: { type: 'modal', modal: {...} },
+ *   host: { type: 'local' }
  * });
  *
  * // Later, attach transport to HTTP server
- * host.attachTransport(httpServer);
+ * runtime.attachTransport(httpServer);
  * ```
  */
 
@@ -22,6 +23,7 @@ import { Server as SocketIOServer } from 'socket.io';
 import type { Server as HTTPServer } from 'http';
 import type { PersistenceAdapter } from '../../types/persistence-adapter.js';
 import type { RuntimeConfig } from '../../types/runtime.js';
+import type { LocalHostConfig as LocalHostConfigType } from '../../types/host-config.js';
 import type {
   ServerToClientEvents,
   ClientToServerEvents,
@@ -34,7 +36,8 @@ import { SocketIOClientHub } from './socket-io-client-hub.js';
 import { setupSessionLifecycleHandlers } from './connection-handlers.js';
 
 /**
- * Configuration for createLocalHost
+ * Configuration for createLocalHost (legacy)
+ * @deprecated Use AgentRuntimeConfig with host: { type: 'local' } instead
  */
 export interface LocalHostConfig {
   persistence: PersistenceAdapter;
@@ -53,7 +56,18 @@ export interface TransportOptions {
 }
 
 /**
- * Return type for createLocalHost
+ * Socket.IO server type alias for convenience
+ */
+export type SocketIOServerInstance = SocketIOServer<
+  ClientToServerEvents,
+  ServerToClientEvents,
+  InterServerEvents,
+  SocketData
+>;
+
+/**
+ * Return type for createLocalHost (legacy)
+ * @deprecated Use createAgentRuntime instead
  */
 export interface LocalHost {
   /** The session host instance */
@@ -70,11 +84,98 @@ export interface LocalHost {
   attachTransport(
     httpServer: HTTPServer,
     options?: TransportOptions
-  ): SocketIOServer<ClientToServerEvents, ServerToClientEvents, InterServerEvents, SocketData>;
+  ): SocketIOServerInstance;
 }
+
+// ============================================================================
+// Transport Setup (used by runtime.ts)
+// ============================================================================
+
+/**
+ * Attach Socket.IO transport to a LocalSessionHost
+ *
+ * This is the internal function used by createAgentRuntime for local hosts.
+ *
+ * @param sessionHost - The LocalSessionHost instance
+ * @param httpServer - HTTP server instance
+ * @param hostConfig - Local host configuration (cors, socketPath, etc.)
+ * @returns Socket.IO server instance
+ */
+export function attachLocalTransport(
+  sessionHost: LocalSessionHost,
+  httpServer: HTTPServer,
+  hostConfig?: LocalHostConfigType
+): SocketIOServerInstance {
+  // Create Socket.IO server
+  const io = new SocketIOServer<
+    ClientToServerEvents,
+    ServerToClientEvents,
+    InterServerEvents,
+    SocketData
+  >(httpServer, {
+    cors: hostConfig?.cors ?? {
+      origin: ['http://localhost:3000', 'http://localhost:3001', 'http://localhost:5173'],
+      credentials: true,
+    },
+    path: hostConfig?.socketPath ?? '/socket.io',
+  });
+
+  logger.info('Initializing Socket.IO transport for LocalSessionHost...');
+
+  // Create ClientHub and inject into SessionHost
+  const clientHub = new SocketIOClientHub(io);
+  sessionHost.setClientHub(clientHub);
+  logger.info('SocketIOClientHub created and injected into LocalSessionHost');
+
+  // Setup connection handlers
+  io.on('connection', (socket) => {
+    logger.info(
+      {
+        socketId: socket.id,
+        transport: socket.conn.transport.name,
+      },
+      'Client connected to WebSocket'
+    );
+
+    // Store connection metadata
+    socket.data.joinedAt = Date.now();
+
+    // Setup socket event handlers
+    setupSessionLifecycleHandlers(socket, sessionHost);
+
+    // Handle disconnect
+    socket.on('disconnect', (reason) => {
+      logger.info(
+        {
+          socketId: socket.id,
+          sessionId: socket.data.sessionId,
+          reason,
+        },
+        'Client disconnected from WebSocket'
+      );
+
+      if (socket.data.sessionId) {
+        logger.debug(
+          { sessionId: socket.data.sessionId },
+          'Client disconnected from session'
+        );
+      }
+    });
+  });
+
+  logger.info('Socket.IO transport initialized successfully');
+
+  return io;
+}
+
+// ============================================================================
+// Legacy API (deprecated)
+// ============================================================================
 
 /**
  * Create a local session host with Socket.IO transport
+ *
+ * @deprecated Use createAgentRuntime with host: { type: 'local' } instead.
  *
  * @param config - Host configuration
  * @returns Local host instance with attachTransport method
@@ -91,69 +192,14 @@ export function createLocalHost(config: LocalHostConfig): LocalHost {
     sessionHost,
 
     attachTransport(httpServer: HTTPServer, options?: TransportOptions) {
-      // Create Socket.IO server
-      const io = new SocketIOServer<
-        ClientToServerEvents,
-        ServerToClientEvents,
-        InterServerEvents,
-        SocketData
-      >(httpServer, {
-        cors: options?.cors ?? {
-          origin: ['http://localhost:3000', 'http://localhost:3001', 'http://localhost:5173'],
-          credentials: true,
-        },
-        path: options?.path ?? '/socket.io',
+      return attachLocalTransport(sessionHost, httpServer, {
+        type: 'local',
+        cors: options?.cors,
+        socketPath: options?.path,
       });
-
-      logger.info('Initializing Socket.IO transport for LocalSessionHost...');
-
-      // Create ClientHub and inject into SessionHost
-      const clientHub = new SocketIOClientHub(io);
-      sessionHost.setClientHub(clientHub);
-      logger.info('SocketIOClientHub created and injected into LocalSessionHost');
-
-      // Setup connection handlers
-      io.on('connection', (socket) => {
-        logger.info(
-          {
-            socketId: socket.id,
-            transport: socket.conn.transport.name,
-          },
-          'Client connected to WebSocket'
-        );
-
-        // Store connection metadata
-        socket.data.joinedAt = Date.now();
-
-        // Setup socket event handlers
-        setupSessionLifecycleHandlers(socket, sessionHost);
-
-        // Handle disconnect
-        socket.on('disconnect', (reason) => {
-          logger.info(
-            {
-              socketId: socket.id,
-              sessionId: socket.data.sessionId,
-              reason,
-            },
-            'Client disconnected from WebSocket'
-          );
-
-          if (socket.data.sessionId) {
-            logger.debug(
-              { sessionId: socket.data.sessionId },
-              'Client disconnected from session'
-            );
-          }
-        });
-      });
-
-      logger.info('Socket.IO transport initialized successfully');
-
-      return io;
     },
   };
 }
 
-// Re-export types that callers might need
+// Re-export types and classes that callers might need
 export { LocalSessionHost } from './local-session-host.js';

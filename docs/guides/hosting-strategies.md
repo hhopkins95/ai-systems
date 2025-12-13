@@ -13,15 +13,15 @@ The `SessionHost` interface enables different deployment strategies without chan
 In-memory session hosting for single-server deployments.
 
 ```typescript
-import { createLocalHost, createAgentRuntime } from '@hhopkins/agent-server';
+import { createAgentRuntime } from '@hhopkins/agent-server';
 
-const host = createLocalHost({
+const runtime = await createAgentRuntime({
   persistence: myPersistenceAdapter,
-  executionEnvironment: config.executionEnvironment,
+  executionEnvironment: { type: 'modal', modal: {...} },
+  host: { type: 'local' }
 });
 
-const runtime = await createAgentRuntime({ sessionHost: host.sessionHost });
-host.attachTransport(httpServer);
+runtime.attachTransport?.(httpServer);
 ```
 
 **Characteristics:**
@@ -77,23 +77,32 @@ Redis-coordinated session distribution (not yet implemented).
 
 ## Swapping Strategies
 
-The SessionHost interface means application code doesn't change:
+The config-driven API means only the `host` configuration changes:
 
 ```typescript
-// Today: Local hosting
-const host = createLocalHost({ persistence, executionEnvironment });
+// Local hosting
+const runtime = await createAgentRuntime({
+  persistence,
+  executionEnvironment,
+  host: { type: 'local' }
+});
 
-// Future: Durable Objects (same pattern, different factory)
-const host = createDurableObjectHost({ persistence, executionEnvironment, env });
+// Future: Durable Objects (same API, different host config)
+const runtime = await createAgentRuntime({
+  persistence,
+  executionEnvironment,
+  host: { type: 'durable-object', env }
+});
 
-// Future: Clustered (same pattern, different factory)
-const host = createClusteredHost({ persistence, executionEnvironment, redis });
-
-// Runtime setup unchanged
-const runtime = await createAgentRuntime({ sessionHost: host.sessionHost });
+// Future: Clustered (same API, different host config)
+const runtime = await createAgentRuntime({
+  persistence,
+  executionEnvironment,
+  host: { type: 'clustered', redis: { url: '...' } }
+});
 ```
 
-REST routes automatically work with any SessionHost implementation.
+REST routes automatically work with any host type.
 
 ## Key Insight
 

@@ -1,5 +1,5 @@
 import { createServer } from "http";
-import { createAgentRuntime, createLocalHost, type PersistenceAdapter } from "@hhopkins/agent-server";
+import { createAgentRuntime, type PersistenceAdapter } from "@hhopkins/agent-server";
 import dotenv from "dotenv";
 import { InMemoryPersistenceAdapter, SqlitePersistenceAdapter } from "./persistence/index.js";
 import { config, validateConfig, createExampleAgentProfile } from "./config.js";
@@ -46,8 +46,8 @@ async function main() {
       console.log("✅ In-memory persistence adapter initialized");
     }
 
-    // Create local host (in-memory sessions + Socket.IO transport)
-    const host = createLocalHost({
+    // Create agent runtime with full configuration
+    const runtime = await createAgentRuntime({
       persistence,
       executionEnvironment: {
         type: "local",
@@ -56,13 +56,9 @@ async function main() {
           shouldCleanup: true,
         }
       },
+      host: { type: "local" },
     });
-    console.log("✅ Local host created");
-
-    // Create agent runtime with the host
-    const runtime = await createAgentRuntime({
-      sessionHost: host.sessionHost,
-    });
+    console.log("✅ Agent runtime created (local host)");
 
     // Start runtime
     await runtime.start();
@@ -180,8 +176,8 @@ async function main() {
       res.end(body);
     });
 
-    // Attach WebSocket transport to HTTP server
-    const io = host.attachTransport(httpServer);
+    // Attach WebSocket transport to HTTP server (local host only)
+    const io = runtime.attachTransport!(httpServer);
     console.log("✅ WebSocket transport attached");
 
     // Start HTTP server

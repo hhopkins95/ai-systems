@@ -6,17 +6,13 @@
  *
  * @example
  * ```typescript
- * import { createAgentRuntime, createLocalHost } from '@hhopkins/agent-server';
+ * import { createAgentRuntime } from '@hhopkins/agent-server';
  *
- * // Create host with transport
- * const host = createLocalHost({
- *   persistence: myPersistenceAdapter,
- *   executionEnvironment: config.executionEnvironment,
- * });
- *
- * // Create runtime
+ * // Create runtime with full config
  * const runtime = await createAgentRuntime({
- *   sessionHost: host.sessionHost,
+ *   persistence: myPersistenceAdapter,
+ *   executionEnvironment: { type: 'modal', modal: {...} },
+ *   host: { type: 'local' }
  * });
  *
  * await runtime.start();
@@ -25,8 +21,8 @@
  * const app = runtime.createRestServer({ apiKey: process.env.API_KEY });
  * const httpServer = serve({ fetch: app.fetch, port: 3000 });
  *
- * // Attach WebSocket transport
- * host.attachTransport(httpServer);
+ * // Attach WebSocket transport (local host only)
+ * runtime.attachTransport?.(httpServer);
  * ```
  */
 
@@ -38,14 +34,27 @@ export { createAgentRuntime } from './runtime.js';
 export type { AgentRuntime, AgentRuntimeConfig } from './runtime.js';
 
 // ============================================================================
-// Host Factories
+// Host Configuration Types
 // ============================================================================
 
+export type {
+  HostConfig,
+  LocalHostConfig,
+  DurableObjectHostConfig,
+  ClusteredHostConfig,
+} from './types/host-config.js';
+
+// ============================================================================
+// Host Factories (Legacy - Deprecated)
+// ============================================================================
+
+/**
+ * @deprecated Use createAgentRuntime with host: { type: 'local' } instead.
+ */
 export {
   createLocalHost,
   LocalSessionHost,
   type LocalHost,
-  type LocalHostConfig,
   type TransportOptions,
 } from './hosts/index.js';
 
@@ -54,8 +63,9 @@ export {
 // ============================================================================
 
 export type {
-  // Runtime configuration (legacy - may be removed)
+  // Runtime configuration
   RuntimeConfig,
+  AgentRuntimeConfig as RuntimeConfigNew,
 
   // Adapter interfaces
   PersistenceAdapter,
