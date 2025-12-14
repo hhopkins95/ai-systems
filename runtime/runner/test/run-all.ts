@@ -17,7 +17,8 @@ interface TestResult {
 
 const TESTS = [
   { name: 'Load Profile', file: 'test-load-profile.ts' },
-  { name: 'Transcripts', file: 'test-transcripts.ts' },
+  { name: 'Claude Transcripts', file: 'test-claude-transcripts.ts' },
+  { name: 'OpenCode Transcripts', file: 'test-opencode-transcripts.ts' },
   // Execution tests require API keys and running services
   // Uncomment to include them:
   // { name: 'Execute Claude', file: 'test-execute-claude.ts' },

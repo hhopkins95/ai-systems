@@ -2,37 +2,53 @@
  * Test: Load and Read Session Transcript
  *
  * Tests the round-trip of loading and reading a session transcript.
+ * Uses real fixture files from the test/fixtures directory.
  * Run with: npx tsx test/test-transcripts.ts
  */
 
-import { randomUUID } from 'crypto';
+import { resolve } from 'path';
+import { readFile } from 'fs/promises';
 import { loadSessionTranscript, readSessionTranscript } from '../src/core/index.js';
 import type { CombinedClaudeTranscript } from '@hhopkins/agent-converters/claude-sdk';
 import { setupTestWorkspace, TEST_PROJECT_DIR, TEST_CLAUDE_HOME_DIR } from './test-setup.js';
 
 // ============================================================================
-// Configuration - Edit these as needed
+// Configuration - Fixture paths
 // ============================================================================
 
-// A minimal mock transcript for testing
-const MOCK_TRANSCRIPT: CombinedClaudeTranscript = {
-  main: `{"type":"system","message":"Session started"}
-{"type":"user","message":{"role":"user","content":"Hello"}}
-{"type":"assistant","message":{"role":"assistant","content":"Hi there!"}}`,
-  subagents: [],
-};
+const FIXTURES_DIR = resolve(import.meta.dirname, 'fixtures', 'sessions', 'claude-transcripts');
+const MAIN_TRANSCRIPT_FILE = '0bfd826f-14ed-4e00-8015-75bf5f7fe33f.jsonl';
+const SUBAGENT_TRANSCRIPT_FILE = 'agent-6d933f1b.jsonl';
+const SESSION_ID = '0bfd826f-14ed-4e00-8015-75bf5f7fe33f';
+const SUBAGENT_ID = '6d933f1b';
+
+/**
+ * Load transcript fixtures from disk.
+ */
+async function loadFixtures(): Promise<CombinedClaudeTranscript> {
+  const mainContent = await readFile(resolve(FIXTURES_DIR, MAIN_TRANSCRIPT_FILE), 'utf-8');
+  const subagentContent = await readFile(resolve(FIXTURES_DIR, SUBAGENT_TRANSCRIPT_FILE), 'utf-8');
+
+  return {
+    main: mainContent,
+    subagents: [
+      {
+        id: SUBAGENT_ID,
+        transcript: subagentContent,
+      },
+    ],
+  };
+}
 
 // ============================================================================
 // Test
 // ============================================================================
 
 async function main() {
-  const sessionId = `test-transcript-${randomUUID().slice(0, 8)}`;
-
   console.log('='.repeat(60));
   console.log('Test: Load and Read Session Transcript');
   console.log('='.repeat(60));
-  console.log(`Session: ${sessionId}`);
+  console.log(`Session: ${SESSION_ID}`);
   console.log(`Project Dir: ${TEST_PROJECT_DIR}`);
   console.log(`Claude Home: ${TEST_CLAUDE_HOME_DIR}`);
   console.log('='.repeat(60));
@@ -44,13 +60,20 @@ async function main() {
   const startTime = Date.now();
 
   try {
+    // Step 0: Load fixtures
+    console.log('Step 0: Loading fixtures...');
+    const fixtureTranscript = await loadFixtures();
+    console.log(`  Main transcript: ${fixtureTranscript.main.length} chars`);
+    console.log(`  Subagents: ${fixtureTranscript.subagents.length}`);
+    console.log('');
+
     // Step 1: Load transcript
-    console.log('Step 1: Loading transcript...');
+    console.log('Step 1: Writing transcript to test workspace...');
 
     const loadResult = await loadSessionTranscript({
       projectDirPath: TEST_PROJECT_DIR,
-      sessionId,
-      sessionTranscript: JSON.stringify(MOCK_TRANSCRIPT),
+      sessionId: SESSION_ID,
+      sessionTranscript: JSON.stringify(fixtureTranscript),
       architectureType: 'claude-sdk',
       claudeHomeDir: TEST_CLAUDE_HOME_DIR,
     });
@@ -63,10 +86,10 @@ async function main() {
     console.log('');
 
     // Step 2: Read transcript back
-    console.log('Step 2: Reading transcript...');
+    console.log('Step 2: Reading transcript back...');
 
     const readResult = await readSessionTranscript({
-      sessionId,
+      sessionId: SESSION_ID,
       architecture: 'claude-sdk',
       projectDir: TEST_PROJECT_DIR,
       claudeHomeDir: TEST_CLAUDE_HOME_DIR,
@@ -85,10 +108,12 @@ async function main() {
     const readTranscript = JSON.parse(readResult.transcript) as CombinedClaudeTranscript;
 
     // Compare main transcript
-    if (readTranscript.main !== MOCK_TRANSCRIPT.main) {
-      console.error('  Original main:');
-      console.error(`    ${MOCK_TRANSCRIPT.main.slice(0, 100)}...`);
-      console.error('  Read main:');
+    if (readTranscript.main !== fixtureTranscript.main) {
+      console.error('  Original main length:', fixtureTranscript.main.length);
+      console.error('  Read main length:', readTranscript.main.length);
+      console.error('  Original main preview:');
+      console.error(`    ${fixtureTranscript.main.slice(0, 100)}...`);
+      console.error('  Read main preview:');
       console.error(`    ${readTranscript.main.slice(0, 100)}...`);
       throw new Error('Main transcript content mismatch');
     }
@@ -96,13 +121,29 @@ async function main() {
     console.log('  Main transcript matches');
 
     // Compare subagents count
-    if (readTranscript.subagents.length !== MOCK_TRANSCRIPT.subagents.length) {
+    if (readTranscript.subagents.length !== fixtureTranscript.subagents.length) {
       throw new Error(
-        `Subagent count mismatch: expected ${MOCK_TRANSCRIPT.subagents.length}, got ${readTranscript.subagents.length}`
+        `Subagent count mismatch: expected ${fixtureTranscript.subagents.length}, got ${readTranscript.subagents.length}`
       );
     }
 
     console.log(`  Subagent count matches (${readTranscript.subagents.length})`);
+
+    // Compare subagent content
+    for (let i = 0; i < fixtureTranscript.subagents.length; i++) {
+      const expected = fixtureTranscript.subagents[i];
+      const actual = readTranscript.subagents[i];
+
+      if (expected.id !== actual.id) {
+        throw new Error(`Subagent ${i} ID mismatch: expected ${expected.id}, got ${actual.id}`);
+      }
+
+      if (expected.transcript !== actual.transcript) {
+        throw new Error(`Subagent ${i} (${expected.id}) content mismatch`);
+      }
+
+      console.log(`  Subagent ${expected.id} matches`);
+    }
 
     const duration = Date.now() - startTime;
     console.log('');
