@@ -4,43 +4,22 @@
  * Pure async generator that yields StreamEvents from Claude SDK responses.
  */
 
-import * as fs from 'fs';
-import * as path from 'path';
 import { query, Options } from '@anthropic-ai/claude-agent-sdk';
 import { parseStreamEvent } from '@hhopkins/agent-converters/claude-sdk';
 import type { StreamEvent, UserMessageBlock } from '@ai-systems/shared-types';
+import { ClaudeEntityManager } from '@hhopkins/claude-entity-manager';
 import { findClaudeExecutable } from '../clients/claude.js';
 import { emptyAsyncIterable } from '../clients/channel.js';
 import { createLogEvent, createErrorEvent, errorEventFromError } from '../helpers/create-stream-events.js';
 import type { ExecuteQueryArgs } from '../types.js';
 
-import os from 'os';
-
 /**
  * Check if a Claude SDK session transcript exists.
- * Uses CLAUDE_CONFIG_DIR if set, otherwise falls back to ~/.claude
+ * Uses ClaudeEntityManager for unified session management.
  */
-function claudeSessionExists(sessionId: string): boolean {
-  const claudeConfigDir = process.env.CLAUDE_CONFIG_DIR || path.join(os.homedir(), '.claude');
-  const projectsDir = path.join(claudeConfigDir, 'projects');
-
-  if (!fs.existsSync(projectsDir)) {
-    return false;
-  }
-
-  // Scan all subdirectories for {sessionId}.jsonl
-  const projectDirs = fs.readdirSync(projectsDir, { withFileTypes: true })
-    .filter(d => d.isDirectory())
-    .map(d => d.name);
-
-  for (const dir of projectDirs) {
-    const transcriptPath = path.join(projectsDir, dir, `${sessionId}.jsonl`);
-    if (fs.existsSync(transcriptPath)) {
-      return true;
-    }
-  }
-
-  return false;
+async function claudeSessionExists(sessionId: string): Promise<boolean> {
+  const manager = new ClaudeEntityManager();
+  return manager.sessionExists(sessionId);
 }
 
 /**
@@ -90,7 +69,7 @@ export async function* executeClaudeQuery(
     mcpServers: input.mcpServers as Options['mcpServers'],
   };
 
-  const needsCreation = !claudeSessionExists(input.sessionId);
+  const needsCreation = !(await claudeSessionExists(input.sessionId));
   yield createLogEvent(
     needsCreation ? 'Creating new session' : 'Resuming existing session',
     'info',

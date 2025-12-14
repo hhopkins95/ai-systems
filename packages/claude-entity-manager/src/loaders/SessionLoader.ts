@@ -12,7 +12,7 @@
  * - Read transcripts in various formats (raw, parsed JSONL, blocks)
  */
 
-import { readdir, readFile, stat } from "fs/promises";
+import { readdir, readFile, stat, writeFile, mkdir } from "fs/promises";
 import { join } from "path";
 import type { SDKMessage } from "@anthropic-ai/claude-agent-sdk";
 import type {
@@ -424,5 +424,64 @@ export class SessionLoader {
 
     // Use the combined transcript parser which handles both main and subagents
     return parseCombinedClaudeTranscript(JSON.stringify(raw));
+  }
+
+  // ==================== WRITING ====================
+
+  /**
+   * Write session transcript to disk
+   *
+   * Writes the main transcript and any subagent transcripts to the
+   * appropriate locations in ~/.claude/projects/{project-folder-name}/
+   *
+   * @param projectPath - Absolute path to the project
+   * @param sessionId - The session UUID
+   * @param transcript - The combined transcript data
+   * @returns Path to the main transcript file
+   *
+   * Note: subagent.id should already include the "agent-" prefix
+   * (e.g., "agent-abc123"), matching the format returned by readRaw().
+   */
+  async writeRaw(
+    projectPath: string,
+    sessionId: string,
+    transcript: CombinedClaudeTranscript
+  ): Promise<string> {
+    const transcriptDir = getProjectTranscriptDir(this.claudeDir, projectPath);
+    await mkdir(transcriptDir, { recursive: true });
+
+    // Write main transcript
+    const transcriptPath = join(transcriptDir, `${sessionId}.jsonl`);
+    await writeFile(transcriptPath, transcript.main, "utf-8");
+
+    // Write subagent transcripts
+    // ID already includes "agent-" prefix (e.g., "agent-abc123")
+    for (const subagent of transcript.subagents) {
+      const subagentPath = join(transcriptDir, `${subagent.id}.jsonl`);
+      await writeFile(subagentPath, subagent.transcript, "utf-8");
+    }
+
+    return transcriptPath;
+  }
+
+  // ==================== UTILITIES ====================
+
+  /**
+   * Check if a session exists anywhere in the projects directory
+   *
+   * Scans all project directories to find if a session with the given ID exists.
+   *
+   * @param sessionId - The session UUID to look for
+   * @returns true if the session exists in any project
+   */
+  async sessionExists(sessionId: string): Promise<boolean> {
+    const projects = await this.listProjects();
+    for (const project of projects) {
+      const sessions = await this.listSessions(project.originalPath);
+      if (sessions.includes(sessionId)) {
+        return true;
+      }
+    }
+    return false;
   }
 }

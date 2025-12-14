@@ -4,13 +4,13 @@
  * Writes session transcript files for Claude SDK or OpenCode.
  */
 
-import { writeFile, unlink, mkdir } from 'fs/promises';
+import { writeFile, unlink } from 'fs/promises';
 import { exec } from 'child_process';
 import { promisify } from 'util';
 import os from 'os';
 import { join } from 'path';
 import type { AgentArchitecture, CombinedClaudeTranscript } from '@ai-systems/shared-types';
-import { getClaudeTranscriptDir } from '../helpers/getClaudeTranscriptDir.js';
+import { ClaudeEntityManager } from '@hhopkins/claude-entity-manager';
 
 const execAsync = promisify(exec);
 
@@ -36,29 +36,16 @@ export interface LoadSessionTranscriptResult {
 /**
  * Write session transcript for Claude SDK.
  * Location: ~/.claude/projects/{projectHash}/{sessionId}.jsonl
+ * Uses ClaudeEntityManager for unified session management.
  */
 async function writeClaudeTranscript(
   projectDir: string,
   sessionId: string,
   transcript: string
 ): Promise<string> {
-  const transcriptDir = await getClaudeTranscriptDir(projectDir);
-  await mkdir(transcriptDir, { recursive: true });
-
-  // Parse the transcript as combined JSON
+  const manager = new ClaudeEntityManager({ projectDir });
   const transcriptJson = JSON.parse(transcript) as CombinedClaudeTranscript;
-
-  // Write the main transcript file
-  const transcriptPath = join(transcriptDir, `${sessionId}.jsonl`);
-  await writeFile(transcriptPath, transcriptJson.main, 'utf-8');
-
-  // Write the subagent transcript files
-  for (const subagent of transcriptJson.subagents) {
-    const subagentPath = join(transcriptDir, `agent-${subagent.id}.jsonl`);
-    await writeFile(subagentPath, subagent.transcript, 'utf-8');
-  }
-
-  return transcriptPath;
+  return manager.writeSessionRaw(sessionId, transcriptJson);
 }
 
 /**

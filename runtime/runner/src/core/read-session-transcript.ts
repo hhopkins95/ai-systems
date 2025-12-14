@@ -4,13 +4,10 @@
  * Reads and combines session transcript files.
  */
 
-import * as path from 'path';
-import { readdir, readFile } from 'fs/promises';
 import { execFile } from 'child_process';
 import { promisify } from 'util';
 import type { AgentArchitecture } from '@ai-systems/shared-types';
-import { CombinedClaudeTranscript } from '@hhopkins/agent-converters/claude-sdk';
-import { getClaudeTranscriptDir } from '../helpers/getClaudeTranscriptDir.js';
+import { ClaudeEntityManager } from '@hhopkins/claude-entity-manager';
 
 const execFileAsync = promisify(execFile);
 
@@ -34,56 +31,16 @@ export interface ReadSessionTranscriptResult {
 
 /**
  * Read Claude SDK session transcript.
+ * Uses ClaudeEntityManager for unified session management.
  */
 async function readClaudeSdkTranscript(
   sessionId: string,
   projectDir: string
 ): Promise<string | null> {
-  const transcriptDir = await getClaudeTranscriptDir(projectDir);
-  const mainTranscriptPath = `${transcriptDir}/${sessionId}.jsonl`;
-
+  const manager = new ClaudeEntityManager({ projectDir });
   try {
-    // Read main transcript
-    const mainContent = await readFile(mainTranscriptPath, 'utf-8');
-
-    if (!mainContent) {
-      return null;
-    }
-
-    // List all files in storage directory and filter for agent-*.jsonl
-    const allFiles = await readdir(transcriptDir);
-    const files = allFiles
-      .filter(f => f.startsWith('agent-') && f.endsWith('.jsonl'))
-      .map(f => path.join(transcriptDir, f));
-
-    // Read all subagent transcripts
-    const subagents: { id: string; transcript: string }[] = [];
-    for (const file of files) {
-      const filename = path.basename(file);
-      const subagentId = filename.replace('.jsonl', '');
-      const content = await readFile(file, 'utf-8');
-      const transcript = content ?? '';
-
-      // Filter out placeholder subagent files at read level
-      // Claude Code creates shell files with only 1 JSONL line when CLI starts
-      const lines = transcript.trim().split('\n').filter(l => l.trim().length > 0);
-      if (lines.length <= 1) {
-        continue;
-      }
-
-      if (transcript.includes(sessionId)) {
-        // Make sure the base session ID is somewhere in the path
-        subagents.push({ id: subagentId, transcript });
-      }
-    }
-
-    // Combine into our unified format
-    const combined: CombinedClaudeTranscript = {
-      main: mainContent,
-      subagents,
-    };
-
-    return JSON.stringify(combined);
+    const transcript = await manager.readSessionRaw(sessionId);
+    return JSON.stringify(transcript);
   } catch (error) {
     console.error(`Error reading session transcripts: ${error}`);
     return null;

@@ -858,4 +858,33 @@ export class ClaudeEntityManager {
     }
     return this.sessionLoader.readBlocks(path, sessionId, options);
   }
+
+  /**
+   * Write session transcript to disk
+   * @param sessionId - The session UUID
+   * @param transcript - The combined transcript data
+   * @param projectPath - Optional project path (defaults to this.projectDir)
+   * @returns Path to the main transcript file
+   * @throws Error if no project path provided and no projectDir configured
+   */
+  async writeSessionRaw(
+    sessionId: string,
+    transcript: import("@ai-systems/shared-types").CombinedClaudeTranscript,
+    projectPath?: string
+  ): Promise<string> {
+    const path = projectPath || this.projectDir;
+    if (!path) {
+      throw new Error("No project path provided and no projectDir configured");
+    }
+    return this.sessionLoader.writeRaw(path, sessionId, transcript);
+  }
+
+  /**
+   * Check if a session exists anywhere in the projects directory
+   * @param sessionId - The session UUID to look for
+   * @returns true if the session exists in any project
+   */
+  async sessionExists(sessionId: string): Promise<boolean> {
+    return this.sessionLoader.sessionExists(sessionId);
+  }
 }
