@@ -27,7 +27,11 @@ export const TEST_PROJECT_DIR = resolve(TEST_WORKSPACE_ROOT, 'workspace');
  * - test-workspace/.claude/ (mimics ~/.claude for sessions/plugins)
  * - test-workspace/workspace/ (project directory for tests)
  */
-export async function setupTestWorkspace(): Promise<void> {
+export async function setupTestWorkspace(): Promise<{
+  workspaceRoot: string;
+  claudeHomeDir: string;
+  projectDir: string;
+}> {
   // Remove existing test workspace
   if (existsSync(TEST_WORKSPACE_ROOT)) {
     await rm(TEST_WORKSPACE_ROOT, { recursive: true });
@@ -36,4 +40,11 @@ export async function setupTestWorkspace(): Promise<void> {
   // Create fresh directories
   await mkdir(TEST_CLAUDE_HOME_DIR, { recursive: true });
   await mkdir(TEST_PROJECT_DIR, { recursive: true });
+
+
+  return { 
+    workspaceRoot: TEST_WORKSPACE_ROOT,
+    claudeHomeDir: TEST_CLAUDE_HOME_DIR,
+    projectDir: TEST_PROJECT_DIR,
+  }
 }
