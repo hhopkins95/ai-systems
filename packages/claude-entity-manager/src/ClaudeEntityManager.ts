@@ -775,6 +775,23 @@ export class ClaudeEntityManager {
   }
 
   /**
+   * List all sessions for a project with metadata.
+   *
+   * More efficient than calling getSessionMetadata for each session,
+   * as it builds the subagent map once and reuses it.
+   *
+   * @param projectPath - Optional project path (defaults to this.projectDir)
+   * @throws Error if no project path provided and no projectDir configured
+   */
+  async listSessionsWithMetadata(projectPath?: string): Promise<SessionMetadata[]> {
+    const path = projectPath || this.projectDir;
+    if (!path) {
+      throw new Error("No project path provided and no projectDir configured");
+    }
+    return this.sessionLoader.listSessionsWithMetadata(path);
+  }
+
+  /**
    * Get metadata for a specific session
    * @param sessionId - The session UUID
    * @param projectPath - Optional project path (defaults to this.projectDir)

@@ -13,7 +13,7 @@
  */
 
 import { readdir, readFile, stat } from "fs/promises";
-import { join, basename } from "path";
+import { join } from "path";
 import type { SDKMessage } from "@anthropic-ai/claude-agent-sdk";
 import type {
   CombinedClaudeTranscript,
@@ -25,7 +25,6 @@ import {
 } from "@hhopkins/agent-converters/claude-sdk";
 import {
   getProjectsDir,
-  getProjectDirName,
   getProjectTranscriptDir,
   reverseProjectDirName,
 } from "../utils/paths.js";
@@ -126,6 +125,36 @@ export class SessionLoader {
     return null;
   }
 
+  /**
+   * Build a map of sessionId → subagentIds for a project directory.
+   * Scans all subagent files once for efficiency.
+   *
+   * @param transcriptDir - Directory containing transcript files
+   * @returns Map from sessionId to array of subagent IDs
+   */
+  private async buildSubagentMap(
+    transcriptDir: string
+  ): Promise<Map<string, string[]>> {
+    const map = new Map<string, string[]>();
+
+    const entries = await readdir(transcriptDir);
+    const subagentFiles = entries.filter(
+      (e) => e.startsWith("agent-") && e.endsWith(".jsonl")
+    );
+
+    for (const file of subagentFiles) {
+      const sessionId = await this.getSubagentSessionId(transcriptDir, file);
+      if (sessionId) {
+        const id = file.replace(".jsonl", "");
+        const existing = map.get(sessionId) || [];
+        existing.push(id);
+        map.set(sessionId, existing);
+      }
+    }
+
+    return map;
+  }
+
   // ==================== DISCOVERY ====================
 
   /**
@@ -175,6 +204,60 @@ export class SessionLoader {
         // Session files are {uuid}.jsonl, not starting with "agent-"
         if (entry.endsWith(".jsonl") && !entry.startsWith("agent-")) {
           sessions.push(entry.replace(".jsonl", ""));
+        }
+      }
+
+      return sessions;
+    } catch (error) {
+      if ((error as NodeJS.ErrnoException).code === "ENOENT") {
+        return [];
+      }
+      throw error;
+    }
+  }
+
+  /**
+   * List all sessions for a project with metadata.
+   *
+   * More efficient than calling getSessionMetadata for each session,
+   * as it builds the subagent map once and reuses it.
+   *
+   * @param projectPath - Absolute path to the project
+   * @returns Array of SessionMetadata for all sessions
+   */
+  async listSessionsWithMetadata(projectPath: string): Promise<SessionMetadata[]> {
+    const transcriptDir = getProjectTranscriptDir(this.claudeDir, projectPath);
+
+    try {
+      // Build subagent map once for all sessions
+      const subagentMap = await this.buildSubagentMap(transcriptDir);
+
+      // List all session files
+      const entries = await readdir(transcriptDir);
+      const sessionFiles = entries.filter(
+        (e) => e.endsWith(".jsonl") && !e.startsWith("agent-")
+      );
+
+      const sessions: SessionMetadata[] = [];
+      for (const file of sessionFiles) {
+        try {
+          const sessionId = file.replace(".jsonl", "");
+          const transcriptPath = join(transcriptDir, file);
+          const stats = await stat(transcriptPath);
+          const subagentIds = subagentMap.get(sessionId) || [];
+
+          sessions.push({
+            sessionId,
+            projectPath,
+            transcriptPath,
+            createdAt: stats.birthtime,
+            modifiedAt: stats.mtime,
+            sizeBytes: stats.size,
+            subagentCount: subagentIds.length,
+            subagentIds,
+          });
+        } catch {
+          // Skip sessions that fail to load (e.g., corrupted files)
         }
       }
 
