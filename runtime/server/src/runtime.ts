@@ -41,7 +41,7 @@ import {
   LocalSessionHost,
   attachLocalTransport,
   type SocketIOServerInstance,
-} from './hosts/local/index.js';
+} from './lib/hosts/local/index.js';
 
 /**
  * Agent runtime instance returned by createAgentRuntime

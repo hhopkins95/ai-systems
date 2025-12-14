@@ -11,8 +11,8 @@ import type {
   ClientToServerEvents,
   InterServerEvents,
   SocketData,
-} from '../../types/events.js';
-import { logger } from '../../config/logger.js';
+} from '../../../types/events.js';
+import { logger } from '../../../config/logger.js';
 
 /**
  * Extract error message from unknown error object

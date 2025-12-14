@@ -9,14 +9,14 @@
  * since session lists are now REST-only (no WebSocket broadcast).
  */
 
-import { logger } from '../../config/logger.js';
-import type { PersistenceAdapter } from '../../types/persistence-adapter.js';
-import type { RuntimeConfig } from '../../types/runtime.js';
+import { logger } from '../../../config/logger.js';
+import type { PersistenceAdapter } from '../../../types/persistence-adapter.js';
+import type { RuntimeConfig } from '../../../types/runtime.js';
 import type { CreateSessionArgs } from '@ai-systems/shared-types';
-import { AgentSession } from '../../core/session/agent-session.js';
-import type { ClientHub } from '../../core/host/client-hub.js';
-import { MockClientHub } from '../../core/host/client-hub.js';
-import type { SessionHost } from '../../core/host/session-host.js';
+import { AgentSession } from '../../../core/session/agent-session.js';
+import type { ClientHub } from '../../../core/host/client-hub.js';
+import { MockClientHub } from '../../../core/host/client-hub.js';
+import type { SessionHost } from '../../../core/host/session-host.js';
 
 /**
  * LocalSessionHost - In-memory session hosting for single-server deployments

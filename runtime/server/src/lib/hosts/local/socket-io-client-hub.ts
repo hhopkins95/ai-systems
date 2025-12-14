@@ -8,14 +8,14 @@
  */
 
 import type { Server as SocketIOServer } from 'socket.io';
-import type { ClientHub, ClientHubEvents } from '../../core/host/client-hub.js';
+import type { ClientHub, ClientHubEvents } from '../../../core/host/client-hub.js';
 import type {
   ServerToClientEvents,
   ClientToServerEvents,
   InterServerEvents,
   SocketData,
-} from '../../types/events.js';
-import { logger } from '../../config/logger.js';
+} from '../../../types/events.js';
+import { logger } from '../../../config/logger.js';
 
 // Type alias for the fully-typed Socket.IO server
 type TypedSocketIOServer = SocketIOServer<

@@ -21,14 +21,14 @@
 
 import { Server as SocketIOServer } from 'socket.io';
 import type { Server as HTTPServer } from 'http';
-import type { LocalHostConfig } from '../../types/host-config.js';
+import type { LocalHostConfig } from '../../../types/host-config.js';
 import type {
   ServerToClientEvents,
   ClientToServerEvents,
   InterServerEvents,
   SocketData,
-} from '../../types/events.js';
-import { logger } from '../../config/logger.js';
+} from '../../../types/events.js';
+import { logger } from '../../../config/logger.js';
 import { LocalSessionHost } from './local-session-host.js';
 import { SocketIOClientHub } from './socket-io-client-hub.js';
 import { setupSessionLifecycleHandlers } from './connection-handlers.js';
