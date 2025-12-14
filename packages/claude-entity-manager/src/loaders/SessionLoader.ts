@@ -96,6 +96,36 @@ export class SessionLoader {
     this.claudeDir = claudeDir;
   }
 
+  // ==================== PRIVATE HELPERS ====================
+
+  /**
+   * Extract the parent sessionId from a subagent transcript file.
+   *
+   * Subagent files contain the parent sessionId in each message's sessionId field.
+   * We read the first line to extract this efficiently.
+   *
+   * @param transcriptDir - Directory containing transcript files
+   * @param subagentFile - Filename of the subagent file (e.g., "agent-abc123.jsonl")
+   * @returns The parent session ID, or null if unable to determine
+   */
+  private async getSubagentSessionId(
+    transcriptDir: string,
+    subagentFile: string
+  ): Promise<string | null> {
+    try {
+      const filePath = join(transcriptDir, subagentFile);
+      const content = await readFile(filePath, "utf-8");
+      const firstLine = content.split("\n")[0];
+      if (firstLine) {
+        const parsed = JSON.parse(firstLine);
+        return parsed.sessionId || null;
+      }
+    } catch {
+      // Ignore parsing errors - file may be corrupted or empty
+    }
+    return null;
+  }
+
   // ==================== DISCOVERY ====================
 
   /**
@@ -173,11 +203,23 @@ export class SessionLoader {
     // Get main transcript stats
     const stats = await stat(transcriptPath);
 
-    // Find subagent files
+    // Find subagent files that belong to THIS session
     const entries = await readdir(transcriptDir);
-    const subagentIds = entries
-      .filter((e) => e.startsWith("agent-") && e.endsWith(".jsonl"))
-      .map((e) => e.replace(".jsonl", ""));
+    const allSubagentFiles = entries.filter(
+      (e) => e.startsWith("agent-") && e.endsWith(".jsonl")
+    );
+
+    // Filter subagents by checking their parent sessionId
+    const subagentIds: string[] = [];
+    for (const file of allSubagentFiles) {
+      const subagentSessionId = await this.getSubagentSessionId(
+        transcriptDir,
+        file
+      );
+      if (subagentSessionId === sessionId) {
+        subagentIds.push(file.replace(".jsonl", ""));
+      }
+    }
 
     return {
       sessionId,
@@ -223,6 +265,19 @@ export class SessionLoader {
       for (const file of subagentFiles) {
         const id = file.replace(".jsonl", "");
         const transcript = await readFile(join(transcriptDir, file), "utf-8");
+
+        // Check if this subagent belongs to this session
+        const firstLine = transcript.split("\n")[0];
+        if (firstLine) {
+          try {
+            const parsed = JSON.parse(firstLine);
+            if (parsed.sessionId !== sessionId) {
+              continue; // Skip subagents from other sessions
+            }
+          } catch {
+            continue; // Skip files we can't parse
+          }
+        }
 
         // Filter out placeholder files (very short transcripts)
         const lineCount = transcript.trim().split("\n").length;
