@@ -1,6 +1,6 @@
 import { mkdir, writeFile, readFile } from "fs/promises";
 import { join, dirname } from "path";
-import * as matter from "gray-matter";
+import  matter from "gray-matter";
 import type {
   Skill,
   Command,
