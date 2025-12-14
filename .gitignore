@@ -39,6 +39,8 @@ runtime/runner/test/workspace/*
 .opencode/agent/
 AGENTS.md
 
+**/**/.opencode/
+
 
 # Example data
 apps/example-backend/data
