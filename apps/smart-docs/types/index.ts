@@ -9,6 +9,9 @@ export type {
   InstalledPluginInfo,
   KnownMarketplace,
   KnownMarketplacesRegistry,
+  // Session types
+  SessionMetadata,
+  ProjectInfo,
 } from '@hhopkins/claude-entity-manager';
 
 // ========== Re-exports from shared-types ==========
@@ -42,6 +45,17 @@ export type {
   PluginSource,
   // Agent context (replaces ClaudeConfig)
   AgentContext,
+  // Transcript types
+  ParsedTranscript,
+  ConversationBlock,
+  UserMessageBlock,
+  AssistantTextBlock,
+  ToolUseBlock,
+  ToolResultBlock,
+  ThinkingBlock,
+  SystemBlock,
+  SubagentBlock,
+  ErrorBlock,
 } from '@ai-systems/shared-types';
 
 // ========== Smart-docs specific types ==========

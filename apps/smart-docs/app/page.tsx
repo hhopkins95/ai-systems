@@ -4,10 +4,11 @@ import { useState, useEffect } from 'react';
 import DocsTab from './components/DocsTab';
 import AgentProfileTab from './components/AgentProfileTab';
 import PluginsTab from './components/PluginsTab';
+import SessionsTab from './components/SessionsTab';
 import type { ServerConfig } from '@/types';
 
 export default function Home() {
-  const [activeTab, setActiveTab] = useState<'docs' | 'agent-profile' | 'plugins'>('docs');
+  const [activeTab, setActiveTab] = useState<'docs' | 'agent-profile' | 'plugins' | 'sessions'>('docs');
   const [config, setConfig] = useState<ServerConfig | null>(null);
 
   useEffect(() => {
@@ -65,6 +66,16 @@ export default function Home() {
           >
             🔌 Plugins
           </button>
+          <button
+            className={`px-4 py-2 font-medium ${
+              activeTab === 'sessions'
+                ? 'border-b-2 border-blue-500 text-blue-600 dark:text-blue-400'
+                : 'text-gray-600 dark:text-gray-400 hover:text-gray-900 dark:hover:text-gray-200'
+            }`}
+            onClick={() => setActiveTab('sessions')}
+          >
+            💬 Sessions
+          </button>
         </div>
       </header>
 
@@ -73,6 +84,7 @@ export default function Home() {
         {activeTab === 'docs' && <DocsTab />}
         {activeTab === 'agent-profile' && <AgentProfileTab />}
         {activeTab === 'plugins' && <PluginsTab />}
+        {activeTab === 'sessions' && <SessionsTab />}
       </main>
     </div>
   );
