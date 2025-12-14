@@ -50,11 +50,21 @@
   },
   "dependencies": {
     "@ai-systems/shared-types": "workspace:*",
+    "@hhopkins/agent-converters": "workspace:*",
     "fast-glob": "^3.3.2",
     "gray-matter": "^4.0.3",
     "simple-git": "^3.22.0"
   },
+  "peerDependencies": {
+    "@anthropic-ai/claude-agent-sdk": ">=0.1.0"
+  },
+  "peerDependenciesMeta": {
+    "@anthropic-ai/claude-agent-sdk": {
+      "optional": true
+    }
+  },
   "devDependencies": {
+    "@anthropic-ai/claude-agent-sdk": "^0.1.9",
     "@types/node": "^22",
     "typescript": "^5.7.2"
   }

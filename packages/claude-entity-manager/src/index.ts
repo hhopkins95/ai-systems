@@ -28,6 +28,13 @@ export { AgentLoader } from "./loaders/AgentLoader.js";
 export { HookLoader } from "./loaders/HookLoader.js";
 export { ClaudeMdLoader } from "./loaders/ClaudeMdLoader.js";
 export { MCPLoader } from "./loaders/MCPLoader.js";
+export { SessionLoader } from "./loaders/SessionLoader.js";
+export type {
+  SessionMetadata,
+  ProjectInfo,
+  ReadSessionOptions,
+  ParsedJsonlTranscript,
+} from "./loaders/SessionLoader.js";
 
 export { PluginDiscovery } from "./discovery/PluginDiscovery.js";
 export { EntityDiscovery, type EntityCounts } from "./discovery/EntityDiscovery.js";

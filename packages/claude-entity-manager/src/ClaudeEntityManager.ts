@@ -22,6 +22,7 @@ import { AgentLoader } from "./loaders/AgentLoader.js";
 import { HookLoader } from "./loaders/HookLoader.js";
 import { ClaudeMdLoader } from "./loaders/ClaudeMdLoader.js";
 import { MCPLoader } from "./loaders/MCPLoader.js";
+import { SessionLoader, type SessionMetadata, type ProjectInfo, type ReadSessionOptions, type ParsedJsonlTranscript } from "./loaders/SessionLoader.js";
 import { PluginDiscovery } from "./discovery/PluginDiscovery.js";
 import { PluginRegistryService } from "./registry/PluginRegistry.js";
 import { MarketplaceRegistryService } from "./registry/MarketplaceRegistry.js";
@@ -45,6 +46,7 @@ export class ClaudeEntityManager {
   private hookLoader: HookLoader;
   private claudeMdLoader: ClaudeMdLoader;
   private mcpLoader: MCPLoader;
+  private sessionLoader: SessionLoader;
 
   // Services
   private pluginDiscovery: PluginDiscovery;
@@ -67,6 +69,7 @@ export class ClaudeEntityManager {
     this.hookLoader = new HookLoader();
     this.claudeMdLoader = new ClaudeMdLoader();
     this.mcpLoader = new MCPLoader();
+    this.sessionLoader = new SessionLoader(this.claudeDir);
 
     // Initialize services
     this.pluginDiscovery = new PluginDiscovery(this.claudeDir, this.projectDir);
@@ -747,5 +750,95 @@ export class ClaudeEntityManager {
     claudeMd?: WriteResult;
   }> {
     return this.getEntityWriter().writeEntities(options);
+  }
+
+  // ==================== SESSION TRANSCRIPTS ====================
+
+  /**
+   * List all projects that have session data
+   */
+  async listProjects(): Promise<ProjectInfo[]> {
+    return this.sessionLoader.listProjects();
+  }
+
+  /**
+   * List all session IDs for a project
+   * @param projectPath - Optional project path (defaults to this.projectDir)
+   * @throws Error if no project path provided and no projectDir configured
+   */
+  async listSessions(projectPath?: string): Promise<string[]> {
+    const path = projectPath || this.projectDir;
+    if (!path) {
+      throw new Error("No project path provided and no projectDir configured");
+    }
+    return this.sessionLoader.listSessions(path);
+  }
+
+  /**
+   * Get metadata for a specific session
+   * @param sessionId - The session UUID
+   * @param projectPath - Optional project path (defaults to this.projectDir)
+   * @throws Error if no project path provided and no projectDir configured
+   */
+  async getSessionMetadata(
+    sessionId: string,
+    projectPath?: string
+  ): Promise<SessionMetadata> {
+    const path = projectPath || this.projectDir;
+    if (!path) {
+      throw new Error("No project path provided and no projectDir configured");
+    }
+    return this.sessionLoader.getSessionMetadata(path, sessionId);
+  }
+
+  /**
+   * Read session transcript as raw JSONL strings
+   * @param sessionId - The session UUID
+   * @param options - Read options including projectPath and includeSubagents
+   * @throws Error if no project path provided and no projectDir configured
+   */
+  async readSessionRaw(
+    sessionId: string,
+    options?: ReadSessionOptions & { projectPath?: string }
+  ): Promise<import("@ai-systems/shared-types").CombinedClaudeTranscript> {
+    const path = options?.projectPath || this.projectDir;
+    if (!path) {
+      throw new Error("No project path provided and no projectDir configured");
+    }
+    return this.sessionLoader.readRaw(path, sessionId, options);
+  }
+
+  /**
+   * Read session transcript as parsed SDKMessage arrays
+   * @param sessionId - The session UUID
+   * @param options - Read options including projectPath and includeSubagents
+   * @throws Error if no project path provided and no projectDir configured
+   */
+  async readSessionParsedJsonl(
+    sessionId: string,
+    options?: ReadSessionOptions & { projectPath?: string }
+  ): Promise<ParsedJsonlTranscript> {
+    const path = options?.projectPath || this.projectDir;
+    if (!path) {
+      throw new Error("No project path provided and no projectDir configured");
+    }
+    return this.sessionLoader.readParsedJsonl(path, sessionId, options);
+  }
+
+  /**
+   * Read session transcript as ConversationBlocks
+   * @param sessionId - The session UUID
+   * @param options - Read options including projectPath and includeSubagents
+   * @throws Error if no project path provided and no projectDir configured
+   */
+  async readSessionBlocks(
+    sessionId: string,
+    options?: ReadSessionOptions & { projectPath?: string }
+  ): Promise<import("@ai-systems/shared-types").ParsedTranscript> {
+    const path = options?.projectPath || this.projectDir;
+    if (!path) {
+      throw new Error("No project path provided and no projectDir configured");
+    }
+    return this.sessionLoader.readBlocks(path, sessionId, options);
   }
 }
