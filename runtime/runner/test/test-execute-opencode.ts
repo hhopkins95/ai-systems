@@ -10,9 +10,8 @@
  */
 
 import { randomUUID } from 'crypto';
-import { resolve } from 'path';
-import { mkdir } from 'fs/promises';
 import { executeOpencodeQuery } from '../src/core/index.js';
+import { setupTestWorkspace, TEST_PROJECT_DIR } from './test-setup.js';
 
 // ============================================================================
 // Configuration - Edit these as needed
@@ -26,7 +25,6 @@ const MODEL = 'anthropic/claude-sonnet-4-20250514';
 // ============================================================================
 
 async function main() {
-  const testDir = resolve(import.meta.dirname, 'workspace');
   const sessionId = `test-opencode-${randomUUID().slice(0, 8)}`;
 
   console.log('='.repeat(60));
@@ -35,7 +33,7 @@ async function main() {
   console.log(`Prompt: "${PROMPT}"`);
   console.log(`Model: ${MODEL}`);
   console.log(`Session: ${sessionId}`);
-  console.log(`Workspace: ${testDir}`);
+  console.log(`Workspace: ${TEST_PROJECT_DIR}`);
   console.log('='.repeat(60));
   console.log('');
 
@@ -45,14 +43,14 @@ async function main() {
     process.exit(1);
   }
 
-  // Ensure workspace exists
-  await mkdir(testDir, { recursive: true });
+  // Clean and create test workspace
+  await setupTestWorkspace();
 
   const input = {
     prompt: PROMPT,
     architecture: 'opencode' as const,
     sessionId,
-    cwd: testDir,
+    cwd: TEST_PROJECT_DIR,
     model: MODEL,
   };
 

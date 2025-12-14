@@ -18,6 +18,8 @@ export interface ReadSessionTranscriptInput {
   sessionId: string;
   architecture: AgentArchitecture;
   projectDir: string;
+  /** Optional custom claude home directory (defaults to ~/.claude) */
+  claudeHomeDir?: string;
 }
 
 /**
@@ -35,9 +37,10 @@ export interface ReadSessionTranscriptResult {
  */
 async function readClaudeSdkTranscript(
   sessionId: string,
-  projectDir: string
+  projectDir: string,
+  claudeHomeDir?: string
 ): Promise<string | null> {
-  const manager = new ClaudeEntityManager({ projectDir });
+  const manager = new ClaudeEntityManager({ projectDir, claudeDir: claudeHomeDir });
   try {
     const transcript = await manager.readSessionRaw(sessionId);
     return JSON.stringify(transcript);
@@ -100,7 +103,7 @@ export async function readSessionTranscript(
     let transcript: string | null;
 
     if (input.architecture === 'claude-sdk') {
-      transcript = await readClaudeSdkTranscript(input.sessionId, input.projectDir);
+      transcript = await readClaudeSdkTranscript(input.sessionId, input.projectDir, input.claudeHomeDir);
     } else if (input.architecture === 'opencode') {
       transcript = await readOpencodeTranscript(input.sessionId, input.projectDir);
     } else {

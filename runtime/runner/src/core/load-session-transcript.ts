@@ -22,6 +22,8 @@ export interface LoadSessionTranscriptInput {
   sessionTranscript: string;
   sessionId: string;
   architectureType: AgentArchitecture;
+  /** Optional custom claude home directory (defaults to ~/.claude) */
+  claudeHomeDir?: string;
 }
 
 /**
@@ -41,9 +43,10 @@ export interface LoadSessionTranscriptResult {
 async function writeClaudeTranscript(
   projectDir: string,
   sessionId: string,
-  transcript: string
+  transcript: string,
+  claudeHomeDir?: string
 ): Promise<string> {
-  const manager = new ClaudeEntityManager({ projectDir });
+  const manager = new ClaudeEntityManager({ projectDir, claudeDir: claudeHomeDir });
   const transcriptJson = JSON.parse(transcript) as CombinedClaudeTranscript;
   return manager.writeSessionRaw(sessionId, transcriptJson);
 }
@@ -92,7 +95,8 @@ export async function loadSessionTranscript(
       transcriptPath = await writeClaudeTranscript(
         input.projectDirPath,
         input.sessionId,
-        input.sessionTranscript
+        input.sessionTranscript,
+        input.claudeHomeDir
       );
     } else if (input.architectureType === 'opencode') {
       transcriptPath = await writeOpencodeTranscript(

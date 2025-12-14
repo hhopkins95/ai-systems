@@ -24,6 +24,8 @@ export interface LoadAgentProfileInput {
   sessionId: string;
   agentProfile: AgentProfile;
   architectureType: AgentArchitecture;
+  /** Optional custom claude home directory (defaults to ~/.claude) */
+  claudeHomeDir?: string;
 }
 
 /**
@@ -56,6 +58,7 @@ export async function loadAgentProfile(
     // Always set up the profile for Claude. If opencode, we add the adapter plugin.
     const claudeEntityManager = new ClaudeEntityManager({
       projectDir: input.projectDirPath,
+      claudeDir: input.claudeHomeDir,
     });
 
     // Install all plugins for the agent profile

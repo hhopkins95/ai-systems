@@ -6,11 +6,9 @@
  */
 
 import { randomUUID } from 'crypto';
-import { resolve } from 'path';
-import { mkdir, rm } from 'fs/promises';
-import { existsSync } from 'fs';
 import { loadSessionTranscript, readSessionTranscript } from '../src/core/index.js';
 import type { CombinedClaudeTranscript } from '@hhopkins/agent-converters/claude-sdk';
+import { setupTestWorkspace, TEST_PROJECT_DIR, TEST_CLAUDE_HOME_DIR } from './test-setup.js';
 
 // ============================================================================
 // Configuration - Edit these as needed
@@ -29,22 +27,19 @@ const MOCK_TRANSCRIPT: CombinedClaudeTranscript = {
 // ============================================================================
 
 async function main() {
-  const testDir = resolve(import.meta.dirname, 'workspace', 'transcript-test');
   const sessionId = `test-transcript-${randomUUID().slice(0, 8)}`;
 
   console.log('='.repeat(60));
   console.log('Test: Load and Read Session Transcript');
   console.log('='.repeat(60));
   console.log(`Session: ${sessionId}`);
-  console.log(`Workspace: ${testDir}`);
+  console.log(`Project Dir: ${TEST_PROJECT_DIR}`);
+  console.log(`Claude Home: ${TEST_CLAUDE_HOME_DIR}`);
   console.log('='.repeat(60));
   console.log('');
 
-  // Clean and create workspace
-  if (existsSync(testDir)) {
-    await rm(testDir, { recursive: true });
-  }
-  await mkdir(testDir, { recursive: true });
+  // Clean and create test workspace
+  await setupTestWorkspace();
 
   const startTime = Date.now();
 
@@ -53,10 +48,11 @@ async function main() {
     console.log('Step 1: Loading transcript...');
 
     const loadResult = await loadSessionTranscript({
-      projectDirPath: testDir,
+      projectDirPath: TEST_PROJECT_DIR,
       sessionId,
       sessionTranscript: JSON.stringify(MOCK_TRANSCRIPT),
       architectureType: 'claude-sdk',
+      claudeHomeDir: TEST_CLAUDE_HOME_DIR,
     });
 
     if (!loadResult.success) {
@@ -72,7 +68,8 @@ async function main() {
     const readResult = await readSessionTranscript({
       sessionId,
       architecture: 'claude-sdk',
-      projectDir: testDir,
+      projectDir: TEST_PROJECT_DIR,
+      claudeHomeDir: TEST_CLAUDE_HOME_DIR,
     });
 
     if (!readResult.success || !readResult.transcript) {

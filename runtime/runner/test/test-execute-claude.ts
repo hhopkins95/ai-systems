@@ -6,9 +6,8 @@
  */
 
 import { randomUUID } from 'crypto';
-import { resolve } from 'path';
-import { mkdir } from 'fs/promises';
 import { executeClaudeQuery } from '../src/core/index.js';
+import { setupTestWorkspace, TEST_PROJECT_DIR } from './test-setup.js';
 
 // ============================================================================
 // Configuration - Edit these as needed
@@ -21,7 +20,6 @@ const PROMPT = 'What is 2 + 2? Reply with just the number.';
 // ============================================================================
 
 async function main() {
-  const testDir = resolve(import.meta.dirname, 'workspace');
   const sessionId = `test-claude-${randomUUID().slice(0, 8)}`;
 
   console.log('='.repeat(60));
@@ -29,18 +27,18 @@ async function main() {
   console.log('='.repeat(60));
   console.log(`Prompt: "${PROMPT}"`);
   console.log(`Session: ${sessionId}`);
-  console.log(`Workspace: ${testDir}`);
+  console.log(`Workspace: ${TEST_PROJECT_DIR}`);
   console.log('='.repeat(60));
   console.log('');
 
-  // Ensure workspace exists
-  await mkdir(testDir, { recursive: true });
+  // Clean and create test workspace
+  await setupTestWorkspace();
 
   const input = {
     prompt: PROMPT,
     architecture: 'claude-sdk' as const,
     sessionId,
-    cwd: testDir,
+    cwd: TEST_PROJECT_DIR,
   };
 
   console.log('Streaming events:\n');

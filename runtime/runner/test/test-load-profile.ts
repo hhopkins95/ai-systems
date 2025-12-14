@@ -7,10 +7,11 @@
 
 import { randomUUID } from 'crypto';
 import { resolve } from 'path';
-import { mkdir, rm, readdir, readFile } from 'fs/promises';
+import { readdir, readFile } from 'fs/promises';
 import { existsSync } from 'fs';
 import { loadAgentProfile } from '../src/core/index.js';
 import type { AgentProfile } from '@ai-systems/shared-types';
+import { setupTestWorkspace, TEST_PROJECT_DIR, TEST_CLAUDE_HOME_DIR } from './test-setup.js';
 
 // ============================================================================
 // Configuration - Edit these as needed
@@ -29,7 +30,6 @@ const TEST_PROFILE: AgentProfile = {
 // ============================================================================
 
 async function main() {
-  const testDir = resolve(import.meta.dirname, 'workspace', 'profile-test');
   const sessionId = `test-profile-${randomUUID().slice(0, 8)}`;
 
   console.log('='.repeat(60));
@@ -37,21 +37,20 @@ async function main() {
   console.log('='.repeat(60));
   console.log(`Profile: ${TEST_PROFILE.name}`);
   console.log(`Session: ${sessionId}`);
-  console.log(`Workspace: ${testDir}`);
+  console.log(`Project Dir: ${TEST_PROJECT_DIR}`);
+  console.log(`Claude Home: ${TEST_CLAUDE_HOME_DIR}`);
   console.log('='.repeat(60));
   console.log('');
 
-  // Clean and create workspace
-  if (existsSync(testDir)) {
-    await rm(testDir, { recursive: true });
-  }
-  await mkdir(testDir, { recursive: true });
+  // Clean and create test workspace
+  await setupTestWorkspace();
 
   const input = {
-    projectDirPath: testDir,
+    projectDirPath: TEST_PROJECT_DIR,
     sessionId,
     agentProfile: TEST_PROFILE,
     architectureType: 'claude-sdk' as const,
+    claudeHomeDir: TEST_CLAUDE_HOME_DIR,
   };
 
   const startTime = Date.now();
@@ -73,22 +72,22 @@ async function main() {
     }
     console.log('');
 
-    // Verify .claude directory was created
-    const claudeDir = resolve(testDir, '.claude');
-    if (!existsSync(claudeDir)) {
-      throw new Error('.claude directory was not created');
+    // Verify .claude directory was created in project
+    const projectClaudeDir = resolve(TEST_PROJECT_DIR, '.claude');
+    if (!existsSync(projectClaudeDir)) {
+      throw new Error('.claude directory was not created in project');
     }
 
-    // List what's in .claude
-    console.log('Verifying .claude directory:');
-    const claudeContents = await readdir(claudeDir, { recursive: true });
+    // List what's in project .claude
+    console.log('Verifying project .claude directory:');
+    const claudeContents = await readdir(projectClaudeDir, { recursive: true });
     for (const item of claudeContents) {
       console.log(`  - .claude/${item}`);
     }
     console.log('');
 
     // Check for MCP config
-    const mcpConfigPath = resolve(claudeDir, '.mcp.json');
+    const mcpConfigPath = resolve(projectClaudeDir, '.mcp.json');
     if (existsSync(mcpConfigPath)) {
       const mcpConfig = await readFile(mcpConfigPath, 'utf-8');
       console.log('MCP Config:');
