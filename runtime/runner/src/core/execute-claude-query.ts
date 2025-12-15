@@ -57,7 +57,7 @@ export async function* executeClaudeQuery(
 
   const options: Options = {
     pathToClaudeCodeExecutable: claudeCodePath,
-    cwd: input.cwd || '/workspace',
+    cwd: input.baseWorkspacePath || '/workspace',
     settingSources: ['project', 'user'],
     includePartialMessages: true,
     maxBudgetUsd: 5.0,

@@ -90,8 +90,8 @@ export const ClaudeAdapterPlugin: Plugin = async (ctx) => {
     console.error(`[claude-adapter] Error writing agent ${error.file}: ${error.error}`);
   }
 
-  // Sync instructions (memory files) using writer
-  const instructionResult = await writer.writeInstructions(agentContext.memoryFiles);
+  // Sync instructions (rules) using writer
+  const instructionResult = await writer.writeInstructions(agentContext.rules);
   if (instructionResult.created) {
     console.log(`[claude-adapter] Synced CLAUDE.md → AGENTS.md`);
   }

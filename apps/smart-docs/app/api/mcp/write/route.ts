@@ -63,7 +63,7 @@ export async function POST(request: Request) {
     }
 
     // Write to project .mcp.json (merges with existing)
-    const result = await entityManager.writeProjectMcpServers([mcpServer]);
+    const result = await entityManager.writeMcpServers([mcpServer]);
 
     return NextResponse.json({
       success: true,

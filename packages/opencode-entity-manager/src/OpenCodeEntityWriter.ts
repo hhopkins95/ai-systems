@@ -9,7 +9,7 @@ import type {
   Agent,
   Command,
   McpServer,
-  MemoryFile,
+  Rule,
   OpencodeSettings,
   Skill,
   SkillWithSource,
@@ -149,16 +149,16 @@ export class OpenCodeEntityWriter {
 
   /**
    * Write instructions to AGENTS.md
-   * Concatenates memory files from CLAUDE.md sources
+   * Concatenates rule files from CLAUDE.md and rules/ sources
    */
-  async writeInstructions(memoryFiles: MemoryFile[]): Promise<WriteResult> {
+  async writeInstructions(rules: Rule[]): Promise<WriteResult> {
     const filePath = getAgentsMdPath(this.configDirectory);
 
-    if (memoryFiles.length === 0) {
+    if (rules.length === 0) {
       return { path: filePath, created: false };
     }
 
-    const content = formatAgentsMd(memoryFiles);
+    const content = formatAgentsMd(rules);
     if (!content) {
       return { path: filePath, created: false };
     }

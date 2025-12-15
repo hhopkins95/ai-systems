@@ -8,9 +8,11 @@ import type {
   AgentContext,
   AgentContextSources,
   LoadAgentContextOptions,
-  MemoryFile,
+  RuleWithSource,
+  Rule,
+  RuleMetadata,
   ClaudeSettings,
-  McpServerWithSource, 
+  McpServerWithSource,
   ClaudePluginInstallSource
 } from "@ai-systems/shared-types";
 import type { ClaudeEntityManagerOptions, PluginInstallOptions, PluginInstallResult, KnownMarketplacesRegistry, MarketplaceManifest, PluginRegistry, Plugin, PluginSource, EntityScope } from "./types.js"
@@ -19,7 +21,7 @@ import { SkillLoader } from "./loaders/SkillLoader.js";
 import { CommandLoader } from "./loaders/CommandLoader.js";
 import { AgentLoader } from "./loaders/AgentLoader.js";
 import { HookLoader } from "./loaders/HookLoader.js";
-import { ClaudeMdLoader } from "./loaders/ClaudeMdLoader.js";
+import { RulesLoader } from "./loaders/RulesLoader.js";
 import { MCPLoader } from "./loaders/MCPLoader.js";
 import { SessionLoader, type SessionMetadata, type ProjectInfo, type ReadSessionOptions, type ParsedJsonlTranscript } from "./loaders/SessionLoader.js";
 import { PluginDiscovery } from "./discovery/PluginDiscovery.js";
@@ -43,7 +45,7 @@ export class ClaudeEntityManager {
   private commandLoader: CommandLoader;
   private agentLoader: AgentLoader;
   private hookLoader: HookLoader;
-  private claudeMdLoader: ClaudeMdLoader;
+  private rulesLoader: RulesLoader;
   private mcpLoader: MCPLoader;
   private sessionLoader: SessionLoader;
 
@@ -67,7 +69,7 @@ export class ClaudeEntityManager {
     this.commandLoader = new CommandLoader();
     this.agentLoader = new AgentLoader();
     this.hookLoader = new HookLoader();
-    this.claudeMdLoader = new ClaudeMdLoader();
+    this.rulesLoader = new RulesLoader();
     this.mcpLoader = new MCPLoader();
     this.sessionLoader = new SessionLoader(this.claudeDir);
 
@@ -354,16 +356,16 @@ export class ClaudeEntityManager {
     return config.mcpServers;
   }
 
-  // ==================== CLAUDE.MD CONTEXT FILES ====================
+  // ==================== RULES (CLAUDE.MD AND RULES DIRECTORY) ====================
 
   /**
-   * Load all CLAUDE.md context files from global, project, and nested locations
-   * @returns Sorted array of MemoryFile objects (global → project → nested)
+   * Load all rule files from global and project locations (CLAUDE.md and rules/*.md)
+   * @returns Sorted array of RuleWithSource objects (global first, then project)
    */
-  async loadClaudeMdFiles(): Promise<MemoryFile[]> {
+  async loadRules(): Promise<RuleWithSource[]> {
     // Extract home directory from claudeDir (which is ~/.claude)
     const homeDir = join(this.claudeDir, "..");
-    return this.claudeMdLoader.loadClaudeMdFiles(homeDir, this.projectDir);
+    return this.rulesLoader.loadRules(homeDir, this.projectDir);
   }
 
   // ==================== AGENT CONTEXT ====================
@@ -474,8 +476,8 @@ export class ClaudeEntityManager {
       allMcpServers.push(...pluginMcpMap.values());
     }
 
-    // Load memory files (CLAUDE.md)
-    const memoryFiles = await this.loadClaudeMdFiles();
+    // Load rules (CLAUDE.md and rules/*.md)
+    const rules = await this.loadRules();
 
     // Build sources metadata
     const sources: AgentContextSources = {
@@ -490,7 +492,7 @@ export class ClaudeEntityManager {
       subagents: allAgents,
       hooks: allHooks,
       mcpServers: allMcpServers,
-      memoryFiles,
+      rules,
       sources,
     };
   }
@@ -773,6 +775,56 @@ export class ClaudeEntityManager {
   }> {
     const { scope, ...entityOptions } = options;
     return this.getEntityWriterForScope(scope).writeEntities(entityOptions);
+  }
+
+  /**
+   * Write a rule to the rules directory
+   * @param name - Rule name (without .md extension)
+   * @param content - Markdown content
+   * @param options - Optional metadata and scope
+   * @throws Error if scope is 'project' but no project directory is configured
+   */
+  async writeRule(
+    name: string,
+    content: string,
+    options?: { metadata?: Partial<RuleMetadata>; scope?: EntityScope }
+  ): Promise<WriteResult> {
+    return this.getEntityWriterForScope(options?.scope).writeRule(name, content, options?.metadata);
+  }
+
+  /**
+   * Delete a rule file
+   * @param name - Rule name (without .md extension)
+   * @param options - Optional scope (default: 'project')
+   * @throws Error if scope is 'project' but no project directory is configured
+   */
+  async deleteRule(
+    name: string,
+    options?: { scope?: EntityScope }
+  ): Promise<{ deleted: boolean; path: string }> {
+    return this.getEntityWriterForScope(options?.scope).deleteRule(name);
+  }
+
+  /**
+   * Get a specific rule by name
+   * @param name - Rule name (without .md extension)
+   * @param options - Optional scope (default: 'project')
+   * @throws Error if scope is 'project' but no project directory is configured
+   */
+  async getRule(
+    name: string,
+    options?: { scope?: EntityScope }
+  ): Promise<Rule | null> {
+    return this.getEntityWriterForScope(options?.scope).getRule(name);
+  }
+
+  /**
+   * List all rules in the rules directory
+   * @param options - Optional scope (default: 'project')
+   * @throws Error if scope is 'project' but no project directory is configured
+   */
+  async listRulesFromScope(options?: { scope?: EntityScope }): Promise<Rule[]> {
+    return this.getEntityWriterForScope(options?.scope).listRules();
   }
 
   // ==================== SESSION TRANSCRIPTS ====================

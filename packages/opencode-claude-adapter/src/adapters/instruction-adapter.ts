@@ -12,7 +12,7 @@
  * Also generates skill usage instructions when skills are present.
  */
 
-import type { MemoryFile } from "@ai-systems/shared-types";
+import type { Rule } from "@ai-systems/shared-types";
 import { writeFile } from "fs/promises";
 import { join } from "path";
 
@@ -24,17 +24,25 @@ export interface SkillInfo {
 }
 
 /**
- * Get a display label for a memory file
+ * Get a display label for a rule file
  */
-function getSourceLabel(file: MemoryFile): string {
-  if (file.scope === "global") {
-    return "Global Instructions (from ~/.claude/CLAUDE.md)";
+function getSourceLabel(rule: Rule): string {
+  const sourceType = (rule as { source?: { type?: string } }).source?.type;
+  const sourcePath = (rule as { source?: { path?: string } }).source?.path;
+
+  if (sourceType === "global") {
+    if (rule.metadata.isMain) {
+      return "Global Instructions (from ~/.claude/CLAUDE.md)";
+    }
+    return `Global Rule (${rule.name})`;
   }
-  if (file.scope === "project") {
-    return "Project Instructions (from ./CLAUDE.md)";
+  if (sourceType === "project") {
+    if (rule.metadata.isMain) {
+      return "Project Instructions (from ./CLAUDE.md)";
+    }
+    return `Project Rule (${rule.name})`;
   }
-  // nested or unknown
-  return `Directory Instructions (from ${file.relativePath || file.path})`;
+  return `Rule (from ${sourcePath || rule.name})`;
 }
 
 /**
@@ -84,13 +92,16 @@ If asked to "create a PDF report", you would:
 }
 
 /**
- * Format the AGENTS.md content from memory files and skills
+ * Format the AGENTS.md content from rule files and skills
  */
-function formatAgentsMd(files: MemoryFile[], skills: SkillInfo[] = []): string {
+function formatAgentsMd(rules: Rule[], skills: SkillInfo[] = []): string {
   const parts: string[] = [];
 
   // Collect sources for header
-  const sourcePaths = files.map((f) => f.relativePath || f.path);
+  const sourcePaths = rules.map((r) => {
+    const path = (r as { source?: { path?: string } }).source?.path;
+    return path || r.name;
+  });
   if (skills.length > 0) {
     sourcePaths.push(`${skills.length} skills`);
   }
@@ -106,21 +117,21 @@ function formatAgentsMd(files: MemoryFile[], skills: SkillInfo[] = []): string {
 
   parts.push(header);
 
-  // Add memory file sections
-  const memoryFileSections = files.map((file) => {
-    const sectionHeader = `## ${getSourceLabel(file)}`;
-    const content = file.content.trim();
+  // Add rule sections
+  const ruleSections = rules.map((rule) => {
+    const sectionHeader = `## ${getSourceLabel(rule)}`;
+    const content = rule.content.trim();
     return `${sectionHeader}\n\n${content}`;
   });
 
-  if (memoryFileSections.length > 0) {
-    parts.push(memoryFileSections.join("\n\n---\n\n"));
+  if (ruleSections.length > 0) {
+    parts.push(ruleSections.join("\n\n---\n\n"));
   }
 
   // Add skills section
   const skillsSection = generateSkillsSection(skills);
   if (skillsSection) {
-    if (memoryFileSections.length > 0) {
+    if (ruleSections.length > 0) {
       parts.push("\n\n---\n\n");
     }
     parts.push(skillsSection);
@@ -130,27 +141,30 @@ function formatAgentsMd(files: MemoryFile[], skills: SkillInfo[] = []): string {
 }
 
 /**
- * Sync memory files (CLAUDE.md) and skill instructions to AGENTS.md
+ * Sync rule files and skill instructions to AGENTS.md
  *
- * Memory files from AgentContext are already flattened and sorted by precedence.
+ * Rules from AgentContext are already flattened and sorted by precedence.
  * Skill instructions are appended when skills are present.
  */
 export async function syncInstructions(
-  memoryFiles: MemoryFile[],
+  rules: Rule[],
   projectDir: string,
   skills: SkillInfo[] = []
 ): Promise<{ written: boolean; sources: string[] }> {
   // Only skip if we have nothing to write
-  if (memoryFiles.length === 0 && skills.length === 0) {
+  if (rules.length === 0 && skills.length === 0) {
     return { written: false, sources: [] };
   }
 
-  const content = formatAgentsMd(memoryFiles, skills);
+  const content = formatAgentsMd(rules, skills);
   const targetPath = join(projectDir, "AGENTS.md");
 
   await writeFile(targetPath, content, "utf-8");
 
-  const sources = memoryFiles.map((f) => f.relativePath || f.path);
+  const sources = rules.map((r) => {
+    const path = (r as { source?: { path?: string } }).source?.path;
+    return path || r.name;
+  });
   if (skills.length > 0) {
     sources.push(`${skills.length} skills`);
   }

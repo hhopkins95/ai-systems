@@ -32,7 +32,7 @@ export { SkillLoader } from "./loaders/SkillLoader.js";
 export { CommandLoader } from "./loaders/CommandLoader.js";
 export { AgentLoader } from "./loaders/AgentLoader.js";
 export { HookLoader } from "./loaders/HookLoader.js";
-export { ClaudeMdLoader } from "./loaders/ClaudeMdLoader.js";
+export { RulesLoader } from "./loaders/RulesLoader.js";
 export { MCPLoader } from "./loaders/MCPLoader.js";
 export { SessionLoader } from "./loaders/SessionLoader.js";
 export type {

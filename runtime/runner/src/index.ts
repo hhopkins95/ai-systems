@@ -55,8 +55,4 @@ export type {
   ExecutionResult,
   // CLI types
   ExecuteQueryArgs,
-  SetupSessionInput,
-  SetupSessionResult,
-  McpServerConfig,
-  ClaudeMcpJsonConfig,
 } from './types.js';

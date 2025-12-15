@@ -9,23 +9,23 @@ import { Prism as SyntaxHighlighterBase } from 'react-syntax-highlighter';
 const SyntaxHighlighter = SyntaxHighlighterBase as any;
 import { vscDarkPlus } from 'react-syntax-highlighter/dist/esm/styles/prism';
 import remarkGfm from 'remark-gfm';
-import type { MemoryFile } from '@/types';
+import type { RuleWithSource } from '@/types';
 import Mermaid from './Mermaid';
 import { io } from 'socket.io-client';
 
 export default function ContextTab() {
-  const [files, setFiles] = useState<MemoryFile[]>([]);
-  const [selectedFile, setSelectedFile] = useState<MemoryFile | null>(null);
+  const [rules, setRules] = useState<RuleWithSource[]>([]);
+  const [selectedRule, setSelectedRule] = useState<RuleWithSource | null>(null);
   const [loading, setLoading] = useState(true);
 
   useEffect(() => {
-    fetchFiles();
+    fetchRules();
 
     // Set up socket for real-time updates
     const socket = io();
     socket.on('file-change', (event: any) => {
-      if (event.area === 'claude' && event.path.includes('CLAUDE.md')) {
-        fetchFiles();
+      if (event.area === 'claude' && (event.path.includes('CLAUDE.md') || event.path.includes('/rules/'))) {
+        fetchRules();
       }
     });
 
@@ -34,41 +34,42 @@ export default function ContextTab() {
     };
   }, []);
 
-  const fetchFiles = async () => {
+  const fetchRules = async () => {
     try {
       const response = await fetch('/api/claude/context');
       const data = await response.json();
-      setFiles(data);
+      setRules(data);
     } catch (error) {
-      console.error('Failed to fetch CLAUDE.md files:', error);
+      console.error('Failed to fetch rules:', error);
     } finally {
       setLoading(false);
     }
   };
 
-  const getScopeBadgeStyle = (scope?: 'global' | 'project' | 'nested') => {
-    const styles = {
+  const getScopeBadgeStyle = (scope?: 'global' | 'project' | 'plugin') => {
+    const styles: Record<string, string> = {
       global: 'bg-blue-100 text-blue-800 dark:bg-blue-900 dark:text-blue-200',
       project: 'bg-green-100 text-green-800 dark:bg-green-900 dark:text-green-200',
-      nested: 'bg-amber-100 text-amber-800 dark:bg-amber-900 dark:text-amber-200',
+      plugin: 'bg-purple-100 text-purple-800 dark:bg-purple-900 dark:text-purple-200',
     };
     return scope ? styles[scope] : styles.project;
   };
 
-  const renderFileItem = (file: MemoryFile) => {
-    const fileName = file.relativePath || file.path.split('/').pop() || 'CLAUDE.md';
+  const renderRuleItem = (rule: RuleWithSource) => {
+    const ruleName = rule.metadata.isMain ? 'CLAUDE.md' : `${rule.name}.md`;
+    const sourceType = rule.source?.type;
     return (
       <div
-        key={file.path}
+        key={rule.source?.path || rule.name}
         className={`cursor-pointer px-3 py-2 hover:bg-gray-100 dark:hover:bg-gray-800 flex items-center gap-2 ${
-          selectedFile?.path === file.path ? 'bg-blue-100 dark:bg-blue-900' : ''
+          selectedRule?.name === rule.name && selectedRule?.source?.type === sourceType ? 'bg-blue-100 dark:bg-blue-900' : ''
         }`}
-        onClick={() => setSelectedFile(file)}
+        onClick={() => setSelectedRule(rule)}
       >
-        <span>📋 {fileName}</span>
-        {file.scope && (
-          <span className={`text-xs px-2 py-0.5 rounded ${getScopeBadgeStyle(file.scope)}`}>
-            {file.scope}
+        <span>📋 {ruleName}</span>
+        {sourceType && (
+          <span className={`text-xs px-2 py-0.5 rounded ${getScopeBadgeStyle(sourceType)}`}>
+            {sourceType}
           </span>
         )}
       </div>
@@ -84,21 +85,22 @@ export default function ContextTab() {
       {/* Sidebar */}
       <div className="w-80 border-r border-gray-200 dark:border-gray-700 overflow-y-auto">
         <div className="p-4">
-          <h3 className="font-bold mb-2">CLAUDE.md Files</h3>
+          <h3 className="font-bold mb-2">Rules</h3>
           <p className="text-xs text-gray-500 dark:text-gray-400 mb-4">
             Project context and instructions for Claude
           </p>
-          {files.length > 0 ? (
-            files.map(file => renderFileItem(file))
+          {rules.length > 0 ? (
+            rules.map(rule => renderRuleItem(rule))
           ) : (
             <div className="text-gray-500 text-sm">
-              No CLAUDE.md files found.
+              No rules found.
               <div className="mt-2 text-xs">
-                <p>Create CLAUDE.md files at:</p>
+                <p>Create rule files at:</p>
                 <ul className="list-disc ml-4 mt-1">
                   <li>~/.claude/CLAUDE.md (global)</li>
+                  <li>~/.claude/rules/*.md (global rules)</li>
                   <li>./CLAUDE.md (project root)</li>
-                  <li>./subdirectory/CLAUDE.md (nested)</li>
+                  <li>./.claude/rules/*.md (project rules)</li>
                 </ul>
               </div>
             </div>
@@ -108,51 +110,43 @@ export default function ContextTab() {
 
       {/* Content */}
       <div className="flex-1 overflow-y-auto p-6">
-        {selectedFile ? (
+        {selectedRule ? (
           <div className="prose dark:prose-invert max-w-none">
             {/* File info header */}
             <div className="mb-6 p-4 bg-gray-100 dark:bg-gray-800 rounded">
               <div className="flex items-center gap-2 mb-2">
-                <h2 className="text-xl font-bold mt-0 mb-0">CLAUDE.md</h2>
-                {selectedFile.scope && (
-                  <span className={`text-xs px-2 py-1 rounded ${getScopeBadgeStyle(selectedFile.scope)}`}>
-                    {selectedFile.scope}
+                <h2 className="text-xl font-bold mt-0 mb-0">
+                  {selectedRule.metadata.isMain ? 'CLAUDE.md' : `${selectedRule.name}.md`}
+                </h2>
+                {selectedRule.source?.type && (
+                  <span className={`text-xs px-2 py-1 rounded ${getScopeBadgeStyle(selectedRule.source.type)}`}>
+                    {selectedRule.source.type}
                   </span>
                 )}
               </div>
               <p className="text-sm text-gray-600 dark:text-gray-400 mb-0">
-                📂 {selectedFile.relativePath || selectedFile.path}
+                📂 {selectedRule.source?.path || selectedRule.name}
               </p>
             </div>
 
-            {/* Frontmatter display */}
-            {selectedFile.frontmatter && Object.keys(selectedFile.frontmatter).length > 0 && (
+            {/* Metadata display */}
+            {selectedRule.metadata && Object.keys(selectedRule.metadata).filter(k => k !== 'isMain').length > 0 && (
               <div className="mb-4 p-4 bg-blue-50 dark:bg-blue-950 rounded">
                 <h3 className="text-sm font-bold text-blue-900 dark:text-blue-100 mt-0 mb-2">
                   Metadata
                 </h3>
-                {selectedFile.frontmatter.title ? (
+                {selectedRule.metadata.paths && (
                   <div className="mb-2">
                     <span className="text-sm font-semibold text-blue-800 dark:text-blue-200">
-                      Title:
+                      Paths:
                     </span>{' '}
                     <span className="text-sm text-blue-700 dark:text-blue-300">
-                      {String(selectedFile.frontmatter.title)}
+                      {selectedRule.metadata.paths}
                     </span>
                   </div>
-                ) : null}
-                {selectedFile.frontmatter.description ? (
-                  <div className="mb-2">
-                    <span className="text-sm font-semibold text-blue-800 dark:text-blue-200">
-                      Description:
-                    </span>{' '}
-                    <span className="text-sm text-blue-700 dark:text-blue-300">
-                      {String(selectedFile.frontmatter.description)}
-                    </span>
-                  </div>
-                ) : null}
-                {Object.entries(selectedFile.frontmatter).map(([key, value]) => {
-                  if (key !== 'title' && key !== 'description') {
+                )}
+                {Object.entries(selectedRule.metadata).map(([key, value]) => {
+                  if (key !== 'paths' && key !== 'isMain') {
                     return (
                       <div key={key} className="mb-2">
                         <span className="text-sm font-semibold text-blue-800 dark:text-blue-200">
@@ -198,19 +192,19 @@ export default function ContextTab() {
                 },
               }}
             >
-              {selectedFile.content}
+              {selectedRule.content}
             </ReactMarkdown>
           </div>
         ) : (
           <div className="text-gray-500">
-            <h3 className="text-lg font-semibold mb-2">CLAUDE.md Context Files</h3>
+            <h3 className="text-lg font-semibold mb-2">Rules</h3>
             <p className="mb-4">
-              Select a CLAUDE.md file from the sidebar to view its content.
+              Select a rule from the sidebar to view its content.
             </p>
             <div className="bg-blue-50 dark:bg-blue-950 p-4 rounded">
-              <h4 className="font-semibold mb-2">What are CLAUDE.md files?</h4>
+              <h4 className="font-semibold mb-2">What are Rules?</h4>
               <p className="text-sm mb-2">
-                CLAUDE.md files contain context and instructions that Claude sees when working in your project.
+                Rules (CLAUDE.md and rules/*.md files) contain context and instructions that Claude sees when working in your project.
                 They help provide project-specific guidelines, conventions, and documentation.
               </p>
               <h4 className="font-semibold mb-2 mt-4">File Hierarchy:</h4>
@@ -219,10 +213,13 @@ export default function ContextTab() {
                   <strong>Global</strong> (~/.claude/CLAUDE.md): Applies to all projects
                 </li>
                 <li>
+                  <strong>Global Rules</strong> (~/.claude/rules/*.md): Modular global rules
+                </li>
+                <li>
                   <strong>Project</strong> (./CLAUDE.md): Applies to current project root
                 </li>
                 <li>
-                  <strong>Nested</strong> (./subdirectory/CLAUDE.md): Applies to specific subdirectories
+                  <strong>Project Rules</strong> (./.claude/rules/*.md): Modular project rules
                 </li>
               </ul>
             </div>

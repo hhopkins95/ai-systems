@@ -136,7 +136,7 @@ export async function loadAgentProfile(
       await opencodeEntityManager.syncAgents(fullAgentContext.subagents)
       await opencodeEntityManager.syncSkills(fullAgentContext.skills)
       await opencodeEntityManager.syncCommands(fullAgentContext.commands)
-      await opencodeEntityManager.writeInstructions(fullAgentContext.memoryFiles)
+      await opencodeEntityManager.writeInstructions(fullAgentContext.rules)
       await opencodeEntityManager.syncMcpServers(mcpServers)
       await opencodeEntityManager.writeSkillsInstructions(fullAgentContext.skills)
       await opencodeEntityManager.addPlugins(['opencode-skills'])

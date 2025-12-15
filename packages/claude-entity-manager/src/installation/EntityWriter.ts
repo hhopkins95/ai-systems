@@ -1,6 +1,7 @@
-import { mkdir, writeFile, readFile } from "fs/promises";
-import { join, dirname } from "path";
-import  matter from "gray-matter";
+import { mkdir, writeFile, readFile, unlink, readdir } from "fs/promises";
+import { join, dirname, basename, extname } from "path";
+import matter from "gray-matter";
+import fg from "fast-glob";
 import type {
   Skill,
   Command,
@@ -10,6 +11,8 @@ import type {
   HookMatcher,
   ClaudeMcpJsonConfig,
   McpServerConfig,
+  Rule,
+  RuleMetadata,
 } from "@ai-systems/shared-types";
 import {
   getSkillsDir,
@@ -17,6 +20,7 @@ import {
   getAgentsDir,
   getHooksDir,
   getMcpConfigPath,
+  getRulesDir,
 } from "../utils/paths.js";
 
 /**
@@ -161,6 +165,133 @@ export class EntityWriter {
     await writeFile(filePath, content, "utf-8");
 
     return { path: filePath, created: true };
+  }
+
+  /**
+   * Write a rule to rules/{name}.md
+   * @param name - Rule name (without .md extension)
+   * @param content - Markdown content
+   * @param metadata - Optional metadata (paths, etc.)
+   */
+  async writeRule(
+    name: string,
+    content: string,
+    metadata?: Partial<RuleMetadata>
+  ): Promise<WriteResult> {
+    const rulesDir = getRulesDir(this.claudeDir);
+    await this.ensureDir(rulesDir);
+
+    const fileName = name.endsWith(".md") ? name : `${name}.md`;
+    const filePath = join(rulesDir, fileName);
+
+    // Build metadata, filtering out isMain (it's always false for rules/)
+    const cleanMetadata: Record<string, unknown> = {};
+    if (metadata) {
+      if (metadata.paths) cleanMetadata.paths = metadata.paths;
+      // Copy any additional fields except isMain
+      for (const [key, value] of Object.entries(metadata)) {
+        if (key !== "isMain" && key !== "paths" && value != null) {
+          cleanMetadata[key] = value;
+        }
+      }
+    }
+
+    const fileContent = this.formatWithFrontmatter(cleanMetadata, content);
+    await writeFile(filePath, fileContent, "utf-8");
+
+    return { path: filePath, created: true };
+  }
+
+  /**
+   * Delete a rule file
+   * @param name - Rule name (without .md extension)
+   */
+  async deleteRule(name: string): Promise<{ deleted: boolean; path: string }> {
+    const rulesDir = getRulesDir(this.claudeDir);
+    const fileName = name.endsWith(".md") ? name : `${name}.md`;
+    const filePath = join(rulesDir, fileName);
+
+    try {
+      await unlink(filePath);
+      return { deleted: true, path: filePath };
+    } catch (error) {
+      if ((error as NodeJS.ErrnoException).code === "ENOENT") {
+        return { deleted: false, path: filePath };
+      }
+      throw error;
+    }
+  }
+
+  /**
+   * List all rules in the rules directory
+   */
+  async listRules(): Promise<Rule[]> {
+    const rulesDir = getRulesDir(this.claudeDir);
+    const rules: Rule[] = [];
+
+    try {
+      const mdFiles = await fg("**/*.md", {
+        cwd: rulesDir,
+        absolute: true,
+        followSymbolicLinks: true,
+        onlyFiles: true,
+      });
+
+      for (const filePath of mdFiles) {
+        try {
+          const content = await readFile(filePath, "utf-8");
+          const parsed = matter(content);
+          const fileName = basename(filePath);
+          const name = basename(fileName, extname(fileName));
+
+          rules.push({
+            name,
+            content: parsed.content.trim(),
+            metadata: {
+              paths: parsed.data.paths as string | undefined,
+              isMain: false,
+              ...parsed.data,
+            },
+          });
+        } catch {
+          // Skip unreadable files
+        }
+      }
+    } catch (error) {
+      if ((error as NodeJS.ErrnoException).code !== "ENOENT") {
+        throw error;
+      }
+    }
+
+    return rules;
+  }
+
+  /**
+   * Get a specific rule by name
+   * @param name - Rule name (without .md extension)
+   */
+  async getRule(name: string): Promise<Rule | null> {
+    const rulesDir = getRulesDir(this.claudeDir);
+    const fileName = name.endsWith(".md") ? name : `${name}.md`;
+    const filePath = join(rulesDir, fileName);
+
+    try {
+      const content = await readFile(filePath, "utf-8");
+      const parsed = matter(content);
+      const baseName = basename(fileName, extname(fileName));
+
+      return {
+        name: baseName,
+        content: parsed.content.trim(),
+        metadata: {
+          paths: parsed.data.paths as string | undefined,
+          isMain: false,
+          ...parsed.data,
+        },
+      };
+    } catch {
+      return null;
+    }
   }
 
   /**

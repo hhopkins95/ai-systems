@@ -34,9 +34,10 @@ export type {
   HookMatcher,
   HookWithSource,
   EntitySource,
-  // Memory file types
-  MemoryFile,
-  MemoryFileScope,
+  // Rule types
+  Rule,
+  RuleMetadata,
+  RuleWithSource,
   // MCP types
   McpServerWithSource,
   McpServerConfig,

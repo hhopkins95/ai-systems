@@ -3,7 +3,7 @@
  * for an agent running in a given project context
  */
 
-import type { Agent, AgentWithSource, Command, CommandWithSource, HookWithSource, MemoryFile, Skill, SkillWithSource } from "./entities/index.js";
+import type { Agent, AgentWithSource, Command, CommandWithSource, HookWithSource, RuleWithSource, Skill, SkillWithSource } from "./entities/index.js";
 import type { McpServer, McpServerWithSource } from "./entities/mcp.js";
 import { ClaudePluginInstallSource } from "./plugin.js";
 import { WorkspaceFile } from "./runtime/session.js";
@@ -41,9 +41,9 @@ export interface AgentContext {
   /** MCP servers to connect to */
   mcpServers: McpServerWithSource[];
 
-  // Memory/context
-  /** Memory files (CLAUDE.md) in order of precedence */
-  memoryFiles: MemoryFile[];
+  // Rules/context
+  /** Rule files (CLAUDE.md and rules/*.md) in order of precedence */
+  rules: RuleWithSource[];
 
   // Provenance
   /** Information about where entities came from */

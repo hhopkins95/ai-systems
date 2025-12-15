@@ -5,7 +5,7 @@
  * Also generates skill usage instructions when skills are present.
  */
 
-import type { MemoryFile, Skill } from "@ai-systems/shared-types";
+import type { Rule, Skill } from "@ai-systems/shared-types";
 
 /**
  * Minimal skill info needed for instruction generation
@@ -63,12 +63,12 @@ If asked to "create a PDF report", you would:
 }
 
 /**
- * Format the AGENTS.md content from memory files
+ * Format the AGENTS.md content from rule files
  *
- * @param files - Memory files (CLAUDE.md) from various sources
+ * @param files - Rule files (CLAUDE.md and rules/*.md) from various sources
  * @returns Formatted AGENTS.md content
  */
-export function formatAgentsMd(files: MemoryFile[]): string {
+export function formatAgentsMd(files: Rule[]): string {
   const memoryFileContent = files
     .map((file) => file.content.trim())
     .filter((content) => content.length > 0);

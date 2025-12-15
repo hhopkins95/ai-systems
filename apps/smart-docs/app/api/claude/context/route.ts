@@ -1,18 +1,18 @@
 import { NextResponse } from 'next/server';
 import { getServices } from '@/server/services';
-import type { MemoryFile } from '@/types';
+import type { RuleWithSource } from '@/types';
 
 export async function GET() {
   try {
     const { entityManager } = getServices();
 
-    const files: MemoryFile[] = await entityManager.loadClaudeMdFiles();
+    const rules: RuleWithSource[] = await entityManager.loadRules();
 
-    return NextResponse.json(files);
+    return NextResponse.json(rules);
   } catch (error) {
-    console.error('Error getting CLAUDE.md files:', error);
+    console.error('Error getting rules:', error);
     return NextResponse.json(
-      { error: 'Failed to get CLAUDE.md files' },
+      { error: 'Failed to get rules' },
       { status: 500 }
     );
   }

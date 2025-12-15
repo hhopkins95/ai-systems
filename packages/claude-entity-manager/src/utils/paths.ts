@@ -100,6 +100,13 @@ export function getHooksDir(basePath: string): string {
 }
 
 /**
+ * Get the rules directory for a base path
+ */
+export function getRulesDir(basePath: string): string {
+  return join(basePath, "rules");
+}
+
+/**
  * Get the plugin manifest path
  */
 export function getPluginManifestPath(pluginDir: string): string {
