@@ -63,35 +63,36 @@ If asked to "create a PDF report", you would:
 }
 
 /**
- * Format the AGENTS.md content from memory files and skills
+ * Format the AGENTS.md content from memory files
  *
  * @param files - Memory files (CLAUDE.md) from various sources
- * @param skills - Optional skill information for instruction generation
  * @returns Formatted AGENTS.md content
  */
-export function formatAgentsMd(
-  files: MemoryFile[],
-  skills: SkillInfo[] = []
-): string {
-  const parts: string[] = [];
-
-  // Add memory file content directly
+export function formatAgentsMd(files: MemoryFile[]): string {
   const memoryFileContent = files
     .map((file) => file.content.trim())
     .filter((content) => content.length > 0);
 
-  if (memoryFileContent.length > 0) {
-    parts.push(memoryFileContent.join("\n\n---\n\n"));
+  if (memoryFileContent.length === 0) {
+    return "";
   }
 
-  // Add skills section
-  const skillsSection = generateSkillsSection(skills);
-  if (skillsSection) {
-    if (memoryFileContent.length > 0) {
-      parts.push("\n\n---\n\n");
-    }
-    parts.push(skillsSection);
+  return memoryFileContent.join("\n\n---\n\n") + "\n";
+}
+
+/**
+ * Format the SKILLS.md content from skill information
+ *
+ * @param skills - Skill information for instruction generation
+ * @returns Formatted SKILLS.md content
+ */
+export function formatSkillsMd(skills: SkillInfo[]): string {
+  if (skills.length === 0) {
+    return "";
   }
 
-  return parts.join("") + "\n";
+  return `# Skills
+
+${generateSkillsSection(skills)}
+`;
 }

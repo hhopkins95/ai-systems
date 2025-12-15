@@ -90,22 +90,28 @@ export const ClaudeAdapterPlugin: Plugin = async (ctx) => {
     console.error(`[claude-adapter] Error writing agent ${error.file}: ${error.error}`);
   }
 
-  // Transform synced skills to SkillInfo for instruction generation
-  const skillInfos: SkillInfo[] = syncedSkills.map((skill) => ({
-    name: skill.name,
-    description: skill.description,
-    toolName: generateToolName(skill.name),
-  }));
-
-  // Sync instructions (memory files + skill instructions) using writer
-  const instructionResult = await writer.writeInstructions(
-    agentContext.memoryFiles,
-    { skills: skillInfos }
-  );
+  // Sync instructions (memory files) using writer
+  const instructionResult = await writer.writeInstructions(agentContext.memoryFiles);
   if (instructionResult.created) {
-    console.log(
-      `[claude-adapter] Synced CLAUDE.md → AGENTS.md`
-    );
+    console.log(`[claude-adapter] Synced CLAUDE.md → AGENTS.md`);
+  }
+
+  // Write skills instructions to separate file if there are skills
+  if (syncedSkills.length > 0) {
+    const skillInfos: SkillInfo[] = syncedSkills.map((skill) => ({
+      name: skill.name,
+      description: skill.description,
+      toolName: generateToolName(skill.name),
+    }));
+
+    const skillsInstructionResult = await writer.writeSkillsInstructions(skillInfos);
+    if (skillsInstructionResult.created) {
+      console.log(`[claude-adapter] Wrote skill instructions to .opencode/SKILLS.md`);
+
+      // Add SKILLS.md to opencode.json instructions array
+      await writer.addInstructionFiles([".opencode/SKILLS.md"]);
+      console.log(`[claude-adapter] Added .opencode/SKILLS.md to opencode.json instructions`);
+    }
   }
 
   // Sync MCP servers using writer

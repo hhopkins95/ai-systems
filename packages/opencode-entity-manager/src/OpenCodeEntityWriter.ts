@@ -20,7 +20,7 @@ import type {
 
 import { transformAgentMetadata } from "./transformers/agent.js";
 import { transformMcpServer } from "./transformers/mcp.js";
-import { formatAgentsMd, type SkillInfo } from "./transformers/instruction.js";
+import { formatAgentsMd, formatSkillsMd, type SkillInfo } from "./transformers/instruction.js";
 import {
   getOpenCodeDir,
   getAgentsDir,
@@ -28,6 +28,7 @@ import {
   getCommandsDir,
   getOpencodeConfigPath,
   getAgentsMdPath,
+  getSkillsMdPath,
 } from "./utils/paths.js";
 import { ensureDir, clearDirectory } from "./utils/file-ops.js";
 
@@ -58,14 +59,6 @@ export interface OpenCodeEntityWriterOptions {
   configFilePath: string;
   /** Custom config directory (OPENCODE_CONFIG_DIR) */
   configDirectory: string;
-}
-
-/**
- * Options for writing AGENTS.md
- */
-export interface InstructionsOptions {
-  /** Skill information to include in instructions */
-  skills?: SkillInfo[];
 }
 
 // Re-export SkillInfo for convenience
@@ -167,23 +160,75 @@ export class OpenCodeEntityWriter {
 
   /**
    * Write instructions to AGENTS.md
-   * Concatenates memory files and optionally includes skill documentation
+   * Concatenates memory files from CLAUDE.md sources
    */
-  async writeInstructions(
-    memoryFiles: MemoryFile[],
-    options: InstructionsOptions = {}
-  ): Promise<WriteResult> {
+  async writeInstructions(memoryFiles: MemoryFile[]): Promise<WriteResult> {
     const filePath = getAgentsMdPath(this.projectDir);
 
-    // Only write if we have content
-    if (memoryFiles.length === 0 && (!options.skills || options.skills.length === 0)) {
+    if (memoryFiles.length === 0) {
       return { path: filePath, created: false };
     }
 
-    const content = formatAgentsMd(memoryFiles, options.skills);
+    const content = formatAgentsMd(memoryFiles);
+    if (!content) {
+      return { path: filePath, created: false };
+    }
+
+    await writeFile(filePath, content, "utf-8");
+    return { path: filePath, created: true };
+  }
+
+  /**
+   * Write skill instructions to .opencode/SKILLS.md
+   */
+  async writeSkillsInstructions(skills: SkillInfo[]): Promise<WriteResult> {
+    const filePath = getSkillsMdPath(this.opencodeDir);
+
+    if (skills.length === 0) {
+      return { path: filePath, created: false };
+    }
+
+    await ensureDir(this.opencodeDir);
+    const content = formatSkillsMd(skills);
     await writeFile(filePath, content, "utf-8");
 
     return { path: filePath, created: true };
+  }
+
+  /**
+   * Add instruction files to opencode.json instructions array
+   * Ensures the specified files are included in the config
+   */
+  async addInstructionFiles(files: string[]): Promise<WriteResult> {
+    const configPath = getOpencodeConfigPath(this.projectDir);
+
+    if (files.length === 0) {
+      return { path: configPath, created: false };
+    }
+
+    // Read existing config
+    let config: OpencodeSettings = {};
+    try {
+      const content = await readFile(configPath, "utf-8");
+      config = JSON.parse(content) as OpencodeSettings;
+    } catch {
+      // File doesn't exist or can't be parsed - start fresh
+    }
+
+    // Initialize instructions array if needed
+    if (!config.instructions) {
+      config.instructions = [];
+    }
+
+    // Add files that aren't already present
+    for (const file of files) {
+      if (!config.instructions.includes(file)) {
+        config.instructions.push(file);
+      }
+    }
+
+    await writeFile(configPath, JSON.stringify(config, null, 2), "utf-8");
+    return { path: configPath, created: true };
   }
 
   /**
