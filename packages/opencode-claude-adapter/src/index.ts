@@ -111,6 +111,10 @@ export const ClaudeAdapterPlugin: Plugin = async (ctx) => {
       // Add SKILLS.md to opencode.json instructions array
       await writer.addInstructionFiles([".opencode/SKILLS.md"]);
       console.log(`[claude-adapter] Added .opencode/SKILLS.md to opencode.json instructions`);
+
+      // Add opencode-skills plugin
+      await writer.addPlugins(["opencode-skills"]);
+      console.log(`[claude-adapter] Added opencode-skills plugin to opencode.json`);
     }
   }
 

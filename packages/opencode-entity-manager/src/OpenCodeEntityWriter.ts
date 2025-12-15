@@ -232,6 +232,42 @@ export class OpenCodeEntityWriter {
   }
 
   /**
+   * Add plugins to opencode.json plugin array
+   * Ensures the specified plugins are included in the config
+   */
+  async addPlugins(plugins: string[]): Promise<WriteResult> {
+    const configPath = getOpencodeConfigPath(this.projectDir);
+
+    if (plugins.length === 0) {
+      return { path: configPath, created: false };
+    }
+
+    // Read existing config
+    let config: OpencodeSettings = {};
+    try {
+      const content = await readFile(configPath, "utf-8");
+      config = JSON.parse(content) as OpencodeSettings;
+    } catch {
+      // File doesn't exist or can't be parsed - start fresh
+    }
+
+    // Initialize plugin array if needed
+    if (!config.plugin) {
+      config.plugin = [];
+    }
+
+    // Add plugins that aren't already present
+    for (const plugin of plugins) {
+      if (!config.plugin.includes(plugin)) {
+        config.plugin.push(plugin);
+      }
+    }
+
+    await writeFile(configPath, JSON.stringify(config, null, 2), "utf-8");
+    return { path: configPath, created: true };
+  }
+
+  /**
    * Write/merge MCP servers to opencode.json
    * Transforms stdio → local, http → remote
    */
