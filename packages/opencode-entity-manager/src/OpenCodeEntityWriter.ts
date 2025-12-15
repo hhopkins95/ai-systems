@@ -181,6 +181,8 @@ export class OpenCodeEntityWriter {
     const content = formatSkillsMd(skills);
     await writeFile(filePath, content, "utf-8");
 
+    await this.addInstructionFiles([filePath]);
+
     return { path: filePath, created: true };
   }
 

@@ -71,7 +71,7 @@ async function main() {
     console.log('Step 1: Writing transcript to test workspace...');
 
     const loadResult = await loadSessionTranscript({
-      projectDirPath: TEST_PROJECT_DIR,
+      projectDir: TEST_PROJECT_DIR,
       sessionId: SESSION_ID,
       sessionTranscript: JSON.stringify(fixtureTranscript),
       architectureType: 'claude-sdk',
