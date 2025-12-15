@@ -35,7 +35,7 @@ export async function* executeClaudeQuery(
 ): AsyncGenerator<StreamEvent> {
   yield createLogEvent('Starting Claude SDK query execution', 'info', {
     sessionId: input.sessionId,
-    cwd: input.cwd,
+    baseWorkspacePath: input.baseWorkspacePath,
   });
 
   // Validate environment

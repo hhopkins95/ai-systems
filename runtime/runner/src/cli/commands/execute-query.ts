@@ -26,7 +26,7 @@ export async function executeQuery(): Promise<void> {
     data: {
       architecture: input.architecture,
       sessionId: input.sessionId,
-      cwd: input.cwd,
+      baseWorkspacePath: input.baseWorkspacePath,
     },
   });
 

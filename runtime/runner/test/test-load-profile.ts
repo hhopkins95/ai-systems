@@ -26,7 +26,7 @@ async function main() {
   await setupTestWorkspace();
 
   const input : LoadAgentProfileInput = {
-    sessionDirPath: TEST_WORKSPACE_ROOT,
+    baseWorkspacePath: TEST_WORKSPACE_ROOT,
     agentProfile: TestAgentProfile,
     architectureType: 'opencode' as const, // use opencode since that does the claude set up as well 
   };

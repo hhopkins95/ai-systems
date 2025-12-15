@@ -17,13 +17,14 @@ import type {
 } from '@ai-systems/shared-types';
 import { ClaudeEntityManager } from '@hhopkins/claude-entity-manager';
 import { OpenCodeEntityWriter } from '@ai-systems/opencode-entity-manager';
+import { getWorkspacePaths } from '../helpers/get-workspace-paths';
 
 
 /**
  * Input for loading an agent profile.
  */
 export interface LoadAgentProfileInput {
-  sessionDirPath: string;
+  baseWorkspacePath: string;
   agentProfile: AgentProfile;
   architectureType: AgentArchitecture;
 }
@@ -56,16 +57,14 @@ export async function loadAgentProfile(
   const errors: string[] = [];
 
 
-  const claudeConfigDir = path.join(input.sessionDirPath, '.claude');
-  const opencodeConfigDir = path.join(input.sessionDirPath, '.opencode');
-  const bundledMCPsDir = path.join(input.sessionDirPath, 'mcp');
+  const paths = getWorkspacePaths({baseWorkspacePath: input.baseWorkspacePath});
 
 
   try {
     // Always set up the profile for Claude. If opencode, we add the adapter plugin.
     const claudeEntityManager = new ClaudeEntityManager({
-      projectDir: input.sessionDirPath,
-      claudeDir: claudeConfigDir,
+      projectDir: input.baseWorkspacePath,
+      claudeDir: paths.claudeConfigDir,
     });
 
     // Install all plugins for the agent profile
@@ -91,7 +90,7 @@ export async function loadAgentProfile(
 
     // Write + install bundled MCP servers
     for (const mcpServer of input.agentProfile.bundledMCPs ?? []) {
-      const mcpServerDir = path.join(bundledMCPsDir, mcpServer.name);
+      const mcpServerDir = path.join(paths.bundledMCPsDir, mcpServer.name);
       await mkdir(mcpServerDir, { recursive: true });
 
       // Write all files for the MCP server
@@ -126,8 +125,8 @@ export async function loadAgentProfile(
     if (input.architectureType === 'opencode') {
       const fullAgentContext = await claudeEntityManager.loadAgentContext()
       const opencodeEntityManager = new OpenCodeEntityWriter({
-        configDirectory : opencodeConfigDir,
-        configFilePath : path.join(opencodeConfigDir, 'opencode.json'),
+        configDirectory : paths.opencodeConfigDir,
+        configFilePath : paths.opencodeConfigFile,
       })
 
       await opencodeEntityManager.syncAgents(fullAgentContext.subagents)

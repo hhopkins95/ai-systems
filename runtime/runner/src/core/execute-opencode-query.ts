@@ -15,6 +15,9 @@ import { getOpencodeConnection } from '../clients/opencode.js';
 import { emptyAsyncIterable } from '../clients/channel.js';
 import { createLogEvent, createErrorEvent, errorEventFromError } from '../helpers/create-stream-events.js';
 import type { ExecuteQueryArgs } from '../types.js';
+import { getWorkspacePaths } from '../helpers/get-workspace-paths.js';
+import { setEnvironment } from '../helpers/set-environment.js';
+import { createOpencodeClient } from '@opencode-ai/sdk';
 
 const execAsync = promisify(exec);
 
@@ -73,7 +76,7 @@ export async function* executeOpencodeQuery(
 ): AsyncGenerator<StreamEvent> {
   yield createLogEvent('Starting OpenCode SDK query execution', 'info', {
     sessionId: input.sessionId,
-    cwd: input.cwd,
+    baseWorkspacePath: input.baseWorkspacePath,
     model: input.model,
   });
 
@@ -99,6 +102,9 @@ export async function* executeOpencodeQuery(
   }
   const client = connection.client;
 
+  const paths = getWorkspacePaths({baseWorkspacePath: input.baseWorkspacePath});
+  setEnvironment({baseWorkspacePath: input.baseWorkspacePath});
+
   try {
     // Create stateful parser for this session
     const parser = createStreamEventParser(input.sessionId);
@@ -106,12 +112,12 @@ export async function* executeOpencodeQuery(
     // Check if session exists, create if not
     const existingSession = await client.session.get({
       path: { id: input.sessionId },
-      query: { directory: input.cwd },
+      query: { directory: paths.workspaceDir },
     });
 
     if (!existingSession.data) {
-      yield createLogEvent('Creating new OpenCode session', 'info', { sessionId: input.sessionId, cwd: input.cwd });
-      await createOpencodeSession(input.sessionId, input.cwd || '/workspace');
+      yield createLogEvent('Creating new OpenCode session', 'info', { sessionId: input.sessionId, cwd: paths.workspaceDir });
+      await createOpencodeSession(input.sessionId, paths.workspaceDir);
     } else {
       yield createLogEvent('Resuming existing OpenCode session', 'info', { sessionId: input.sessionId });
     }
@@ -128,7 +134,7 @@ export async function* executeOpencodeQuery(
     // Start event subscription in parallel (IMPORTANT: must start before prompt)
     const eventPromise = (async () => {
       const eventResult = await client.event.subscribe({
-        query: { directory: input.cwd },
+        query: { directory: paths.workspaceDir },
       });
 
       for await (const event of eventResult.stream) {
@@ -149,14 +155,16 @@ export async function* executeOpencodeQuery(
     await client.auth.set({
       path: { id: 'zen' },
       body: { type: 'api', key: process.env.OPENCODE_API_KEY || '' },
-      query: { directory: input.cwd },
+      query: { directory: paths.workspaceDir },
     });
 
     // Send prompt
     yield createLogEvent('Sending prompt to OpenCode', 'debug');
+
     await client.session.prompt({
       path: { id: input.sessionId },
-      query: { directory: input.cwd },
+      query: { directory: paths.workspaceDir },
+
       body: {
         model: { providerID, modelID },
         parts: [{ type: 'text', text: input.prompt }],

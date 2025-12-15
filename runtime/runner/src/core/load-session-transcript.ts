@@ -11,6 +11,8 @@ import os from 'os';
 import { join } from 'path';
 import type { AgentArchitecture, CombinedClaudeTranscript } from '@ai-systems/shared-types';
 import { ClaudeEntityManager } from '@hhopkins/claude-entity-manager';
+import { getWorkspacePaths } from '../helpers/get-workspace-paths';
+import { setEnvironment } from '../helpers/set-environment';
 
 const execAsync = promisify(exec);
 
@@ -18,7 +20,7 @@ const execAsync = promisify(exec);
  * Input for loading a session transcript.
  */
 export interface LoadSessionTranscriptInput {
-  sessionDirPath: string;
+  baseWorkspacePath: string;
   sessionTranscript: string;
   sessionId: string;
   architectureType: AgentArchitecture;
@@ -42,9 +44,9 @@ async function writeClaudeTranscript(
   projectDir: string,
   sessionId: string,
   transcript: string,
-  claudeHomeDir?: string
+  claudeDir: string
 ): Promise<string> {
-  const manager = new ClaudeEntityManager({ projectDir, claudeDir: claudeHomeDir });
+  const manager = new ClaudeEntityManager({ projectDir, claudeDir: claudeDir });
   const transcriptJson = JSON.parse(transcript) as CombinedClaudeTranscript;
   return manager.writeSessionRaw(sessionId, transcriptJson);
 }
@@ -86,15 +88,18 @@ export async function loadSessionTranscript(
 ): Promise<LoadSessionTranscriptResult> {
   const errors: string[] = [];
 
+  const paths = getWorkspacePaths({baseWorkspacePath: input.baseWorkspacePath});
+  setEnvironment({baseWorkspacePath: input.baseWorkspacePath});
+
   try {
     let transcriptPath: string;
 
     if (input.architectureType === 'claude-sdk') {
       transcriptPath = await writeClaudeTranscript(
-        input.projectDirPath,
+        paths.workspaceDir,
         input.sessionId,
         input.sessionTranscript,
-        input.claudeHomeDir
+        paths.claudeConfigDir
       );
     } else if (input.architectureType === 'opencode') {
       transcriptPath = await writeOpencodeTranscript(

@@ -21,7 +21,7 @@ export async function loadAgentProfile(): Promise<void> {
     const input = await readStdinJson<LoadAgentProfileInput>();
 
     writeLog('info', 'Loading agent profile', {
-      sessionId: input.sessionId,
+      baseWorkspacePath: input.baseWorkspacePath,
       architecture: input.architectureType,
     });
 

@@ -8,6 +8,8 @@ import { execFile } from 'child_process';
 import { promisify } from 'util';
 import type { AgentArchitecture } from '@ai-systems/shared-types';
 import { ClaudeEntityManager } from '@hhopkins/claude-entity-manager';
+import { getWorkspacePaths } from '../helpers/get-workspace-paths';
+import { setEnvironment } from '../helpers/set-environment';
 
 const execFileAsync = promisify(execFile);
 
@@ -15,7 +17,7 @@ const execFileAsync = promisify(execFile);
  * Input for reading a session transcript.
  */
 export interface ReadSessionTranscriptInput {
-  sessionDirPath: string;
+  baseWorkspacePath: string;
   sessionId: string;
   architecture: AgentArchitecture;
 }
@@ -36,7 +38,7 @@ export interface ReadSessionTranscriptResult {
 async function readClaudeSdkTranscript(
   sessionId: string,
   projectDir: string,
-  claudeHomeDir?: string
+  claudeHomeDir: string
 ): Promise<string | null> {
   const manager = new ClaudeEntityManager({ projectDir, claudeDir: claudeHomeDir });
   try {
@@ -99,11 +101,13 @@ export async function readSessionTranscript(
 ): Promise<ReadSessionTranscriptResult> {
   try {
     let transcript: string | null;
+    const paths = getWorkspacePaths({baseWorkspacePath: input.baseWorkspacePath});
+    setEnvironment({baseWorkspacePath: input.baseWorkspacePath});
 
     if (input.architecture === 'claude-sdk') {
-      transcript = await readClaudeSdkTranscript(input.sessionId, input.projectDir, input.claudeHomeDir);
+      transcript = await readClaudeSdkTranscript(input.sessionId, paths.workspaceDir, paths.claudeConfigDir);
     } else if (input.architecture === 'opencode') {
-      transcript = await readOpencodeTranscript(input.sessionId, input.projectDir);
+      transcript = await readOpencodeTranscript(input.sessionId, paths.workspaceDir);
     } else {
       throw new Error(`Unknown architecture: ${input.architecture}`);
     }

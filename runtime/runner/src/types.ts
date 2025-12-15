@@ -60,8 +60,8 @@ export interface ExecuteQueryArgs {
   sessionId: string;
   /** Agent architecture to use */
   architecture: AgentArchitecture;
-  /** Working directory (default: /workspace) */
-  cwd?: string;
+  /** Base workspace path */
+  baseWorkspacePath: string;
   /** Model to use (format: provider/model for opencode) */
   model?: string;
   /** JSON array of allowed tools (Claude SDK only) */
