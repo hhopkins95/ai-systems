@@ -123,6 +123,10 @@ export async function loadAgentProfile(
 
     // If opencode, add the adapter plugin
     if (input.architectureType === 'opencode') {
+
+      /**
+       * pull from the claude entity manager to account for plugin-installed entities
+       */
       const fullAgentContext = await claudeEntityManager.loadAgentContext()
       const opencodeEntityManager = new OpenCodeEntityWriter({
         configDirectory : paths.opencodeConfigDir,
