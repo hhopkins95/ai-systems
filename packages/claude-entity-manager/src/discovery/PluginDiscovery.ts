@@ -4,6 +4,10 @@ import type {
   PluginManifest,
   MarketplaceManifest,
   KnownMarketplace,
+  Plugin,
+  PluginEnabledStatus,
+  PluginSource,
+  InstalledPluginInfo,
 } from "../types.js";
 import { EntityDiscovery } from "./EntityDiscovery.js";
 import { PluginRegistryService } from "../registry/PluginRegistry.js";
@@ -14,7 +18,7 @@ import {
   getMarketplaceManifestPath,
   getCacheDir,
 } from "../utils/paths.js";
-import { McpServerConfig, Plugin, PluginEnabledStatus, PluginSource } from "@ai-systems/shared-types";
+import { McpServerConfig } from "@ai-systems/shared-types";
 
 /**
  * Service for discovering plugins from marketplaces and cache
@@ -104,7 +108,7 @@ export class PluginDiscovery {
   private async discoverMarketplacePlugins(
     marketplaceName: string,
     marketplace: KnownMarketplace,
-    installedPlugins: Map<string, { installPath: string }>,
+    installedPlugins: Map<string, InstalledPluginInfo>,
     enabledStates: Record<string, boolean>
   ): Promise<Plugin[]> {
     const plugins: Plugin[] = [];
@@ -195,15 +199,7 @@ export class PluginDiscovery {
         commandPaths: pluginEntry.commands,
         agentPaths: pluginEntry.agents,
         hookPaths: pluginEntry.hooks,
-        installInfo: installInfo
-          ? {
-              version: installInfo.installPath, // Temp fix
-              installedAt: "",
-              lastUpdated: "",
-              installPath: installInfo.installPath,
-              isLocal: true,
-            }
-          : undefined,
+        installInfo: installInfo ?? undefined,
       };
 
       plugins.push(plugin);
@@ -216,7 +212,7 @@ export class PluginDiscovery {
    * Discover standalone plugins from cache
    */
   private async discoverCachePlugins(
-    installedPlugins: Map<string, { installPath: string }>,
+    installedPlugins: Map<string, InstalledPluginInfo>,
     enabledStates: Record<string, boolean>,
     seenIds: Set<string>
   ): Promise<Plugin[]> {
@@ -382,15 +378,7 @@ export class PluginDiscovery {
           agentCount: 0,
           hookCount: 0,
           hasMcpServers: false,
-          installInfo: installInfo
-            ? {
-                version: installInfo.installPath,
-                installedAt: "",
-                lastUpdated: "",
-                installPath: installInfo.installPath,
-                isLocal: true,
-              }
-            : undefined,
+          installInfo: installInfo ?? undefined,
         });
       }
     }

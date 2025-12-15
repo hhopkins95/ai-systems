@@ -2,10 +2,11 @@ import { simpleGit, type SimpleGit } from "simple-git";
 import { mkdir, rm, access, cp, readFile } from "fs/promises";
 import { join, basename } from "path";
 import type {
-  PluginInstallSource,
   PluginInstallResult,
   PluginInstallOptions,
   MarketplaceManifest,
+  PluginSource,
+  Plugin,
 } from "../types.js";
 import { SourceParser } from "./SourceParser.js";
 import { PluginRegistryService } from "../registry/PluginRegistry.js";
@@ -15,7 +16,7 @@ import {
   getMarketplacesDir,
   getMarketplaceManifestPath,
 } from "../utils/paths.js";
-import { PluginSource } from "@ai-systems/shared-types";
+import { ClaudePluginInstallSource } from "@ai-systems/shared-types";
 
 /**
  * Service for installing plugins from various sources
@@ -37,7 +38,7 @@ export class PluginInstaller {
    * Install a plugin from various sources
    */
   async install(
-    source: string | PluginInstallSource,
+    source: string | ClaudePluginInstallSource,
     options: PluginInstallOptions = {}
   ): Promise<PluginInstallResult> {
     const parsedSource =
@@ -52,8 +53,8 @@ export class PluginInstaller {
         );
       case "url":
         return this.installFromGitUrl(parsedSource.url, options);
-      case "directory":
-        return this.installFromDirectory(parsedSource.path, options);
+      case "local":
+        return this.installFromLocal(parsedSource.path, options);
       case "marketplace":
         return this.installFromMarketplace(
           parsedSource.pluginName,
@@ -142,7 +143,7 @@ export class PluginInstaller {
   /**
    * Install from a local directory (registers without copying)
    */
-  private async installFromDirectory(
+  private async installFromLocal(
     sourcePath: string,
     options: PluginInstallOptions
   ): Promise<PluginInstallResult> {
@@ -313,12 +314,12 @@ export class PluginInstaller {
 
     if (typeof source === "string") {
       const parsed = this.sourceParser.parse(source);
-      // Convert InstallSource to PluginSource
+      // Convert ClaudePluginInstallSource to PluginSource
       if (parsed.type === "github") {
         parsedSource = { type: "github", repo: parsed.repo, owner: parsed.owner };
       } else if (parsed.type === "url") {
         parsedSource = { type: "url", url: parsed.url };
-      } else if (parsed.type === "directory") {
+      } else if (parsed.type === "local") {
         parsedSource = { type: "directory", path: parsed.path };
       } else {
         return {
@@ -356,7 +357,7 @@ export class PluginInstaller {
       // Git-based marketplace
       const url =
         parsedSource.type === "github"
-          ? `https://github.com/${parsedSource.repo}.git`
+          ? `https://github.com/${parsedSource.owner}/${parsedSource.repo}.git`
           : parsedSource.url;
 
       // Check if already installed

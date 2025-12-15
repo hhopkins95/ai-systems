@@ -4,6 +4,8 @@ export type {
   PluginManifest,
   MarketplaceManifest,
   MarketplacePlugin,
+  Plugin,
+  PluginSource,
   // Registry types
   PluginRegistry,
   InstalledPluginInfo,
@@ -40,9 +42,6 @@ export type {
   McpServerConfig,
   // Config types
   ClaudeSettings,
-  // Plugin types
-  Plugin,
-  PluginSource,
   // Agent context (replaces ClaudeConfig)
   AgentContext,
   // Transcript types

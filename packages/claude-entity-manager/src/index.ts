@@ -7,16 +7,19 @@ export type {
   PluginManifest,
   MarketplaceManifest,
   MarketplacePlugin,
+  Plugin,
+  PluginSource,
 
   // Registry types
   PluginRegistry,
   InstalledPluginInfo,
   KnownMarketplace,
   KnownMarketplacesRegistry,
+
   // Installation types
-  PluginInstallSource as InstallSource,
   PluginInstallOptions as InstallOptions,
   PluginInstallResult as InstallResult,
+
   // Service options
   ClaudeEntityManagerOptions,
 } from "./types.js";

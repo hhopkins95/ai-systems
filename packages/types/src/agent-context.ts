@@ -5,7 +5,7 @@
 
 import type { Agent, AgentWithSource, Command, CommandWithSource, HookWithSource, MemoryFile, Skill, SkillWithSource } from "./entities/index.js";
 import type { McpServer, McpServerWithSource } from "./entities/mcp.js";
-import { PluginSource } from "./plugin.js";
+import { ClaudePluginInstallSource } from "./plugin.js";
 import { WorkspaceFile } from "./runtime/session.js";
 
 /**
@@ -89,7 +89,7 @@ export interface AgentProfile extends AgentProfileListData {
     commands?: Command[],
   }
 
-  plugins? : PluginSource[]
+  plugins? : ClaudePluginInstallSource[]
 
   // MCP apps bundled in the codebase
   bundledMCPs?: {

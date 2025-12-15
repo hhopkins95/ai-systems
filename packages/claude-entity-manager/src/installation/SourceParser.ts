@@ -1,5 +1,5 @@
 import { resolve, isAbsolute } from "path";
-import type { PluginInstallSource } from "../types.js";
+import type { ClaudePluginInstallSource } from "@ai-systems/shared-types";
 
 /**
  * Parser for plugin installation source strings
@@ -15,9 +15,9 @@ import type { PluginInstallSource } from "../types.js";
  */
 export class SourceParser {
   /**
-   * Parse an install source string into structured InstallSource
+   * Parse an install source string into structured ClaudePluginInstallSource
    */
-  parse(source: string): PluginInstallSource {
+  parse(source: string): ClaudePluginInstallSource {
     source = source.trim();
 
     // Check for marketplace format: plugin@marketplace
@@ -45,7 +45,7 @@ export class SourceParser {
       } else {
         path = resolve(source);
       }
-      return { type: "directory", path };
+      return { type: "local", path };
     }
 
     // Check for GitHub short format: owner/repo
@@ -82,15 +82,15 @@ export class SourceParser {
   }
 
   /**
-   * Convert an InstallSource to a git URL
+   * Convert an install source to a git URL (if applicable)
    */
-  toGitUrl(source: PluginInstallSource): string | null {
+  toGitUrl(source: ClaudePluginInstallSource): string | null {
     switch (source.type) {
       case "github":
         return `https://github.com/${source.owner}/${source.repo}.git`;
       case "url":
         return source.url;
-      case "directory":
+      case "local":
       case "marketplace":
         return null;
     }
@@ -99,14 +99,14 @@ export class SourceParser {
   /**
    * Get a human-readable description of a source
    */
-  describe(source: PluginInstallSource): string {
+  describe(source: ClaudePluginInstallSource): string {
     switch (source.type) {
       case "github":
         return `GitHub: ${source.owner}/${source.repo}`;
       case "url":
         return `Git: ${source.url}`;
-      case "directory":
-        return `Directory: ${source.path}`;
+      case "local":
+        return `Local: ${source.path}`;
       case "marketplace":
         return `Marketplace: ${source.pluginName}@${source.marketplaceName}`;
     }

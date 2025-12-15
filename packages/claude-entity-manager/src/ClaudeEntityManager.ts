@@ -4,17 +4,16 @@ import type {
   Command,
   Agent,
   Hook,
-  Plugin,
-  PluginSource,
   EntitySource,
   AgentContext,
   AgentContextSources,
   LoadAgentContextOptions,
   MemoryFile,
   ClaudeSettings,
-  McpServerWithSource
+  McpServerWithSource, 
+  ClaudePluginInstallSource
 } from "@ai-systems/shared-types";
-import type { ClaudeEntityManagerOptions, PluginInstallOptions, PluginInstallResult, PluginInstallSource, KnownMarketplacesRegistry, MarketplaceManifest, PluginRegistry} from "./types.js"
+import type { ClaudeEntityManagerOptions, PluginInstallOptions, PluginInstallResult, KnownMarketplacesRegistry, MarketplaceManifest, PluginRegistry, Plugin, PluginSource } from "./types.js"
 import { getClaudeDir, getProjectClaudeDir } from "./utils/paths.js";
 import { SkillLoader } from "./loaders/SkillLoader.js";
 import { CommandLoader } from "./loaders/CommandLoader.js";
@@ -574,7 +573,7 @@ export class ClaudeEntityManager {
   /**
    * Parse an install source string
    */
-  parseInstallSource(source: string): PluginInstallSource {
+  parseInstallSource(source: string): ClaudePluginInstallSource {
     return this.sourceParser.parse(source);
   }
 
@@ -582,7 +581,7 @@ export class ClaudeEntityManager {
    * Install a plugin
    */
   async installPlugin(
-    source: string | PluginInstallSource,
+    source: string | ClaudePluginInstallSource,
     options?: PluginInstallOptions
   ): Promise<PluginInstallResult> {
     return this.pluginInstaller.install(source, options);
