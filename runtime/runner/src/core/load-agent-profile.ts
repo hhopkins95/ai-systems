@@ -20,12 +20,9 @@ import { ClaudeEntityManager } from '@hhopkins/claude-entity-manager';
  * Input for loading an agent profile.
  */
 export interface LoadAgentProfileInput {
-  projectDirPath: string;
-  sessionId: string;
+  sessionDirPath: string;
   agentProfile: AgentProfile;
   architectureType: AgentArchitecture;
-  /** Optional custom claude home directory (defaults to ~/.claude) */
-  claudeHomeDir?: string;
 }
 
 /**
@@ -36,6 +33,7 @@ export interface LoadAgentProfileResult {
   filesWritten: string[];
   errors?: string[];
 }
+
 
 /**
  * Load an agent profile into the environment.
@@ -54,11 +52,19 @@ export async function loadAgentProfile(
   const filesWritten: string[] = [];
   const errors: string[] = [];
 
+
+  const claudeConfigDir = path.join(input.sessionDirPath, '.claude');
+  const opencodeConfigDir = path.join(input.sessionDirPath, 'opencode');
+  const bundledMCPsDir = path.join(input.sessionDirPath, 'mcp');
+
+
   try {
     // Always set up the profile for Claude. If opencode, we add the adapter plugin.
     const claudeEntityManager = new ClaudeEntityManager({
-      projectDir: input.projectDirPath,
-      claudeDir: input.claudeHomeDir,
+      projectDir: input.sessionDirPath,
+      claudeDir: claudeConfigDir,
+      
+
     });
 
     // Install all plugins for the agent profile
@@ -120,7 +126,7 @@ export async function loadAgentProfile(
     }
 
     // Write the MCP config
-    const mcpConfigPath = path.join(input.projectDirPath, '.claude', '.mcp.json');
+    const mcpConfigPath = path.join(input.sessionDirPath, '.claude', '.mcp.json');
     await mkdir(path.dirname(mcpConfigPath), { recursive: true });
     await writeFile(mcpConfigPath, JSON.stringify(mcpConfig, null, 2));
     filesWritten.push(mcpConfigPath);
@@ -131,7 +137,7 @@ export async function loadAgentProfile(
       const opencodeConfig: OpencodeSettings = {
         plugin: [adapterPath],
       };
-      const opencodeConfigPath = path.join(input.projectDirPath, 'opencode.json');
+      const opencodeConfigPath = path.join(input.sessionDirPath, 'opencode.json');
       await writeFile(opencodeConfigPath, JSON.stringify(opencodeConfig, null, 2));
       filesWritten.push(opencodeConfigPath);
     }

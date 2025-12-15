@@ -15,11 +15,9 @@ const execFileAsync = promisify(execFile);
  * Input for reading a session transcript.
  */
 export interface ReadSessionTranscriptInput {
+  sessionDirPath: string;
   sessionId: string;
   architecture: AgentArchitecture;
-  projectDir: string;
-  /** Optional custom claude home directory (defaults to ~/.claude) */
-  claudeHomeDir?: string;
 }
 
 /**
