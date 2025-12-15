@@ -13,26 +13,23 @@
 
 import type { Plugin } from "@opencode-ai/plugin";
 import { ClaudeEntityManager } from "@hhopkins/claude-entity-manager";
-
 import {
-  syncSkills,
-  createSkillTools,
-  generateToolName,
-} from "./adapters/skill-adapter";
-import { syncCommands } from "./adapters/command-adapter";
-import { syncAgents } from "./adapters/agent-adapter";
-import { syncInstructions, type SkillInfo } from "./adapters/instruction-adapter";
-import { syncMcpServers } from "./adapters/mcp-adapter";
+  OpenCodeEntityWriter,
+  type SkillInfo,
+} from "@ai-systems/opencode-entity-manager";
+
+import { createSkillTools, generateToolName } from "./adapters/skill-adapter";
 
 export const ClaudeAdapterPlugin: Plugin = async (ctx) => {
   const projectDir = ctx.directory;
 
   console.log("[claude-adapter] Starting sync...");
 
-  // Initialize entity manager
+  // Initialize entity manager and writer
   const manager = new ClaudeEntityManager({
     projectDir,
   });
+  const writer = new OpenCodeEntityWriter(projectDir);
 
   // Load complete agent context (includes all entities, MCP servers, memory files)
   const agentContext = await manager.loadAgentContext({
@@ -54,10 +51,9 @@ export const ClaudeAdapterPlugin: Plugin = async (ctx) => {
     `[claude-adapter] Found ${agentContext.subagents.length} agents (${formatSources(agentSources)})`
   );
 
-  // Sync skills
-  const { syncResult: skillResult, syncedSkills } = await syncSkills(
-    agentContext.skills,
-    projectDir
+  // Sync skills using writer
+  const { syncResult: skillResult, syncedSkills } = await writer.syncSkills(
+    agentContext.skills
   );
   if (skillResult.written.length > 0) {
     console.log(
@@ -68,8 +64,8 @@ export const ClaudeAdapterPlugin: Plugin = async (ctx) => {
     console.error(`[claude-adapter] Error writing skill ${error.file}: ${error.error}`);
   }
 
-  // Sync commands
-  const commandResult = await syncCommands(agentContext.commands, projectDir);
+  // Sync commands using writer
+  const commandResult = await writer.syncCommands(agentContext.commands);
   if (commandResult.written.length > 0) {
     console.log(
       `[claude-adapter] Wrote ${commandResult.written.length} commands to .opencode/command/`
@@ -79,8 +75,8 @@ export const ClaudeAdapterPlugin: Plugin = async (ctx) => {
     console.error(`[claude-adapter] Error writing command ${error.file}: ${error.error}`);
   }
 
-  // Sync agents (subagents in AgentContext)
-  const agentResult = await syncAgents(agentContext.subagents, projectDir);
+  // Sync agents using writer
+  const agentResult = await writer.syncAgents(agentContext.subagents);
   if (agentResult.written.length > 0) {
     console.log(
       `[claude-adapter] Wrote ${agentResult.written.length} agents to .opencode/agent/`
@@ -97,21 +93,20 @@ export const ClaudeAdapterPlugin: Plugin = async (ctx) => {
     toolName: generateToolName(skill.name),
   }));
 
-  // Sync instructions (memory files + skill instructions)
-  const instructionResult = await syncInstructions(
+  // Sync instructions (memory files + skill instructions) using writer
+  const instructionResult = await writer.writeInstructions(
     agentContext.memoryFiles,
-    projectDir,
-    skillInfos
+    { skills: skillInfos }
   );
-  if (instructionResult.written) {
+  if (instructionResult.created) {
     console.log(
-      `[claude-adapter] Synced CLAUDE.md → AGENTS.md (${instructionResult.sources.length} sources)`
+      `[claude-adapter] Synced CLAUDE.md → AGENTS.md`
     );
   }
 
-  // Sync MCP servers to opencode.config.json
+  // Sync MCP servers using writer
   if (agentContext.mcpServers.length > 0) {
-    const mcpResult = await syncMcpServers(agentContext.mcpServers, projectDir);
+    const mcpResult = await writer.syncMcpServers(agentContext.mcpServers);
     if (mcpResult.written.length > 0) {
       console.log(
         `[claude-adapter] Synced ${mcpResult.written.length} MCP servers to opencode.json`

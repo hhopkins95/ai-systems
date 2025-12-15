@@ -60,6 +60,7 @@
     "typescript": "^5.7.2"
   },
   "dependencies": {
+    "@ai-systems/opencode-entity-manager": "workspace:*",
     "@ai-systems/shared-types": "workspace:*",
     "@hhopkins/claude-entity-manager": "workspace:*",
     "@opencode-ai/sdk": "^1.0.126",

@@ -210,6 +210,9 @@ importers:
 
   packages/opencode-claude-adapter:
     dependencies:
+      '@ai-systems/opencode-entity-manager':
+        specifier: workspace:*
+        version: link:../opencode-entity-manager
       '@ai-systems/shared-types':
         specifier: workspace:*
         version: link:../types
@@ -241,6 +244,22 @@ importers:
       tsx:
         specifier: ^4.19.2
         version: 4.21.0
+      typescript:
+        specifier: ^5.7.2
+        version: 5.9.3
+
+  packages/opencode-entity-manager:
+    dependencies:
+      '@ai-systems/shared-types':
+        specifier: workspace:*
+        version: link:../types
+      gray-matter:
+        specifier: ^4.0.3
+        version: 4.0.3
+    devDependencies:
+      '@types/node':
+        specifier: ^22
+        version: 22.19.1
       typescript:
         specifier: ^5.7.2
         version: 5.9.3

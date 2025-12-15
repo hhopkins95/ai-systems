@@ -1,42 +1,22 @@
 /**
  * Skill Adapter
  *
- * Syncs Claude Code skills to .opencode/skills/ and registers them as tools.
+ * Registers skill tools for OpenCode. Skills are synced by OpenCodeEntityWriter,
+ * this adapter creates the dynamic tools for skill invocation and file reading.
  *
- * Flow:
- * 1. Copy skill directories to .opencode/skills/<name>/
- * 2. Register per-skill loader tools (skills_<name>)
- * 3. Register skill file reader tool (read_skill_file)
- *
- * All file reads happen from the copied .opencode/skills/ location.
+ * Tools created:
+ * - skills_<name>: Per-skill loader that injects skill content
+ * - read_skill_file: Generic file reader for skill files
  */
 
 import { tool } from "@opencode-ai/plugin";
 import type { PluginInput, ToolDefinition } from "@opencode-ai/plugin";
-import type { Skill, SkillWithSource } from "@ai-systems/shared-types";
-import { readFile, mkdir, copyFile, readdir, stat, rm } from "fs/promises";
-import { join, dirname, relative } from "path";
-import { generateFileTree } from "../utils/file-tree";
-
-export interface SyncResult {
-  written: string[];
-  skipped: string[];
-  errors: Array<{ file: string; error: string }>;
-}
-
-export interface SkillToolsResult {
-  tools: Record<string, ToolDefinition>;
-  syncResult: SyncResult;
-}
-
-/** Info about a synced skill (stored in .opencode/skills/) */
-interface SyncedSkill {
-  name: string;
-  description: string;
-  content: string;
-  files: string[];
-  dir: string; // Path to .opencode/skills/<name>/
-}
+import { readFile } from "fs/promises";
+import { join } from "path";
+import {
+  generateFileTree,
+  type SyncedSkill,
+} from "@ai-systems/opencode-entity-manager";
 
 /**
  * Generate tool name from skill name
@@ -44,127 +24,6 @@ interface SyncedSkill {
  */
 export function generateToolName(skillName: string): string {
   return "skills_" + skillName.replace(/-/g, "_");
-}
-
-/**
- * Recursively copy a directory
- */
-async function copyDir(src: string, dest: string): Promise<void> {
-  await mkdir(dest, { recursive: true });
-
-  const entries = await readdir(src, { withFileTypes: true });
-
-  for (const entry of entries) {
-    const srcPath = join(src, entry.name);
-    const destPath = join(dest, entry.name);
-
-    if (entry.isDirectory()) {
-      await copyDir(srcPath, destPath);
-    } else {
-      await copyFile(srcPath, destPath);
-    }
-  }
-}
-
-/**
- * Get list of files in a directory (relative paths)
- */
-async function listFiles(dir: string, base: string = ""): Promise<string[]> {
-  const files: string[] = [];
-
-  try {
-    const entries = await readdir(dir, { withFileTypes: true });
-
-    for (const entry of entries) {
-      const relativePath = base ? join(base, entry.name) : entry.name;
-
-      if (entry.isDirectory()) {
-        const subFiles = await listFiles(join(dir, entry.name), relativePath);
-        files.push(...subFiles);
-      } else {
-        files.push(relativePath);
-      }
-    }
-  } catch {
-    // Directory might not exist
-  }
-
-  return files;
-}
-
-/**
- * Clear all contents of a directory
- */
-async function clearDirectory(dir: string): Promise<void> {
-  try {
-    const entries = await readdir(dir, { withFileTypes: true });
-    for (const entry of entries) {
-      const fullPath = join(dir, entry.name);
-      await rm(fullPath, { recursive: true });
-    }
-  } catch {
-    // Directory might not exist - that's fine
-  }
-}
-
-/**
- * Sync skills to .opencode/skills/ directory
- */
-export async function syncSkills(
-  skills: SkillWithSource[],
-  projectDir: string
-): Promise<{ syncResult: SyncResult; syncedSkills: SyncedSkill[] }> {
-  const result: SyncResult = {
-    written: [],
-    skipped: [],
-    errors: [],
-  };
-
-  const syncedSkills: SyncedSkill[] = [];
-  const targetDir = join(projectDir, ".opencode", "skills");
-
-  // Ensure directory exists
-  await mkdir(targetDir, { recursive: true });
-
-  // Clear existing skills before syncing
-  await clearDirectory(targetDir);
-
-  if (skills.length === 0) {
-    return { syncResult: result, syncedSkills };
-  }
-
-  // Deduplicate skills by name (later sources override earlier)
-  const skillMap = new Map<string, SkillWithSource>();
-  for (const skill of skills) {
-    skillMap.set(skill.name, skill);
-  }
-
-  // Copy each skill directory
-  for (const [name, skill] of skillMap) {
-    const sourceDir = dirname(skill.source?.path ?? "");
-    const destDir = join(targetDir, name);
-
-    try {
-      await copyDir(sourceDir, destDir);
-      result.written.push(name);
-
-      // Get files from the copied location
-      const files = await listFiles(destDir);
-
-      syncedSkills.push({
-        name: skill.name,
-        description: skill.metadata.description ?? "",
-        content: skill.content,
-        files,
-        dir: destDir,
-      });
-    } catch (error) {
-      const message = error instanceof Error ? error.message : String(error);
-      result.errors.push({ file: name, error: message });
-    }
-  }
-
-  return { syncResult: result, syncedSkills };
 }
 
 /**

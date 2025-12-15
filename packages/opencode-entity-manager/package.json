@@ -1,0 +1,57 @@
+{
+  "name": "@ai-systems/opencode-entity-manager",
+  "version": "0.1.0",
+  "description": "Unified service for writing OpenCode entities (agents, skills, commands, instructions, MCP servers) to the .opencode directory",
+  "type": "module",
+  "main": "./dist/index.js",
+  "types": "./dist/index.d.ts",
+  "exports": {
+    ".": {
+      "types": "./dist/index.d.ts",
+      "import": "./dist/index.js"
+    }
+  },
+  "files": [
+    "dist/",
+    "README.md",
+    "LICENSE"
+  ],
+  "scripts": {
+    "build": "tsc",
+    "dev": "tsc --watch --preserveWatchOutput",
+    "typecheck": "tsc --noEmit",
+    "prepublishOnly": "npm run build"
+  },
+  "keywords": [
+    "opencode",
+    "agents",
+    "skills",
+    "commands",
+    "plugin"
+  ],
+  "author": "Hunter Hopkins",
+  "license": "MIT",
+  "repository": {
+    "type": "git",
+    "url": "git+https://github.com/hhopkins95/ai-systems.git",
+    "directory": "packages/opencode-entity-manager"
+  },
+  "homepage": "https://github.com/hhopkins95/ai-systems/tree/main/packages/opencode-entity-manager#readme",
+  "bugs": {
+    "url": "https://github.com/hhopkins95/ai-systems/issues"
+  },
+  "engines": {
+    "node": ">=18.0.0"
+  },
+  "publishConfig": {
+    "access": "public"
+  },
+  "dependencies": {
+    "@ai-systems/shared-types": "workspace:*",
+    "gray-matter": "^4.0.3"
+  },
+  "devDependencies": {
+    "@types/node": "^22",
+    "typescript": "^5.7.2"
+  }
+}
