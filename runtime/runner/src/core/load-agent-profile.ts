@@ -12,9 +12,12 @@ import type {
   AgentArchitecture,
   AgentProfile,
   ClaudeMcpJsonConfig,
+  McpServer,
   OpencodeSettings,
 } from '@ai-systems/shared-types';
 import { ClaudeEntityManager } from '@hhopkins/claude-entity-manager';
+import { OpenCodeEntityWriter } from '@ai-systems/opencode-entity-manager';
+
 
 /**
  * Input for loading an agent profile.
@@ -54,7 +57,7 @@ export async function loadAgentProfile(
 
 
   const claudeConfigDir = path.join(input.sessionDirPath, '.claude');
-  const opencodeConfigDir = path.join(input.sessionDirPath, 'opencode');
+  const opencodeConfigDir = path.join(input.sessionDirPath, '.opencode');
   const bundledMCPsDir = path.join(input.sessionDirPath, 'mcp');
 
 
@@ -63,8 +66,6 @@ export async function loadAgentProfile(
     const claudeEntityManager = new ClaudeEntityManager({
       projectDir: input.sessionDirPath,
       claudeDir: claudeConfigDir,
-      
-
     });
 
     // Install all plugins for the agent profile
@@ -75,29 +76,22 @@ export async function loadAgentProfile(
 
     // Add all custom entities
     for (const skill of input.agentProfile.customEntities.skills ?? []) {
-      await claudeEntityManager.writeProjectSkill(skill);
+      await claudeEntityManager.writeSkill(skill, { scope: 'global' });
     }
     for (const command of input.agentProfile.customEntities.commands ?? []) {
-      await claudeEntityManager.writeProjectCommand(command);
+      await claudeEntityManager.writeCommand(command, { scope: 'global' });
     }
     for (const agent of input.agentProfile.customEntities.subagents ?? []) {
-      await claudeEntityManager.writeProjectAgent(agent);
+      await claudeEntityManager.writeAgent(agent, { scope: 'global' });
     }
 
-    // Set up MCPs
-    const mcpConfig: ClaudeMcpJsonConfig = {
-      mcpServers: {},
-    };
-    for (const mcpServer of input.agentProfile.externalMCPs ?? []) {
-      mcpConfig.mcpServers[mcpServer.name] = mcpServer;
-    }
+  
+
+    let mcpServers: McpServer[] = input.agentProfile.externalMCPs ?? [];
 
     // Write + install bundled MCP servers
-    const mcpTempDir = path.join(os.tmpdir(), `mcp-${input.sessionId}`);
-    await mkdir(mcpTempDir, { recursive: true });
-
     for (const mcpServer of input.agentProfile.bundledMCPs ?? []) {
-      const mcpServerDir = path.join(mcpTempDir, mcpServer.name);
+      const mcpServerDir = path.join(bundledMCPsDir, mcpServer.name);
       await mkdir(mcpServerDir, { recursive: true });
 
       // Write all files for the MCP server
@@ -117,29 +111,33 @@ export async function loadAgentProfile(
         });
       }
 
-      // Add MCP server to config
-      mcpConfig.mcpServers[mcpServer.name] = {
+      mcpServers.push({
+        name: mcpServer.name,
         type: 'stdio',
         command: path.join(mcpServerDir, mcpServer.startCommand),
         args: [],
-      };
+      });
     }
 
     // Write the MCP config
-    const mcpConfigPath = path.join(input.sessionDirPath, '.claude', '.mcp.json');
-    await mkdir(path.dirname(mcpConfigPath), { recursive: true });
-    await writeFile(mcpConfigPath, JSON.stringify(mcpConfig, null, 2));
-    filesWritten.push(mcpConfigPath);
+    await claudeEntityManager.writeMcpServers(mcpServers, { scope: 'global' });
 
     // If opencode, add the adapter plugin
     if (input.architectureType === 'opencode') {
-      const adapterPath = '/app/opencode-adapter';
-      const opencodeConfig: OpencodeSettings = {
-        plugin: [adapterPath],
-      };
-      const opencodeConfigPath = path.join(input.sessionDirPath, 'opencode.json');
-      await writeFile(opencodeConfigPath, JSON.stringify(opencodeConfig, null, 2));
-      filesWritten.push(opencodeConfigPath);
+      const fullAgentContext = await claudeEntityManager.loadAgentContext()
+      const opencodeEntityManager = new OpenCodeEntityWriter({
+        configDirectory : opencodeConfigDir,
+        configFilePath : path.join(opencodeConfigDir, 'opencode.json'),
+      })
+
+      await opencodeEntityManager.syncAgents(fullAgentContext.subagents)
+      await opencodeEntityManager.syncSkills(fullAgentContext.skills)
+      await opencodeEntityManager.syncCommands(fullAgentContext.commands)
+      await opencodeEntityManager.writeInstructions(fullAgentContext.memoryFiles)
+      await opencodeEntityManager.syncMcpServers(mcpServers)
+      await opencodeEntityManager.writeSkillsInstructions(fullAgentContext.skills)
+      await opencodeEntityManager.addPlugins(['opencode-skills'])
+
     }
 
     return {

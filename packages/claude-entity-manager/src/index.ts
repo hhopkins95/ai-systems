@@ -22,6 +22,9 @@ export type {
 
   // Service options
   ClaudeEntityManagerOptions,
+
+  // Entity writing
+  EntityScope,
 } from "./types.js";
 
 // Service exports for advanced usage

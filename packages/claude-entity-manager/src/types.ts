@@ -120,6 +120,15 @@ export interface PluginInstallResult {
   error?: string;
 }
 
+// ==================== ENTITY SCOPE ====================
+
+/**
+ * Scope for entity write operations
+ * - 'global': Write to user's global ~/.claude directory
+ * - 'project': Write to project's .claude directory
+ */
+export type EntityScope = 'global' | 'project';
+
 // ==================== SERVICE OPTIONS ====================
 
 /**

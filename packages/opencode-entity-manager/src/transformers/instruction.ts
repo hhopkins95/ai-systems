@@ -5,29 +5,29 @@
  * Also generates skill usage instructions when skills are present.
  */
 
-import type { MemoryFile } from "@ai-systems/shared-types";
+import type { MemoryFile, Skill } from "@ai-systems/shared-types";
 
 /**
  * Minimal skill info needed for instruction generation
- */
-export interface SkillInfo {
-  name: string;
-  description: string;
-  toolName: string;
-}
+//  */
+// export interface Skill {
+//   name: string;
+//   description: string;
+//   toolName: string;
+// }
 
 /**
  * Generate skill usage instructions section
  */
-export function generateSkillsSection(skills: SkillInfo[]): string {
+export function generateSkillsSection(skills: Skill[]): string {
   if (skills.length === 0) {
     return "";
   }
 
   const skillsList = skills
     .map((skill) => {
-      const desc = skill.description || `Load the ${skill.name} skill`;
-      return `- \`${skill.toolName}\`: ${desc}`;
+      const desc = skill.metadata.description || `Load the ${skill.name} skill`;
+      return `- \`${skill.name}\`: ${desc}`;
     })
     .join("\n");
 
@@ -86,7 +86,7 @@ export function formatAgentsMd(files: MemoryFile[]): string {
  * @param skills - Skill information for instruction generation
  * @returns Formatted SKILLS.md content
  */
-export function formatSkillsMd(skills: SkillInfo[]): string {
+export function formatSkillsMd(skills: Skill[]): string {
   if (skills.length === 0) {
     return "";
   }

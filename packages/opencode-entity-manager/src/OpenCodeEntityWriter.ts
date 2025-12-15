@@ -5,32 +5,30 @@
  * This is the OpenCode counterpart to EntityWriter in claude-entity-manager.
  */
 
-import { writeFile, readFile } from "fs/promises";
-import { join, dirname } from "path";
-import matter from "gray-matter";
 import type {
   Agent,
   Command,
-  MemoryFile,
   McpServer,
+  MemoryFile,
+  OpencodeSettings,
   Skill,
   SkillWithSource,
-  OpencodeSettings,
 } from "@ai-systems/shared-types";
+import { readFile, writeFile } from "fs/promises";
+import matter from "gray-matter";
+import { dirname, join } from "path";
 
 import { transformAgentMetadata } from "./transformers/agent.js";
+import { formatAgentsMd, formatSkillsMd } from "./transformers/instruction.js";
 import { transformMcpServer } from "./transformers/mcp.js";
-import { formatAgentsMd, formatSkillsMd, type SkillInfo } from "./transformers/instruction.js";
+import { clearDirectory, ensureDir } from "./utils/file-ops.js";
 import {
-  getOpenCodeDir,
   getAgentsDir,
-  getSkillsDir,
-  getCommandsDir,
-  getOpencodeConfigPath,
   getAgentsMdPath,
-  getSkillsMdPath,
+  getCommandsDir,
+  getSkillsDir,
+  getSkillsMdPath
 } from "./utils/paths.js";
-import { ensureDir, clearDirectory } from "./utils/file-ops.js";
 
 /**
  * Result of a single write operation
@@ -53,16 +51,11 @@ export interface SyncResult {
  * Options for constructing OpenCodeEntityWriter
  */
 export interface OpenCodeEntityWriterOptions {
-  /** Project directory path */
-  projectDir: string;
   /** Custom config file path (OPENCODE_CONFIG) */
   configFilePath: string;
   /** Custom config directory (OPENCODE_CONFIG_DIR) */
   configDirectory: string;
 }
-
-// Re-export SkillInfo for convenience
-export type { SkillInfo };
 
 /**
  * Info about a synced skill (for skill tool creation)
@@ -79,14 +72,10 @@ export interface SyncedSkill {
  * Writer for OpenCode entities to a project's .opencode directory
  */
 export class OpenCodeEntityWriter {
-  private projectDir: string;
-  private opencodeDir: string;
   private configFilePath: string;
   private configDirectory: string;
 
   constructor(options: OpenCodeEntityWriterOptions) {
-    this.projectDir = options.projectDir;
-    this.opencodeDir = getOpenCodeDir(options.projectDir);
     this.configFilePath = options.configFilePath;
     this.configDirectory = options.configDirectory;
   }
@@ -100,7 +89,7 @@ export class OpenCodeEntityWriter {
    * Transforms tools array to object format, adds mode: "subagent"
    */
   async writeAgent(agent: Agent): Promise<WriteResult> {
-    const agentsDir = getAgentsDir(this.opencodeDir);
+    const agentsDir = getAgentsDir(this.configDirectory);
     await ensureDir(agentsDir);
 
     const filePath = join(agentsDir, `${agent.name}.md`);
@@ -120,7 +109,7 @@ export class OpenCodeEntityWriter {
    * Writes SKILL.md and supporting files from in-memory data
    */
   async writeSkill(skill: Skill): Promise<WriteResult> {
-    const skillsDir = getSkillsDir(this.opencodeDir);
+    const skillsDir = getSkillsDir(this.configDirectory);
     const destDir = join(skillsDir, skill.name);
     await ensureDir(destDir);
 
@@ -146,7 +135,7 @@ export class OpenCodeEntityWriter {
    * Preserves frontmatter
    */
   async writeCommand(command: Command): Promise<WriteResult> {
-    const commandsDir = getCommandsDir(this.opencodeDir);
+    const commandsDir = getCommandsDir(this.configDirectory);
     await ensureDir(commandsDir);
 
     const filePath = join(commandsDir, `${command.name}.md`);
@@ -163,7 +152,7 @@ export class OpenCodeEntityWriter {
    * Concatenates memory files from CLAUDE.md sources
    */
   async writeInstructions(memoryFiles: MemoryFile[]): Promise<WriteResult> {
-    const filePath = getAgentsMdPath(this.projectDir);
+    const filePath = getAgentsMdPath(this.configDirectory);
 
     if (memoryFiles.length === 0) {
       return { path: filePath, created: false };
@@ -181,14 +170,14 @@ export class OpenCodeEntityWriter {
   /**
    * Write skill instructions to .opencode/SKILLS.md
    */
-  async writeSkillsInstructions(skills: SkillInfo[]): Promise<WriteResult> {
-    const filePath = getSkillsMdPath(this.opencodeDir);
+  async writeSkillsInstructions(skills: Skill[]): Promise<WriteResult> {
+    const filePath = getSkillsMdPath(this.configDirectory);
 
     if (skills.length === 0) {
       return { path: filePath, created: false };
     }
 
-    await ensureDir(this.opencodeDir);
+    await ensureDir(this.configDirectory);
     const content = formatSkillsMd(skills);
     await writeFile(filePath, content, "utf-8");
 
@@ -200,7 +189,7 @@ export class OpenCodeEntityWriter {
    * Ensures the specified files are included in the config
    */
   async addInstructionFiles(files: string[]): Promise<WriteResult> {
-    const configPath = getOpencodeConfigPath(this.projectDir);
+    const configPath = this.configFilePath;
 
     if (files.length === 0) {
       return { path: configPath, created: false };
@@ -236,7 +225,7 @@ export class OpenCodeEntityWriter {
    * Ensures the specified plugins are included in the config
    */
   async addPlugins(plugins: string[]): Promise<WriteResult> {
-    const configPath = getOpencodeConfigPath(this.projectDir);
+    const configPath = this.configFilePath;
 
     if (plugins.length === 0) {
       return { path: configPath, created: false };
@@ -272,7 +261,7 @@ export class OpenCodeEntityWriter {
    * Transforms stdio → local, http → remote
    */
   async writeMcpServers(servers: McpServer[]): Promise<WriteResult> {
-    const configPath = getOpencodeConfigPath(this.projectDir);
+    const configPath = this.configFilePath;
 
     // Read existing config
     let config: OpencodeSettings = {};
@@ -314,7 +303,7 @@ export class OpenCodeEntityWriter {
       errors: [],
     };
 
-    const agentsDir = getAgentsDir(this.opencodeDir);
+    const agentsDir = getAgentsDir(this.configDirectory);
     await ensureDir(agentsDir);
     await clearDirectory(agentsDir);
 
@@ -356,7 +345,7 @@ export class OpenCodeEntityWriter {
     };
 
     const syncedSkills: SyncedSkill[] = [];
-    const skillsDir = getSkillsDir(this.opencodeDir);
+    const skillsDir = getSkillsDir(this.configDirectory);
     await ensureDir(skillsDir);
     await clearDirectory(skillsDir);
 
@@ -422,7 +411,7 @@ export class OpenCodeEntityWriter {
       errors: [],
     };
 
-    const commandsDir = getCommandsDir(this.opencodeDir);
+    const commandsDir = getCommandsDir(this.configDirectory);
     await ensureDir(commandsDir);
     await clearDirectory(commandsDir);
 
@@ -465,7 +454,7 @@ export class OpenCodeEntityWriter {
     }
 
     try {
-      const configPath = getOpencodeConfigPath(this.projectDir);
+      const configPath = this.configFilePath;
 
       // Read existing config
       let config: OpencodeSettings = {};
@@ -507,7 +496,7 @@ export class OpenCodeEntityWriter {
    * Clear all contents of a subdirectory within .opencode
    */
    async clearSubDirectory(subPath: string): Promise<void> {
-    const dir = join(this.opencodeDir, subPath);
+    const dir = join(this.configDirectory, subPath);
     await clearDirectory(dir);
   }
 
@@ -515,14 +504,7 @@ export class OpenCodeEntityWriter {
    * Get the OpenCode directory path
    */
   getOpenCodeDir(): string {
-    return this.opencodeDir;
-  }
-
-  /**
-   * Get the project directory path
-   */
-  getProjectDir(): string {
-    return this.projectDir;
+    return this.configDirectory;
   }
 
   /**

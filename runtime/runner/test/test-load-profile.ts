@@ -10,7 +10,7 @@ import { resolve } from 'path';
 import { readdir, readFile } from 'fs/promises';
 import { existsSync } from 'fs';
 import { loadAgentProfile, LoadAgentProfileInput } from '../src/core/index.js';
-import { setupTestWorkspace, TEST_PROJECT_DIR, TEST_CLAUDE_HOME_DIR } from './test-setup.js';
+import { setupTestWorkspace, TEST_PROJECT_DIR, TEST_CLAUDE_HOME_DIR, TEST_WORKSPACE_ROOT } from './test-setup.js';
 import { TestAgentProfile } from './fixtures/agents/agent-profile.js';
 
 
@@ -26,11 +26,9 @@ async function main() {
   await setupTestWorkspace();
 
   const input : LoadAgentProfileInput = {
-    projectDirPath: TEST_PROJECT_DIR,
-    sessionId,
+    sessionDirPath: TEST_WORKSPACE_ROOT,
     agentProfile: TestAgentProfile,
     architectureType: 'opencode' as const, // use opencode since that does the claude set up as well 
-    claudeHomeDir: TEST_CLAUDE_HOME_DIR,
   };
 
   try {

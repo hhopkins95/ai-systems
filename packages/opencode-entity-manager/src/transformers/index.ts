@@ -9,5 +9,4 @@ export { transformMcpServer } from "./mcp.js";
 export {
   formatAgentsMd,
   generateSkillsSection,
-  type SkillInfo,
 } from "./instruction.js";

@@ -32,13 +32,6 @@ export function getCommandsDir(opencodeDir: string): string {
 }
 
 /**
- * Get the opencode.json config path
- */
-export function getOpencodeConfigPath(projectDir: string): string {
-  return join(projectDir, "opencode.json");
-}
-
-/**
  * Get the AGENTS.md file path (OpenCode equivalent of CLAUDE.md)
  */
 export function getAgentsMdPath(projectDir: string): string {

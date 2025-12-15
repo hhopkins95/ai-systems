@@ -16,7 +16,6 @@ import {
   getCommandsDir,
   getAgentsDir,
   getHooksDir,
-  getProjectClaudeDir,
   getMcpConfigPath,
 } from "../utils/paths.js";
 
@@ -56,15 +55,18 @@ export interface WriteEntitiesOptions {
 }
 
 /**
- * Writer for Claude Code entities to a project's .claude directory
+ * Writer for Claude Code entities to a .claude directory.
+ * Can write to either global (~/.claude) or project (.claude) directories.
  */
 export class EntityWriter {
-  private projectDir: string;
   private claudeDir: string;
 
-  constructor(projectDir: string) {
-    this.projectDir = projectDir;
-    this.claudeDir = getProjectClaudeDir(projectDir);
+  /**
+   * Create an EntityWriter for a specific claude directory
+   * @param claudeDir - The target .claude directory (e.g., ~/.claude or project/.claude)
+   */
+  constructor(claudeDir: string) {
+    this.claudeDir = claudeDir;
   }
 
   /**

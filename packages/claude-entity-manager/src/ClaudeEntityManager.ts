@@ -13,7 +13,7 @@ import type {
   McpServerWithSource, 
   ClaudePluginInstallSource
 } from "@ai-systems/shared-types";
-import type { ClaudeEntityManagerOptions, PluginInstallOptions, PluginInstallResult, KnownMarketplacesRegistry, MarketplaceManifest, PluginRegistry, Plugin, PluginSource } from "./types.js"
+import type { ClaudeEntityManagerOptions, PluginInstallOptions, PluginInstallResult, KnownMarketplacesRegistry, MarketplaceManifest, PluginRegistry, Plugin, PluginSource, EntityScope } from "./types.js"
 import { getClaudeDir, getProjectClaudeDir } from "./utils/paths.js";
 import { SkillLoader } from "./loaders/SkillLoader.js";
 import { CommandLoader } from "./loaders/CommandLoader.js";
@@ -54,7 +54,8 @@ export class ClaudeEntityManager {
   private settingsManager: SettingsManager;
   private pluginInstaller: PluginInstaller;
   private sourceParser: SourceParser;
-  private entityWriter?: EntityWriter;
+  private globalEntityWriter?: EntityWriter;
+  private projectEntityWriter?: EntityWriter;
 
   constructor(options: ClaudeEntityManagerOptions = {}) {
     this.claudeDir = getClaudeDir(options.claudeDir);
@@ -673,82 +674,105 @@ export class ClaudeEntityManager {
   // ==================== ENTITY WRITING ====================
 
   /**
-   * Get or create the entity writer for the project directory
-   * @throws Error if no project directory is configured
+   * Get or create the entity writer for the specified scope
+   * @param scope - 'global' for ~/.claude, 'project' for project/.claude (default: 'project')
+   * @throws Error if scope is 'project' but no project directory is configured
    */
-  private getEntityWriter(): EntityWriter {
+  private getEntityWriterForScope(scope: EntityScope = 'project'): EntityWriter {
+    if (scope === 'global') {
+      if (!this.globalEntityWriter) {
+        this.globalEntityWriter = new EntityWriter(this.claudeDir);
+      }
+      return this.globalEntityWriter;
+    }
+
+    // project scope
     if (!this.projectDir) {
-      throw new Error("No project directory configured. EntityWriter requires a projectDir.");
+      throw new Error("No project directory configured. Project-scope writes require a projectDir.");
     }
-    if (!this.entityWriter) {
-      this.entityWriter = new EntityWriter(this.projectDir);
+    if (!this.projectEntityWriter) {
+      this.projectEntityWriter = new EntityWriter(getProjectClaudeDir(this.projectDir));
     }
-    return this.entityWriter;
+    return this.projectEntityWriter;
   }
 
   /**
-   * Write a skill to the project's .claude/skills directory
-   * @throws Error if no project directory is configured
+   * Write a skill to the .claude/skills directory
+   * @param skill - The skill to write
+   * @param options - Optional scope (default: 'project')
+   * @throws Error if scope is 'project' but no project directory is configured
    */
-  async writeProjectSkill(skill: Skill): Promise<WriteResult> {
-    return this.getEntityWriter().writeSkill(skill);
+  async writeSkill(skill: Skill, options?: { scope?: EntityScope }): Promise<WriteResult> {
+    return this.getEntityWriterForScope(options?.scope).writeSkill(skill);
   }
 
   /**
-   * Write a command to the project's .claude/commands directory
-   * @throws Error if no project directory is configured
+   * Write a command to the .claude/commands directory
+   * @param command - The command to write
+   * @param options - Optional scope (default: 'project')
+   * @throws Error if scope is 'project' but no project directory is configured
    */
-  async writeProjectCommand(command: Command): Promise<WriteResult> {
-    return this.getEntityWriter().writeCommand(command);
+  async writeCommand(command: Command, options?: { scope?: EntityScope }): Promise<WriteResult> {
+    return this.getEntityWriterForScope(options?.scope).writeCommand(command);
   }
 
   /**
-   * Write an agent to the project's .claude/agents directory
-   * @throws Error if no project directory is configured
+   * Write an agent to the .claude/agents directory
+   * @param agent - The agent to write
+   * @param options - Optional scope (default: 'project')
+   * @throws Error if scope is 'project' but no project directory is configured
    */
-  async writeProjectAgent(agent: Agent): Promise<WriteResult> {
-    return this.getEntityWriter().writeAgent(agent);
+  async writeAgent(agent: Agent, options?: { scope?: EntityScope }): Promise<WriteResult> {
+    return this.getEntityWriterForScope(options?.scope).writeAgent(agent);
   }
 
   /**
-   * Write a hook to the project's .claude/hooks directory
+   * Write a hook to the .claude/hooks directory
    * Merges with existing hooks if present
-   * @throws Error if no project directory is configured
+   * @param hook - The hook to write
+   * @param options - Optional scope (default: 'project')
+   * @throws Error if scope is 'project' but no project directory is configured
    */
-  async writeProjectHook(hook: Hook): Promise<WriteResult> {
-    return this.getEntityWriter().writeHook(hook);
+  async writeHook(hook: Hook, options?: { scope?: EntityScope }): Promise<WriteResult> {
+    return this.getEntityWriterForScope(options?.scope).writeHook(hook);
   }
 
   /**
-   * Write CLAUDE.md to the project's .claude directory
-   * @throws Error if no project directory is configured
+   * Write CLAUDE.md to the .claude directory
+   * @param content - The markdown content to write
+   * @param options - Optional scope (default: 'project')
+   * @throws Error if scope is 'project' but no project directory is configured
    */
-  async writeProjectClaudeMd(content: string): Promise<WriteResult> {
-    return this.getEntityWriter().writeClaudeMd(content);
+  async writeClaudeMd(content: string, options?: { scope?: EntityScope }): Promise<WriteResult> {
+    return this.getEntityWriterForScope(options?.scope).writeClaudeMd(content);
   }
 
   /**
-   * Write MCP servers to the project's .claude/.mcp.json
+   * Write MCP servers to .claude/.mcp.json
    * Merges with existing config (new servers overwrite by name)
    * Supports both stdio and http server types
-   * @throws Error if no project directory is configured
+   * @param servers - The MCP server configurations to write
+   * @param options - Optional scope (default: 'project')
+   * @throws Error if scope is 'project' but no project directory is configured
    */
-  async writeProjectMcpServers(servers: McpServerInput[]): Promise<WriteResult> {
-    return this.getEntityWriter().writeMcpServers(servers);
+  async writeMcpServers(servers: McpServerInput[], options?: { scope?: EntityScope }): Promise<WriteResult> {
+    return this.getEntityWriterForScope(options?.scope).writeMcpServers(servers);
   }
 
   /**
    * Write multiple entities at once
-   * @throws Error if no project directory is configured
+   * @param options - Entities to write and optional scope (default: 'project')
+   * @throws Error if scope is 'project' but no project directory is configured
    */
-  async writeProjectEntities(options: WriteEntitiesOptions): Promise<{
+  async writeEntities(options: WriteEntitiesOptions & { scope?: EntityScope }): Promise<{
     skills: WriteResult[];
     commands: WriteResult[];
     agents: WriteResult[];
     hooks: WriteResult[];
     claudeMd?: WriteResult;
   }> {
-    return this.getEntityWriter().writeEntities(options);
+    const { scope, ...entityOptions } = options;
+    return this.getEntityWriterForScope(scope).writeEntities(entityOptions);
   }
 
   // ==================== SESSION TRANSCRIPTS ====================

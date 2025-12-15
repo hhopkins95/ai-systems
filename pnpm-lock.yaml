@@ -300,6 +300,9 @@ importers:
       '@ai-systems/opencode-claude-adapter':
         specifier: workspace:*
         version: link:../../packages/opencode-claude-adapter
+      '@ai-systems/opencode-entity-manager':
+        specifier: workspace:*
+        version: link:../../packages/opencode-entity-manager
       '@ai-systems/shared-types':
         specifier: workspace:*
         version: link:../../packages/types

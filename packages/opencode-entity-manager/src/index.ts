@@ -12,7 +12,6 @@ export type {
   WriteResult,
   SyncResult,
   OpenCodeEntityWriterOptions,
-  SkillInfo,
   SyncedSkill,
 } from "./OpenCodeEntityWriter.js";
 
@@ -30,17 +29,6 @@ export {
   formatSkillsMd,
   generateSkillsSection,
 } from "./transformers/instruction.js";
-
-// Utilities
-export {
-  getOpenCodeDir,
-  getAgentsDir,
-  getSkillsDir,
-  getCommandsDir,
-  getOpencodeConfigPath,
-  getAgentsMdPath,
-  getSkillsMdPath,
-} from "./utils/paths.js";
 
 export { clearDirectory, ensureDir } from "./utils/file-ops.js";
 

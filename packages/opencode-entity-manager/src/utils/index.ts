@@ -3,7 +3,6 @@ export {
   getAgentsDir,
   getSkillsDir,
   getCommandsDir,
-  getOpencodeConfigPath,
   getAgentsMdPath,
 } from "./paths.js";
 
