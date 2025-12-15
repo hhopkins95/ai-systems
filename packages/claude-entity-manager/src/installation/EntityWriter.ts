@@ -174,29 +174,27 @@ export class EntityWriter {
    * @param metadata - Optional metadata (paths, etc.)
    */
   async writeRule(
-    name: string,
-    content: string,
-    metadata?: Partial<RuleMetadata>
+    rule: Rule
   ): Promise<WriteResult> {
     const rulesDir = getRulesDir(this.claudeDir);
     await this.ensureDir(rulesDir);
 
-    const fileName = name.endsWith(".md") ? name : `${name}.md`;
+    const fileName = rule.name.endsWith(".md") ? rule.name : `${rule.name}.md`;
     const filePath = join(rulesDir, fileName);
 
     // Build metadata, filtering out isMain (it's always false for rules/)
     const cleanMetadata: Record<string, unknown> = {};
-    if (metadata) {
-      if (metadata.paths) cleanMetadata.paths = metadata.paths;
+    if (rule.metadata) {
+      if (rule.metadata.paths) cleanMetadata.paths = rule.metadata.paths;
       // Copy any additional fields except isMain
-      for (const [key, value] of Object.entries(metadata)) {
+      for (const [key, value] of Object.entries(rule.metadata)) {
         if (key !== "isMain" && key !== "paths" && value != null) {
           cleanMetadata[key] = value;
         }
       }
     }
 
-    const fileContent = this.formatWithFrontmatter(cleanMetadata, content);
+    const fileContent = this.formatWithFrontmatter(cleanMetadata, rule.content);
     await writeFile(filePath, fileContent, "utf-8");
 
     return { path: filePath, created: true };

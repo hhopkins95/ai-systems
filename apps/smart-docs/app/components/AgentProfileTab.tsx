@@ -838,7 +838,7 @@ export default function AgentProfileTab() {
     { id: 'commands', label: 'Commands', count: config?.commands.length },
     { id: 'agents', label: 'Agents', count: config?.subagents.length },
     { id: 'hooks', label: 'Hooks', count: config?.hooks.length },
-    { id: 'memory', label: 'Memory Files', count: memoryTree.length },
+    { id: 'memory', label: 'Rules', count: rulesTree.length },
     { id: 'mcp', label: 'MCP Servers', count: mcpServers.length },
   ];
 

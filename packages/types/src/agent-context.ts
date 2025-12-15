@@ -3,7 +3,7 @@
  * for an agent running in a given project context
  */
 
-import type { Agent, AgentWithSource, Command, CommandWithSource, HookWithSource, RuleWithSource, Skill, SkillWithSource } from "./entities/index.js";
+import type { Agent, AgentWithSource, Command, CommandWithSource, HookWithSource, Rule, RuleWithSource, Skill, SkillWithSource } from "./entities/index.js";
 import type { McpServer, McpServerWithSource } from "./entities/mcp.js";
 import { ClaudePluginInstallSource } from "./plugin.js";
 import { WorkspaceFile } from "./runtime/session.js";
@@ -81,9 +81,9 @@ export interface AgentProfile extends AgentProfileListData {
 
   systemPrompt?: string,
 
-  memoryFile?: string,  // The CLAUDE.md file
 
   customEntities: {
+    rules? : Rule[],
     skills?: Skill[],
     subagents?: Agent[],
     commands?: Command[],

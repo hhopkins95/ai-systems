@@ -785,11 +785,10 @@ export class ClaudeEntityManager {
    * @throws Error if scope is 'project' but no project directory is configured
    */
   async writeRule(
-    name: string,
-    content: string,
-    options?: { metadata?: Partial<RuleMetadata>; scope?: EntityScope }
+    rule: Rule,
+    options?: { scope?: EntityScope }
   ): Promise<WriteResult> {
-    return this.getEntityWriterForScope(options?.scope).writeRule(name, content, options?.metadata);
+    return this.getEntityWriterForScope(options?.scope).writeRule(rule);
   }
 
   /**

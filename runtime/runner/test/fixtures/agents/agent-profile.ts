@@ -25,6 +25,14 @@ export const TestAgentProfile: AgentProfile = {
     name: "Test Agent Profile",
     description: "A test agent profile",
     customEntities: {
+        rules: [{
+            name: "test-rule",
+            content: "echo 'Hello, world!'",
+            metadata: {
+                description: "A test rule",
+                tags: ["test"],
+            },
+        }],
         commands: [{
             name: "test-command",
             content: "echo 'Hello, world!'",

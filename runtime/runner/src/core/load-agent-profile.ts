@@ -83,6 +83,9 @@ export async function loadAgentProfile(
     for (const agent of input.agentProfile.customEntities.subagents ?? []) {
       await claudeEntityManager.writeAgent(agent, { scope: 'global' });
     }
+    for (const rule of input.agentProfile.customEntities.rules ?? []) {
+      await claudeEntityManager.writeRule(rule, { scope: 'global' });
+    }
 
   
 
