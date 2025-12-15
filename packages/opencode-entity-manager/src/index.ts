@@ -11,7 +11,7 @@ export { OpenCodeEntityWriter } from "./OpenCodeEntityWriter.js";
 export type {
   WriteResult,
   SyncResult,
-  WriteEntityOptions,
+  OpenCodeEntityWriterOptions,
   InstructionsOptions,
   SkillInfo,
   SyncedSkill,

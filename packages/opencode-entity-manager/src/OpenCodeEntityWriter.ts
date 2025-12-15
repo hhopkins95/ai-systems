@@ -5,7 +5,7 @@
  * This is the OpenCode counterpart to EntityWriter in claude-entity-manager.
  */
 
-import { writeFile, readFile, copyFile, readdir, mkdir } from "fs/promises";
+import { writeFile, readFile } from "fs/promises";
 import { join, dirname } from "path";
 import matter from "gray-matter";
 import type {
@@ -13,6 +13,7 @@ import type {
   Command,
   MemoryFile,
   McpServer,
+  Skill,
   SkillWithSource,
   OpencodeSettings,
 } from "@ai-systems/shared-types";
@@ -48,13 +49,15 @@ export interface SyncResult {
 }
 
 /**
- * Options for writing entities
+ * Options for constructing OpenCodeEntityWriter
  */
-export interface WriteEntityOptions {
-  /** Add header comment indicating source */
-  includeSourceHeader?: boolean;
-  /** Source path to include in header */
-  sourcePath?: string;
+export interface OpenCodeEntityWriterOptions {
+  /** Project directory path */
+  projectDir: string;
+  /** Custom config file path (OPENCODE_CONFIG) */
+  configFilePath: string;
+  /** Custom config directory (OPENCODE_CONFIG_DIR) */
+  configDirectory: string;
 }
 
 /**
@@ -85,10 +88,14 @@ export interface SyncedSkill {
 export class OpenCodeEntityWriter {
   private projectDir: string;
   private opencodeDir: string;
+  private configFilePath: string;
+  private configDirectory: string;
 
-  constructor(projectDir: string) {
-    this.projectDir = projectDir;
-    this.opencodeDir = getOpenCodeDir(projectDir);
+  constructor(options: OpenCodeEntityWriterOptions) {
+    this.projectDir = options.projectDir;
+    this.opencodeDir = getOpenCodeDir(options.projectDir);
+    this.configFilePath = options.configFilePath;
+    this.configDirectory = options.configDirectory;
   }
 
   // ============================================
@@ -99,17 +106,11 @@ export class OpenCodeEntityWriter {
    * Write an agent to .opencode/agent/{name}.md
    * Transforms tools array to object format, adds mode: "subagent"
    */
-  async writeAgent(
-    agent: Agent,
-    options: WriteEntityOptions = {}
-  ): Promise<WriteResult> {
+  async writeAgent(agent: Agent): Promise<WriteResult> {
     const agentsDir = getAgentsDir(this.opencodeDir);
     await ensureDir(agentsDir);
 
     const filePath = join(agentsDir, `${agent.name}.md`);
-
-    // Build header if requested
-    const header = this.buildHeader(options);
 
     // Transform frontmatter
     const transformedFrontmatter = transformAgentMetadata(agent.metadata);
@@ -117,48 +118,50 @@ export class OpenCodeEntityWriter {
     // Build file content
     const fileContent = matter.stringify(agent.content, transformedFrontmatter);
 
-    await writeFile(filePath, header + fileContent, "utf-8");
+    await writeFile(filePath, fileContent, "utf-8");
     return { path: filePath, created: true };
   }
 
   /**
    * Write a skill to .opencode/skills/{name}/
-   * Copies entire skill directory including supporting files
+   * Writes SKILL.md and supporting files from in-memory data
    */
-  async writeSkill(skill: SkillWithSource): Promise<WriteResult> {
+  async writeSkill(skill: Skill): Promise<WriteResult> {
     const skillsDir = getSkillsDir(this.opencodeDir);
     const destDir = join(skillsDir, skill.name);
     await ensureDir(destDir);
 
-    // Get source directory from skill path
-    const sourceDir = dirname(skill.source?.path ?? "");
+    // Write SKILL.md from content + metadata
+    const skillMdPath = join(destDir, "SKILL.md");
+    const skillMdContent = matter.stringify(skill.content, skill.metadata);
+    await writeFile(skillMdPath, skillMdContent, "utf-8");
 
-    // Copy the entire directory
-    await this.copyDir(sourceDir, destDir);
+    // Write supporting files from fileContents
+    if (skill.fileContents) {
+      for (const [relativePath, content] of Object.entries(skill.fileContents)) {
+        const filePath = join(destDir, relativePath);
+        await ensureDir(dirname(filePath));
+        await writeFile(filePath, content, "utf-8");
+      }
+    }
 
     return { path: destDir, created: true };
   }
 
   /**
    * Write a command to .opencode/command/{name}.md
-   * Preserves frontmatter, adds source header
+   * Preserves frontmatter
    */
-  async writeCommand(
-    command: Command,
-    options: WriteEntityOptions = {}
-  ): Promise<WriteResult> {
+  async writeCommand(command: Command): Promise<WriteResult> {
     const commandsDir = getCommandsDir(this.opencodeDir);
     await ensureDir(commandsDir);
 
     const filePath = join(commandsDir, `${command.name}.md`);
 
-    // Build header if requested
-    const header = this.buildHeader(options);
-
     // Use gray-matter to stringify frontmatter + content
     const fileContent = matter.stringify(command.content, command.metadata);
 
-    await writeFile(filePath, header + fileContent, "utf-8");
+    await writeFile(filePath, fileContent, "utf-8");
     return { path: filePath, created: true };
   }
 
@@ -247,11 +250,7 @@ export class OpenCodeEntityWriter {
     // Write each agent
     for (const [name, agent] of agentMap) {
       try {
-        const sourcePath = (agent as Agent & { source?: { path?: string } }).source?.path;
-        await this.writeAgent(agent, {
-          includeSourceHeader: true,
-          sourcePath,
-        });
+        await this.writeAgent(agent);
         result.written.push(name);
       } catch (error) {
         const message = error instanceof Error ? error.message : String(error);
@@ -290,23 +289,37 @@ export class OpenCodeEntityWriter {
       skillMap.set(skill.name, skill);
     }
 
-    // Copy each skill directory
+    // Write each skill from in-memory data
     for (const [name, skill] of skillMap) {
-      const sourceDir = dirname(skill.source?.path ?? "");
       const destDir = join(skillsDir, name);
 
       try {
-        await this.copyDir(sourceDir, destDir);
-        result.written.push(name);
+        await ensureDir(destDir);
 
-        // Get files from the copied location
-        const files = await this.listFiles(destDir);
+        // Write SKILL.md from content + metadata
+        const skillMdPath = join(destDir, "SKILL.md");
+        const skillMdContent = matter.stringify(skill.content, skill.metadata);
+        await writeFile(skillMdPath, skillMdContent, "utf-8");
+
+        const writtenFiles = ["SKILL.md"];
+
+        // Write supporting files from fileContents
+        if (skill.fileContents) {
+          for (const [relativePath, content] of Object.entries(skill.fileContents)) {
+            const filePath = join(destDir, relativePath);
+            await ensureDir(dirname(filePath));
+            await writeFile(filePath, content, "utf-8");
+            writtenFiles.push(relativePath);
+          }
+        }
+
+        result.written.push(name);
 
         syncedSkills.push({
           name: skill.name,
           description: skill.metadata.description ?? "",
           content: skill.content,
-          files,
+          files: writtenFiles,
           dir: destDir,
         });
       } catch (error) {
@@ -345,11 +358,7 @@ export class OpenCodeEntityWriter {
     // Write each command
     for (const [name, command] of commandMap) {
       try {
-        const sourcePath = (command as Command & { source?: { path?: string } }).source?.path;
-        await this.writeCommand(command, {
-          includeSourceHeader: true,
-          sourcePath,
-        });
+        await this.writeCommand(command);
         result.written.push(name);
       } catch (error) {
         const message = error instanceof Error ? error.message : String(error);
@@ -416,7 +425,7 @@ export class OpenCodeEntityWriter {
   /**
    * Clear all contents of a subdirectory within .opencode
    */
-  async clearSubDirectory(subPath: string): Promise<void> {
+   async clearSubDirectory(subPath: string): Promise<void> {
     const dir = join(this.opencodeDir, subPath);
     await clearDirectory(dir);
   }
@@ -435,77 +444,17 @@ export class OpenCodeEntityWriter {
     return this.projectDir;
   }
 
-  // ============================================
-  // Private Helpers
-  // ============================================
-
   /**
-   * Build header comment for auto-generated files
+   * Get the custom config file path
    */
-  private buildHeader(options: WriteEntityOptions): string {
-    if (!options.includeSourceHeader) {
-      return "";
-    }
-
-    const lines = [
-      "<!--",
-      "  Auto-generated by opencode-claude-adapter",
-    ];
-
-    if (options.sourcePath) {
-      lines.push(`  Source: ${options.sourcePath}`);
-    }
-
-    lines.push("  Do not edit - changes will be overwritten on next sync");
-    lines.push("-->");
-    lines.push("");
-
-    return lines.join("\n");
+  getConfigFilePath(): string {
+    return this.configFilePath;
   }
 
   /**
-   * Recursively copy a directory
+   * Get the custom config directory
    */
-  private async copyDir(src: string, dest: string): Promise<void> {
-    await mkdir(dest, { recursive: true });
-
-    const entries = await readdir(src, { withFileTypes: true });
-
-    for (const entry of entries) {
-      const srcPath = join(src, entry.name);
-      const destPath = join(dest, entry.name);
-
-      if (entry.isDirectory()) {
-        await this.copyDir(srcPath, destPath);
-      } else {
-        await copyFile(srcPath, destPath);
-      }
-    }
-  }
-
-  /**
-   * Get list of files in a directory (relative paths)
-   */
-  private async listFiles(dir: string, base: string = ""): Promise<string[]> {
-    const files: string[] = [];
-
-    try {
-      const entries = await readdir(dir, { withFileTypes: true });
-
-      for (const entry of entries) {
-        const relativePath = base ? join(base, entry.name) : entry.name;
-
-        if (entry.isDirectory()) {
-          const subFiles = await this.listFiles(join(dir, entry.name), relativePath);
-          files.push(...subFiles);
-        } else {
-          files.push(relativePath);
-        }
-      }
-    } catch {
-      // Directory might not exist
-    }
-
-    return files;
+  getConfigDirectory(): string {
+    return this.configDirectory;
   }
 }

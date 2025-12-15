@@ -29,7 +29,11 @@ export const ClaudeAdapterPlugin: Plugin = async (ctx) => {
   const manager = new ClaudeEntityManager({
     projectDir,
   });
-  const writer = new OpenCodeEntityWriter(projectDir);
+  const writer = new OpenCodeEntityWriter({
+    projectDir,
+    configFilePath: process.env.OPENCODE_CONFIG ?? "",
+    configDirectory: process.env.OPENCODE_CONFIG_DIR ?? "",
+  });
 
   // Load complete agent context (includes all entities, MCP servers, memory files)
   const agentContext = await manager.loadAgentContext({
