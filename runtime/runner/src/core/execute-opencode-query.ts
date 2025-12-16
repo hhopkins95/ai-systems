@@ -99,19 +99,23 @@ export async function* executeOpencodeQuery(
     yield errorEventFromError(error, 'CONNECTION_ERROR');
     throw error;
   }
-  const client = connection.client;
+  
 
   const paths = getWorkspacePaths({baseWorkspacePath: input.baseWorkspacePath});
   setEnvironment({baseWorkspacePath: input.baseWorkspacePath});
 
+  const client = connection.client;
+  // client.config.update({
+  //   query : { directory: paths.workspaceDir },
+  // })
   try {
     // Create stateful parser for this session
     const parser = createStreamEventParser(input.sessionId);
 
     // Check if session exists, create if not
     const existingSession = await client.session.get({
-      path: { id: input.sessionId },
-      query: { directory: paths.workspaceDir },
+      sessionID: input.sessionId,
+      directory: paths.workspaceDir,
     });
 
     if (!existingSession.data) {
@@ -127,22 +131,19 @@ export async function* executeOpencodeQuery(
     // Start event subscription in parallel (IMPORTANT: must start before prompt)
     // Events are pushed to channel and yielded in real-time below
     const eventPromise = (async () => {
-      console.error('[DEBUG] Starting event subscription...');
       const eventResult = await client.event.subscribe();
-      console.error('[DEBUG] Event subscription started, waiting for events...');
 
       // Track if we've seen any activity for our session
       // We only close on idle AFTER seeing activity to avoid closing on stale idle state
       let sawActivity = false;
 
       for await (const event of eventResult.stream) {
+        console.log("Received event:", event.type);
         // Debug: log raw event type and session
         const eventSessionId = (event as any).properties?.sessionID
           || (event as any).properties?.part?.sessionID
           || (event as any).properties?.info?.sessionID;
         const isOurSession = eventSessionId === input.sessionId;
-
-        console.error(`[DEBUG] Event: type=${event.type}, sessionID=${eventSessionId}, isOurs=${isOurSession}`);
 
         // Track activity for our session (non-idle events)
         if (isOurSession && event.type !== 'session.idle') {
@@ -151,47 +152,32 @@ export async function* executeOpencodeQuery(
 
         // Convert OpenCode event to StreamEvents using stateful parser
         const streamEvents = parser.parseEvent(event);
-        console.error(`[DEBUG] Parsed ${streamEvents.length} stream events`);
         for (const streamEvent of streamEvents) {
           eventChannel.send(streamEvent);
         }
 
         // Close channel when session goes idle AFTER we've seen activity
         if (event.type === 'session.idle' && isOurSession && sawActivity) {
-          console.error('[DEBUG] Session idle, closing channel');
           eventChannel.close();
           break;
         }
       }
-      console.error('[DEBUG] Event loop ended');
     })();
 
-    // Authenticate
-    yield createLogEvent('Authenticating with OpenCode', 'debug');
-    await client.auth.set({
-      providerID: 'zen',
-      auth: { type: 'api', key: process.env.OPENCODE_API_KEY || '' },
-    });
-
-    // Send prompt
+     // Send prompt
     yield createLogEvent('Sending prompt to OpenCode', 'debug');
-    console.error('[DEBUG] Calling session.prompt...');
 
-    const promptResult = await client.session.prompt({
+    await client.session.prompt({
       sessionID: input.sessionId,
       directory: paths.workspaceDir,
       model: { providerID: "opencode", modelID: "big-pickle" },
       parts: [{ type: 'text', text: input.prompt }],
     });
-    console.error('[DEBUG] session.prompt returned:', JSON.stringify(promptResult, null, 2));
 
     // Yield events in real-time as they arrive from the channel
-    console.error('[DEBUG] Starting to receive from channel...');
     for await (const event of eventChannel.receive()) {
-      console.error('[DEBUG] Yielding event from channel:', event.type);
       yield event;
     }
-    console.error('[DEBUG] Channel receive loop ended');
 
     // Wait for event subscription to fully complete
     await eventPromise;
@@ -201,6 +187,7 @@ export async function* executeOpencodeQuery(
     yield errorEventFromError(error, 'QUERY_EXECUTION_ERROR');
     throw error;
   }
+
   // Note: We don't close the server here anymore to allow sharing
   // between multiple local sessions. The server will be cleaned up
   // when the process exits.

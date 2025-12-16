@@ -5,7 +5,7 @@
  * StreamEvent structures for real-time UI updates.
  */
 
-import type { Event, Part, EventMessagePartUpdated, EventMessageUpdated, EventSessionIdle } from "@opencode-ai/sdk";
+import type { Event, Part, EventMessagePartUpdated, EventMessageUpdated, EventSessionIdle } from "@opencode-ai/sdk/v2";
 import type {
   ConversationBlock,
   SubagentBlock,

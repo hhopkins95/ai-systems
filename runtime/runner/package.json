@@ -53,7 +53,7 @@
     "@anthropic-ai/claude-agent-sdk": "^0.1.18",
     "@hhopkins/agent-converters": "workspace:*",
     "@hhopkins/claude-entity-manager": "workspace:*",
-    "@opencode-ai/sdk": "^1.0.126",
+    "@opencode-ai/sdk": "^1.0.163",
     "commander": "^14.0.0",
     "gray-matter": "^4.0.3",
     "zod": "^3.24.1"

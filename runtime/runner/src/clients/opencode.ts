@@ -6,7 +6,7 @@
  * before starting a new one.
  */
 
-import { type createOpencode as CreateOpencodeType, createOpencodeClient} from '@opencode-ai/sdk';
+import { type createOpencode as CreateOpencodeType, createOpencodeClient} from '@opencode-ai/sdk/v2';
 import { writeStreamEvent } from '../cli/shared/output.js';
 import { createLogEvent } from '../helpers/create-stream-events.js';
 
@@ -53,6 +53,16 @@ async function tryConnectExisting(baseUrl: string): Promise<OpencodeClient | nul
   }
 }
 
+async function authenticate(client: OpencodeClient): Promise<void> {
+    await client.auth.set({
+      providerID: "zen",
+      auth: {
+        type: "api",
+        key: process.env.OPENCODE_API_KEY || "",
+      },
+    })
+}
+
 /**
  * Get a shared OpenCode client connection.
  * First tries to connect to an existing server (for local multi-session support).
@@ -73,17 +83,19 @@ export async function getOpencodeConnection(
       // First, try to connect to an existing server
       const existingClient = await tryConnectExisting(baseUrl);
       if (existingClient) {
+
+        await authenticate(existingClient);
+
         return {
           client: existingClient,
           server: undefined, // We didn't start this server, so don't track it
         };
       }
 
-      // No existing server, start a new one
-      writeStreamEvent(createLogEvent(`No existing server found, starting new OpenCode server at ${baseUrl}`, 'info'));
+
 
       try {
-        const { createOpencode } = await import('@opencode-ai/sdk');
+        const { createOpencode } = await import('@opencode-ai/sdk/v2');
 
         writeStreamEvent(createLogEvent(`Calling createOpencode({ hostname: '${hostname}', port: ${port} })`, 'debug'));
         const result = await createOpencode({
@@ -92,6 +104,9 @@ export async function getOpencodeConnection(
         });
 
         writeStreamEvent(createLogEvent('OpenCode server started successfully', 'info'));
+
+        await authenticate(result.client);
+
         return {
           client: result.client,
           server: result.server,
