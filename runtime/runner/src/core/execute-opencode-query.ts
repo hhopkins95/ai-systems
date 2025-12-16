@@ -4,63 +4,14 @@
  * Pure async generator that yields StreamEvents from OpenCode responses.
  */
 
-import * as fs from 'fs';
-import * as path from 'path';
-import os from 'os';
-import { exec } from 'child_process';
-import { promisify } from 'util';
 import { createStreamEventParser } from '@hhopkins/agent-converters/opencode';
 import type { StreamEvent, UserMessageBlock } from '@ai-systems/shared-types';
-import { getOpencodeConnection, closeOpencodeServer } from '../clients/opencode.js';
+import { getOpencodeConnection } from '../clients/opencode.js';
 import { emptyAsyncIterable, createMessageChannel } from '../clients/channel.js';
 import { createLogEvent, createErrorEvent, errorEventFromError } from '../helpers/create-stream-events.js';
 import type { ExecuteQueryArgs } from '../types.js';
 import { getWorkspacePaths } from '../helpers/get-workspace-paths.js';
 import { setEnvironment } from '../helpers/set-environment.js';
-
-const execAsync = promisify(exec);
-
-/**
- * Create an OpenCode session with a specific ID.
- */
-async function createOpencodeSession(sessionId: string, cwd: string): Promise<void> {
-  const sessionFileContents = JSON.stringify({
-    info: {
-      id: sessionId,
-      version: '1.0.120',
-      projectID: 'global',
-      directory: cwd,
-      title: 'New Session',
-      time: {
-        created: Date.now(),
-        updated: Date.now(),
-      },
-      summary: {
-        additions: 0,
-        deletions: 0,
-        files: 0,
-      },
-    },
-    messages: [],
-  }, null, 2);
-
-  const filePath = path.join(os.tmpdir(), `temp-${sessionId}.json`);
-  fs.writeFileSync(filePath, sessionFileContents);
-
-  if (!fs.existsSync(filePath)) {
-    throw new Error(`File was not created at ${filePath}`);
-  }
-
-  try {
-    await execAsync(`opencode import "${filePath}"`);
-  } finally {
-    try {
-      fs.unlinkSync(filePath);
-    } catch {
-      // Ignore cleanup errors
-    }
-  }
-}
 
 /**
  * Execute a query using the OpenCode SDK.
@@ -105,33 +56,43 @@ export async function* executeOpencodeQuery(
   setEnvironment({baseWorkspacePath: input.baseWorkspacePath});
 
   const client = connection.client;
-  // client.config.update({
-  //   query : { directory: paths.workspaceDir },
-  // })
-  try {
-    // Create stateful parser for this session
-    const parser = createStreamEventParser(input.sessionId);
 
-    // Check if session exists, create if not
+  try {
+    // Determine actual session ID - either existing or newly created
+    let actualSessionId = input.sessionId;
+
+    // Check if session exists
     const existingSession = await client.session.get({
       sessionID: input.sessionId,
       directory: paths.workspaceDir,
     });
 
     if (!existingSession.data) {
-      yield createLogEvent('Creating new OpenCode session', 'info', { sessionId: input.sessionId, cwd: paths.workspaceDir });
-      await createOpencodeSession(input.sessionId, paths.workspaceDir);
+      // Create session via SDK (server-generated ID)
+      yield createLogEvent('Creating new OpenCode session via SDK', 'info', { requestedId: input.sessionId, cwd: paths.workspaceDir });
+      const createResult = await client.session.create({
+        directory: paths.workspaceDir,
+      });
+      if (!createResult.data?.id) {
+        throw new Error('Failed to create session - no ID returned');
+      }
+      actualSessionId = createResult.data.id;
+      yield createLogEvent('Session created', 'info', { actualSessionId });
     } else {
-      yield createLogEvent('Resuming existing OpenCode session', 'info', { sessionId: input.sessionId });
+      yield createLogEvent('Resuming existing OpenCode session', 'info', { sessionId: actualSessionId });
     }
+
+    // Create stateful parser for this session
+    const parser = createStreamEventParser(actualSessionId);
 
     // Create channel for real-time event streaming
     const eventChannel = createMessageChannel<StreamEvent>();
 
     // Start event subscription in parallel (IMPORTANT: must start before prompt)
     // Events are pushed to channel and yielded in real-time below
+    // NOTE: directory must match session.prompt to receive events from same Bus
     const eventPromise = (async () => {
-      const eventResult = await client.event.subscribe();
+      const eventResult = await client.event.subscribe({ directory: paths.workspaceDir });
 
       // Track if we've seen any activity for our session
       // We only close on idle AFTER seeing activity to avoid closing on stale idle state
@@ -143,7 +104,7 @@ export async function* executeOpencodeQuery(
         const eventSessionId = (event as any).properties?.sessionID
           || (event as any).properties?.part?.sessionID
           || (event as any).properties?.info?.sessionID;
-        const isOurSession = eventSessionId === input.sessionId;
+        const isOurSession = eventSessionId === actualSessionId;
 
         // Track activity for our session (non-idle events)
         if (isOurSession && event.type !== 'session.idle') {
@@ -164,11 +125,11 @@ export async function* executeOpencodeQuery(
       }
     })();
 
-     // Send prompt
-    yield createLogEvent('Sending prompt to OpenCode', 'debug');
+    // Send prompt
+    yield createLogEvent('Sending prompt to OpenCode', 'debug', { sessionId: actualSessionId });
 
     await client.session.prompt({
-      sessionID: input.sessionId,
+      sessionID: actualSessionId,
       directory: paths.workspaceDir,
       model: { providerID: "opencode", modelID: "big-pickle" },
       parts: [{ type: 'text', text: input.prompt }],
@@ -182,7 +143,7 @@ export async function* executeOpencodeQuery(
     // Wait for event subscription to fully complete
     await eventPromise;
 
-    yield createLogEvent('OpenCode SDK query completed', 'info', { sessionId: input.sessionId });
+    yield createLogEvent('OpenCode SDK query completed', 'info', { sessionId: actualSessionId });
   } catch (error) {
     yield errorEventFromError(error, 'QUERY_EXECUTION_ERROR');
     throw error;
