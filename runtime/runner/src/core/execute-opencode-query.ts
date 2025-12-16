@@ -86,6 +86,11 @@ export async function* executeOpencodeQuery(
     throw new Error('Model is required for opencode architecture (format: provider/model)');
   }
 
+  // Set up workspace paths and environment BEFORE connecting to server
+  // so the server subprocess inherits the correct env vars
+  const paths = getWorkspacePaths({baseWorkspacePath: input.baseWorkspacePath});
+  setEnvironment({baseWorkspacePath: input.baseWorkspacePath});
+
   yield createLogEvent('Connecting to OpenCode server', 'debug');
   let connection;
   try {
@@ -95,9 +100,6 @@ export async function* executeOpencodeQuery(
     yield errorEventFromError(error, 'CONNECTION_ERROR');
     throw error;
   }
-
-  const paths = getWorkspacePaths({baseWorkspacePath: input.baseWorkspacePath});
-  setEnvironment({baseWorkspacePath: input.baseWorkspacePath});
 
   const client = connection.client;
 
