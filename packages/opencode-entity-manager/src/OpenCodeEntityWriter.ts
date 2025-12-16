@@ -161,26 +161,34 @@ export class OpenCodeEntityWriter {
     let fileContent = rule.content;
 
     await writeFile(filePath, fileContent, "utf-8");
+
+    await this.addInstructionFiles([`${rulesDir}/**/*.md`]);
     return { path: filePath, created: true };
   }
 
   /**
-   * Write skill instructions to .opencode/SKILLS.md
+   * Write skill instructions to .opencode/rules/SKILLS-INSTRUCTIONS.md
    */
   async writeSkillsInstructions(skills: Skill[]): Promise<WriteResult> {
-    const filePath = getSkillsMdPath(this.configDirectory);
-
+    // const filePath = getSkillsMdPath(this.configDirectory);
     if (skills.length === 0) {
-      return { path: filePath, created: false };
+      return { path: "", created: false };
     }
 
-    await ensureDir(this.configDirectory);
+    const rulesDir = getRulesDir(this.configDirectory);
+    await ensureDir(rulesDir);
+
     const content = formatSkillsMd(skills);
-    await writeFile(filePath, content, "utf-8");
 
-    await this.addInstructionFiles([filePath]);
-
-    return { path: filePath, created: true };
+    this.writeRule({
+      name: "SKILLS-INSTRUCTIONS",
+      content: content,
+      metadata: {
+        description: "Skills instructions",
+        tags: ["skills"],
+      },
+    })
+    return { path: `${rulesDir}/SKILLS-INSTRUCTIONS.md`, created: true };
   }
 
   /**

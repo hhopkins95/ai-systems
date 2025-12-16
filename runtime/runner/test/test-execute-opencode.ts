@@ -28,7 +28,7 @@ function generateSessionId(): string {
 // Configuration - Edit these as needed
 // ============================================================================
 
-const PROMPT = 'What is your cwd? What files do you see there?';
+const PROMPT = 'What is your cwd? What files do you see there? What skills do you have? Do you have anything that says "test skill" in it? Do you see a particular set of skills instructions in your context? And lastly, what is the test key? I put a test key in your context. Please just tell me what it says';
 const MODEL = 'big-pickle';
 
 // ============================================================================

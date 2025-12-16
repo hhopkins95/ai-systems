@@ -47,5 +47,5 @@ export function getAgentsMdPath(projectDir: string): string {
  * Get the SKILLS.md file path (.opencode/SKILLS.md)
  */
 export function getSkillsMdPath(opencodeDir: string): string {
-  return join(opencodeDir, "SKILLS.md");
+  return join(getRulesDir(opencodeDir), "SKILLS-INSTRUCTIONS.md");
 }

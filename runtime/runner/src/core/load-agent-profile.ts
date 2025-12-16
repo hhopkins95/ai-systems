@@ -4,19 +4,16 @@
  * Sets up the environment with agent profile entities, plugins, and MCP servers.
  */
 
-import { mkdir, writeFile } from 'fs/promises';
-import path from 'path';
-import os from 'os';
-import { exec } from 'child_process';
+import { OpenCodeEntityWriter } from '@ai-systems/opencode-entity-manager';
 import type {
   AgentArchitecture,
   AgentProfile,
-  ClaudeMcpJsonConfig,
-  McpServer,
-  OpencodeSettings,
+  McpServer
 } from '@ai-systems/shared-types';
 import { ClaudeEntityManager } from '@hhopkins/claude-entity-manager';
-import { OpenCodeEntityWriter } from '@ai-systems/opencode-entity-manager';
+import { exec } from 'child_process';
+import { mkdir, writeFile } from 'fs/promises';
+import path from 'path';
 import { getWorkspacePaths } from '../helpers/get-workspace-paths';
 import { setEnvironment } from '../helpers/set-environment';
 
