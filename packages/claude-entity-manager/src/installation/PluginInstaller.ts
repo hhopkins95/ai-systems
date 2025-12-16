@@ -1,55 +1,63 @@
 import { ClaudePluginInstallSource, ClaudePluginMarketplaceSource } from "@ai-systems/shared-types";
 import { exec } from "child_process";
 import { rm } from "fs/promises";
+import { promisify } from "util";
+import { MarketplaceRegistryService } from "../registry/MarketplaceRegistry.js";
 import { PluginRegistryService } from "../registry/PluginRegistry.js";
-import type {
-  PluginInstallResult
-} from "../types.js";
+
+const execAsync = promisify(exec);
 
 /**
  * Service for installing plugins from various sources
  */
 export class PluginInstaller {
   private pluginRegistry: PluginRegistryService;
+  private marketplaceRegistry: MarketplaceRegistryService;
 
   constructor(private claudeDir: string) {
     this.pluginRegistry = new PluginRegistryService(claudeDir);
+    this.marketplaceRegistry = new MarketplaceRegistryService(claudeDir);
   }
 
   /**
    * Install a plugin from various sources
    */
-  async install(
-    source: ClaudePluginInstallSource,
-  ): Promise<void> {
-
-    // verify that the marketplace is installed 
+  async install(source: ClaudePluginInstallSource): Promise<void> {
+    // Ensure marketplace is installed first
     await this.installMarketplace(source.marketplace);
 
-    // install the plugin
-    await exec(`claude plugin install ${source.pluginName}@${source.marketplace.name}`);
-    
+    // Install the plugin
+    const { stderr } = await execAsync(
+      `claude plugin install ${source.pluginName}@${source.marketplace.name}`
+    );
+    if (stderr) {
+      throw new Error(`Failed to install plugin: ${stderr}`);
+    }
   }
-  
-
 
   async installMarketplace(source: ClaudePluginMarketplaceSource): Promise<void> {
+    // Check if already installed
+    const isInstalled = await this.marketplaceRegistry.isRegistered(source.name);
+    if (isInstalled) {
+      return;
+    }
+
+    // Build source string for CLI
     let sourceString = "";
-    if (source.type == "github") { 
+    if (source.type === "github") {
       sourceString = `${source.gitOwner}/${source.gitRepo}`;
-    } else if (source.type == "local") {
+    } else if (source.type === "local") {
       sourceString = source.path;
-    } else if (source.type == "url") {
+    } else if (source.type === "url") {
       sourceString = source.url;
     }
 
-    // exec 'claude plugin marketplace install <source>'
-    const result = await exec(`claude plugin marketplace install ${sourceString}`);
-
-    if (result.stderr) {
-      throw new Error(`Failed to install marketplace: ${result.stderr}`);
+    const { stderr } = await execAsync(
+      `claude plugin marketplace add ${sourceString}`
+    );
+    if (stderr) {
+      throw new Error(`Failed to install marketplace: ${stderr}`);
     }
-
   }
 
   /**
@@ -77,7 +85,16 @@ export class PluginInstaller {
   /**
    * Update a plugin
    */
-  async update(plugin : ClaudePluginInstallSource | string): Promise<void> {
-
+  async update(plugin: ClaudePluginInstallSource | string): Promise<void> {
+    if (typeof plugin === "string") {
+      // Plugin ID string like "pluginName@marketplace"
+      const { stderr } = await execAsync(`claude plugin update ${plugin}`);
+      if (stderr) {
+        throw new Error(`Failed to update plugin: ${stderr}`);
+      }
+    } else {
+      // Re-install to update
+      await this.install(plugin);
+    }
   }
 }

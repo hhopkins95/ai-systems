@@ -50,7 +50,6 @@ export { MarketplaceRegistryService } from "./registry/MarketplaceRegistry.js";
 export { SettingsManager } from "./registry/SettingsManager.js";
 
 export { PluginInstaller } from "./installation/PluginInstaller.js";
-export { SourceParser } from "./installation/SourceParser.js";
 export { EntityWriter, type WriteResult, type WriteEntitiesOptions, type McpServerInput } from "./installation/EntityWriter.js";
 
 // Utility exports

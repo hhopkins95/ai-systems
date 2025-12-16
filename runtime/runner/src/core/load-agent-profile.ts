@@ -18,6 +18,7 @@ import type {
 import { ClaudeEntityManager } from '@hhopkins/claude-entity-manager';
 import { OpenCodeEntityWriter } from '@ai-systems/opencode-entity-manager';
 import { getWorkspacePaths } from '../helpers/get-workspace-paths';
+import { setEnvironment } from '../helpers/set-environment';
 
 
 /**
@@ -58,6 +59,8 @@ export async function loadAgentProfile(
 
 
   const paths = getWorkspacePaths({baseWorkspacePath: input.baseWorkspacePath});
+  // set env
+  setEnvironment({baseWorkspacePath : input.baseWorkspacePath})
 
 
   try {

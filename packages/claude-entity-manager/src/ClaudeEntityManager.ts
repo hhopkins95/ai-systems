@@ -570,13 +570,6 @@ export class ClaudeEntityManager {
 
   // ==================== PLUGIN INSTALLATION ====================
 
-  // /**
-  //  * Parse an install source string
-  //  */
-  // parseInstallSource(source: string): ClaudePluginInstallSource {
-  //   return this.sourceParser.parse(source);
-  // }
-
   /**
    * Install a plugin
    */
@@ -593,7 +586,6 @@ export class ClaudeEntityManager {
     source: ClaudePluginMarketplaceSource,
   ): Promise<void> {
     return this.pluginInstaller.installMarketplace(source);
-
   }
 
   /**

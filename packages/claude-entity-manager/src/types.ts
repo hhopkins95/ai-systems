@@ -4,6 +4,9 @@ import type {
   ClaudePluginMarketplaceSource,
 } from "@ai-systems/shared-types";
 
+// Re-export for external consumers
+export type { ClaudePluginMarketplaceSource } from "@ai-systems/shared-types";
+
 // ==================== PLUGIN MANIFEST ====================
 
 /**
