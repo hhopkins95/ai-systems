@@ -1,9 +1,9 @@
 /**
- * OpenCode SDK client with lazy initialization.
+ * OpenCode SDK client management.
  *
- * The client is created on first use and reused across calls.
- * For local execution, tries to connect to existing server first
- * before starting a new one.
+ * Supports two modes:
+ * 1. Shared connection (legacy) - cached, tries to reuse existing server
+ * 2. Isolated server per request - fresh server with specific config, no caching
  */
 
 import { type createOpencode as CreateOpencodeType, createOpencodeClient} from '@opencode-ai/sdk/v2';
@@ -17,12 +17,21 @@ type OpencodeServer = OpencodeResult['server'];
 export interface OpencodeConnection {
   client: OpencodeClient;
   server: OpencodeServer | undefined;
+  /** Close the server when done (for isolated servers) */
+  close: () => void;
 }
 
 let connectionPromise: Promise<OpencodeConnection> | null = null;
 
 export interface OpencodeClientOptions {
   hostname?: string;
+  port?: number;
+}
+
+export interface IsolatedServerOptions {
+  /** Path to opencode.json config file */
+  configPath: string;
+  /** Port for the server (defaults to random available port via 0) */
   port?: number;
 }
 
@@ -89,6 +98,7 @@ export async function getOpencodeConnection(
         return {
           client: existingClient,
           server: undefined, // We didn't start this server, so don't track it
+          close: () => {}, // No-op for existing servers
         };
       }
 
@@ -110,6 +120,7 @@ export async function getOpencodeConnection(
         return {
           client: result.client,
           server: result.server,
+          close: () => result.server?.close(),
         };
       } catch (error) {
         const msg = error instanceof Error ? error.message : String(error);
@@ -137,5 +148,50 @@ export async function closeOpencodeServer(): Promise<void> {
     const connection = await connectionPromise;
     connection.server?.close();
     connectionPromise = null;
+  }
+}
+
+/**
+ * Create an isolated OpenCode server with specific config.
+ *
+ * This starts a fresh server with the given config file, without caching.
+ * The server should be closed when done using connection.close().
+ *
+ * Use this for test isolation or when you need specific config per request.
+ */
+export async function createIsolatedServer(
+  options: IsolatedServerOptions
+): Promise<OpencodeConnection> {
+  const { configPath, port = 0 } = options;
+
+  // Set config env var before starting server - server subprocess inherits it
+  process.env.OPENCODE_CONFIG = configPath;
+
+  writeStreamEvent(createLogEvent(`Creating isolated OpenCode server with config: ${configPath}`, 'debug'));
+
+  try {
+    const { createOpencode } = await import('@opencode-ai/sdk/v2');
+
+    const result = await createOpencode({
+      hostname: '127.0.0.1',
+      port,
+    });
+
+    writeStreamEvent(createLogEvent(`Isolated OpenCode server started on port ${result.server?.port}`, 'info'));
+
+    await authenticate(result.client);
+
+    return {
+      client: result.client,
+      server: result.server,
+      close: () => {
+        writeStreamEvent(createLogEvent('Closing isolated OpenCode server', 'debug'));
+        result.server?.close();
+      },
+    };
+  } catch (error) {
+    const msg = error instanceof Error ? error.message : String(error);
+    writeStreamEvent(createLogEvent(`Failed to start isolated OpenCode server: ${msg}`, 'error'));
+    throw error;
   }
 }

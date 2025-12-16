@@ -11,12 +11,11 @@ import { exec } from 'child_process';
 import { promisify } from 'util';
 import { createStreamEventParser } from '@hhopkins/agent-converters/opencode';
 import type { StreamEvent, UserMessageBlock } from '@ai-systems/shared-types';
-import { getOpencodeConnection } from '../clients/opencode.js';
+import { createIsolatedServer } from '../clients/opencode.js';
 import { emptyAsyncIterable, createMessageChannel } from '../clients/channel.js';
 import { createLogEvent, createErrorEvent, errorEventFromError } from '../helpers/create-stream-events.js';
 import type { ExecuteQueryArgs } from '../types.js';
 import { getWorkspacePaths } from '../helpers/get-workspace-paths.js';
-import { setEnvironment } from '../helpers/set-environment.js';
 
 const execAsync = promisify(exec);
 
@@ -86,16 +85,17 @@ export async function* executeOpencodeQuery(
     throw new Error('Model is required for opencode architecture (format: provider/model)');
   }
 
-  // Set up workspace paths and environment BEFORE connecting to server
-  // so the server subprocess inherits the correct env vars
+  // Set up workspace paths
   const paths = getWorkspacePaths({baseWorkspacePath: input.baseWorkspacePath});
-  setEnvironment({baseWorkspacePath: input.baseWorkspacePath});
 
-  yield createLogEvent('Connecting to OpenCode server', 'debug');
+  // Create isolated server with specific config for this workspace
+  yield createLogEvent('Creating isolated OpenCode server', 'debug');
   let connection;
   try {
-    connection = await getOpencodeConnection();
-    yield createLogEvent('Connected to OpenCode server', 'debug');
+    connection = await createIsolatedServer({
+      configPath: paths.opencodeConfigFile,
+    });
+    yield createLogEvent('Isolated OpenCode server started', 'debug');
   } catch (error) {
     yield errorEventFromError(error, 'CONNECTION_ERROR');
     throw error;
@@ -134,8 +134,7 @@ export async function* executeOpencodeQuery(
       let sawActivity = false;
 
       for await (const event of eventResult.stream) {
-        console.log("Received event:", event.type);
-        // Debug: log raw event type and session
+        // Extract session ID from event
         const eventSessionId = (event as any).properties?.sessionID
           || (event as any).properties?.part?.sessionID
           || (event as any).properties?.info?.sessionID;
@@ -182,12 +181,9 @@ export async function* executeOpencodeQuery(
   } catch (error) {
     yield errorEventFromError(error, 'QUERY_EXECUTION_ERROR');
     throw error;
+  } finally {
+    // Always close the isolated server when done
+    yield createLogEvent('Closing isolated OpenCode server', 'debug');
+    connection.close();
   }
-
-  // Note: We don't close the server here anymore to allow sharing
-  // between multiple local sessions. The server will be cleaned up
-  // when the process exits.
-
-  // Note: streaming input mode with messages will be implemented
-  // when needed. For now, we use single-prompt mode.
 }
