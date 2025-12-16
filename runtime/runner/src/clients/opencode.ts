@@ -6,7 +6,7 @@
  * before starting a new one.
  */
 
-import type { createOpencode as CreateOpencodeType } from '@opencode-ai/sdk';
+import { type createOpencode as CreateOpencodeType, createOpencodeClient} from '@opencode-ai/sdk';
 import { writeStreamEvent } from '../cli/shared/output.js';
 import { createLogEvent } from '../helpers/create-stream-events.js';
 
@@ -33,9 +33,8 @@ async function tryConnectExisting(baseUrl: string): Promise<OpencodeClient | nul
   writeStreamEvent(createLogEvent(`Checking for existing OpenCode server at ${baseUrl}`, 'debug'));
 
   try {
-    const { createOpencodeClient } = await import('@opencode-ai/sdk');
     writeStreamEvent(createLogEvent(`Creating OpenCode client for ${baseUrl}`, 'debug'));
-    const client = createOpencodeClient({ baseUrl });
+    const client = await createOpencodeClient({ baseUrl });
 
     writeStreamEvent(createLogEvent('Testing connection with project.list()', 'debug'));
     const result = await client.project.list();
@@ -64,6 +63,7 @@ export async function getOpencodeConnection(
 ): Promise<OpencodeConnection> {
   if (!connectionPromise) {
     connectionPromise = (async () => {
+
       const hostname = options.hostname ?? '127.0.0.1';
       const port = options.port ?? 4096;
       const baseUrl = `http://${hostname}:${port}`;

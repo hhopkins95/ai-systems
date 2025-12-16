@@ -17,7 +17,6 @@ import { createLogEvent, createErrorEvent, errorEventFromError } from '../helper
 import type { ExecuteQueryArgs } from '../types.js';
 import { getWorkspacePaths } from '../helpers/get-workspace-paths.js';
 import { setEnvironment } from '../helpers/set-environment.js';
-import { createOpencodeClient } from '@opencode-ai/sdk';
 
 const execAsync = promisify(exec);
 
@@ -128,7 +127,9 @@ export async function* executeOpencodeQuery(
     // Start event subscription in parallel (IMPORTANT: must start before prompt)
     // Events are pushed to channel and yielded in real-time below
     const eventPromise = (async () => {
+      console.error('[DEBUG] Starting event subscription...');
       const eventResult = await client.event.subscribe();
+      console.error('[DEBUG] Event subscription started, waiting for events...');
 
       // Track if we've seen any activity for our session
       // We only close on idle AFTER seeing activity to avoid closing on stale idle state
@@ -136,60 +137,64 @@ export async function* executeOpencodeQuery(
 
       for await (const event of eventResult.stream) {
         // Debug: log raw event type and session
-        // sessionID location varies by event type:
-        // - message.updated: properties.info.sessionID
-        // - message.part.updated: properties.part.sessionID
-        // - session.*: properties.sessionID
         const eventSessionId = (event as any).properties?.sessionID
           || (event as any).properties?.part?.sessionID
           || (event as any).properties?.info?.sessionID;
         const isOurSession = eventSessionId === input.sessionId;
 
+        console.error(`[DEBUG] Event: type=${event.type}, sessionID=${eventSessionId}, isOurs=${isOurSession}`);
+
+        // Track activity for our session (non-idle events)
+        if (isOurSession && event.type !== 'session.idle') {
+          sawActivity = true;
+        }
 
         // Convert OpenCode event to StreamEvents using stateful parser
         const streamEvents = parser.parseEvent(event);
+        console.error(`[DEBUG] Parsed ${streamEvents.length} stream events`);
         for (const streamEvent of streamEvents) {
           eventChannel.send(streamEvent);
         }
 
         // Close channel when session goes idle AFTER we've seen activity
         if (event.type === 'session.idle' && isOurSession && sawActivity) {
+          console.error('[DEBUG] Session idle, closing channel');
           eventChannel.close();
           break;
         }
       }
+      console.error('[DEBUG] Event loop ended');
     })();
 
     // Authenticate
     yield createLogEvent('Authenticating with OpenCode', 'debug');
     await client.auth.set({
-      path: { id: 'zen' },
-      body: { type: 'api', key: process.env.OPENCODE_API_KEY || '' },
+      providerID: 'zen',
+      auth: { type: 'api', key: process.env.OPENCODE_API_KEY || '' },
     });
 
     // Send prompt
     yield createLogEvent('Sending prompt to OpenCode', 'debug');
+    console.error('[DEBUG] Calling session.prompt...');
 
     const promptResult = await client.session.prompt({
-      path: { id: input.sessionId },
-      query: { directory: paths.workspaceDir },
-      body: {
-        model: { providerID : "opencode", modelID : "big-pickle" },
-        parts: [{ type: 'text', text: input.prompt }],
-      },
+      sessionID: input.sessionId,
+      directory: paths.workspaceDir,
+      model: { providerID: "opencode", modelID: "big-pickle" },
+      parts: [{ type: 'text', text: input.prompt }],
     });
-
-    console.error('[DEBUG] session.prompt() result:', JSON.stringify(promptResult, null, 2));
+    console.error('[DEBUG] session.prompt returned:', JSON.stringify(promptResult, null, 2));
 
     // Yield events in real-time as they arrive from the channel
+    console.error('[DEBUG] Starting to receive from channel...');
     for await (const event of eventChannel.receive()) {
+      console.error('[DEBUG] Yielding event from channel:', event.type);
       yield event;
     }
+    console.error('[DEBUG] Channel receive loop ended');
 
     // Wait for event subscription to fully complete
-    console.error('[DEBUG] Waiting for eventPromise...');
     await eventPromise;
-    console.error('[DEBUG] eventPromise resolved, generator completing');
 
     yield createLogEvent('OpenCode SDK query completed', 'info', { sessionId: input.sessionId });
   } catch (error) {

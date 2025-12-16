@@ -120,8 +120,6 @@ async function executeQuery() {
         type: "api",
         key: process.env.OPENCODE_API_KEY || "",
       }
-
-
     })
 
 
