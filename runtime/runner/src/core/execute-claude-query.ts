@@ -12,6 +12,9 @@ import { findClaudeExecutable } from '../clients/claude.js';
 import { emptyAsyncIterable } from '../clients/channel.js';
 import { createLogEvent, createErrorEvent, errorEventFromError } from '../helpers/create-stream-events.js';
 import type { ExecuteQueryArgs } from '../types.js';
+import { getWorkspacePaths } from '../helpers/get-workspace-paths.js';
+import path from 'path';
+import fs from 'fs';
 
 /**
  * Check if a Claude SDK session transcript exists.
@@ -33,6 +36,14 @@ export async function* executeClaudeQuery(
   input: ExecuteQueryArgs,
   _messages: AsyncIterable<UserMessageBlock> = emptyAsyncIterable()
 ): AsyncGenerator<StreamEvent> {
+
+  const paths = getWorkspacePaths({baseWorkspacePath: input.baseWorkspacePath});
+
+  // make sure the workspace directory exists
+  if (!fs.existsSync(paths.workspaceDir)) {
+    fs.mkdirSync(paths.workspaceDir, { recursive: true });
+  }
+
   yield createLogEvent('Starting Claude SDK query execution', 'info', {
     sessionId: input.sessionId,
     baseWorkspacePath: input.baseWorkspacePath,
@@ -57,7 +68,7 @@ export async function* executeClaudeQuery(
 
   const options: Options = {
     pathToClaudeCodeExecutable: claudeCodePath,
-    cwd: input.baseWorkspacePath || '/workspace',
+    cwd: paths.workspaceDir,
     settingSources: ['project', 'user'],
     includePartialMessages: true,
     maxBudgetUsd: 5.0,

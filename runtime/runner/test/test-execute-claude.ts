@@ -17,7 +17,7 @@ const TEST_PROJECT_DIR = path.join(TEST_WORKSPACE_ROOT, 'workspace');
 // Configuration - Edit these as needed
 // ============================================================================
 
-const PROMPT = 'What is 2 + 2? Reply with just the number.';
+const PROMPT = 'What skills do you have?';
 
 // ============================================================================
 // Test
@@ -36,7 +36,7 @@ async function main() {
   console.log('');
 
   // Clean and create test workspace
-  await setupTestWorkspace();
+  // await setupTestWorkspace();
 
   const input: ExecuteQueryArgs = {
     prompt: PROMPT,
