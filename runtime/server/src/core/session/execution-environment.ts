@@ -13,7 +13,13 @@ import { logger } from '../../config/logger.js';
 import { deriveSessionPaths, EnvironmentPrimitive, SessionPaths, WatchEvent } from "../../lib/environment-primitives/base";
 import { getEnvironmentPrimitive } from "../../lib/environment-primitives/factory";
 import { RuntimeExecutionEnvironmentOptions } from "../../types/runtime";
-import { getRunnerBundleContent } from "@hhopkins/agent-runner";
+import {
+    getRunnerBundleContent,
+    type LoadAgentProfileInput,
+    type LoadSessionTranscriptInput,
+    type ExecuteQueryArgs,
+    type ReadSessionTranscriptInput,
+} from "@hhopkins/agent-runner";
 import { getAdapterBundleContent } from "@ai-systems/opencode-claude-adapter/bundle";
 import type { SessionEventBus } from "./session-event-bus.js";
 
@@ -106,6 +112,7 @@ export class ExecutionEnvironment {
         const { SESSION_DIR } = primitives.getBasePaths();
         const paths = deriveSessionPaths(SESSION_DIR);
 
+
         // Create session subdirectories
         await Promise.all([
             primitives.createDirectory(paths.appDir),
@@ -184,9 +191,8 @@ export class ExecutionEnvironment {
         }
 
         // 2. Load agent profile via runner
-        const loadProfileInput = {
-            projectDirPath: this.paths.workspaceDir,
-            sessionId: args.sessionId,
+        const loadProfileInput: LoadAgentProfileInput = {
+            baseWorkspacePath: this.paths.sessionDir,
             agentProfile: args.agentProfile,
             architectureType: this.architecture
         };
@@ -210,8 +216,8 @@ export class ExecutionEnvironment {
 
         // 3. Load session transcript if resuming
         if (args.sessionTranscript) {
-            const loadTranscriptInput = {
-                projectDirPath: this.paths.workspaceDir,
+            const loadTranscriptInput: LoadSessionTranscriptInput = {
+                baseWorkspacePath: this.paths.sessionDir,
                 sessionTranscript: args.sessionTranscript,
                 sessionId: args.sessionId,
                 architectureType: this.architecture
@@ -245,11 +251,11 @@ export class ExecutionEnvironment {
         options?: AgentArchitectureSessionOptions;
     }): Promise<void> {
         // Prepare input for stdin
-        const executeInput = {
+        const executeInput: ExecuteQueryArgs = {
             prompt: args.query,
             architecture: this.architecture,
             sessionId: this.sessionId,
-            cwd: this.paths.workspaceDir,
+            baseWorkspacePath: this.paths.sessionDir,
             model: args.options?.model,
         };
 
@@ -432,10 +438,10 @@ export class ExecutionEnvironment {
      */
     async readSessionTranscript(): Promise<string | null> {
         // Prepare input for stdin
-        const readTranscriptInput = {
+        const readTranscriptInput: ReadSessionTranscriptInput = {
+            baseWorkspacePath: this.paths.sessionDir,
             sessionId: this.sessionId,
             architecture: this.architecture,
-            projectDir: this.paths.workspaceDir,
         };
 
         const process = await this.primitives.exec(
