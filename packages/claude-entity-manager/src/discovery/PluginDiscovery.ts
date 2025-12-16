@@ -6,7 +6,6 @@ import type {
   KnownMarketplace,
   Plugin,
   PluginEnabledStatus,
-  PluginSource,
   InstalledPluginInfo,
 } from "../types.js";
 import { EntityDiscovery } from "./EntityDiscovery.js";
@@ -18,7 +17,7 @@ import {
   getMarketplaceManifestPath,
   getCacheDir,
 } from "../utils/paths.js";
-import { McpServerConfig } from "@ai-systems/shared-types";
+import { ClaudePluginMarketplaceSource, McpServerConfig } from "@ai-systems/shared-types";
 
 /**
  * Service for discovering plugins from marketplaces and cache
@@ -265,7 +264,7 @@ export class PluginDiscovery {
           marketplace: marketplaceName,
           description: manifest.description,
           version: manifest.version,
-          source: { type: "directory", path: pluginPath },
+          source: { type: "local", name: manifest.name, path: pluginPath },
           path: pluginPath,
           enabled: enabledStates[pluginId] !== false,
           installationStatus: "installed",
@@ -368,7 +367,7 @@ export class PluginDiscovery {
           description: installInfo
             ? `Installed from ${marketplaceName}`
             : undefined,
-          source: { type: "directory", path: searchPath },
+          source: { type: "local", name: pluginName, path: searchPath },
           path: searchPath,
           enabled: enabledStates[pluginId] !== false,
           installationStatus: "installed",
@@ -444,14 +443,14 @@ export class PluginDiscovery {
    * Resolve a plugin source to a PluginSource object
    */
   private resolveSource(
-    source: string | PluginSource,
+    source: string | ClaudePluginMarketplaceSource,
     baseDir: string
-  ): PluginSource {
+  ): ClaudePluginMarketplaceSource {
     if (typeof source === "string") {
       if (source.startsWith("./")) {
-        return { type: "directory", path: join(baseDir, source) };
+        return { type: "local", name: source, path: join(baseDir, source) };
       }
-      return { type: "url", url: source };
+      return { type: "url", name: source, url: source };
     }
     return source;
   }

@@ -1,36 +1,35 @@
-import { join } from "path";
 import type {
-  Skill,
-  Command,
   Agent,
-  Hook,
-  EntitySource,
   AgentContext,
   AgentContextSources,
-  LoadAgentContextOptions,
-  RuleWithSource,
-  Rule,
-  RuleMetadata,
+  ClaudePluginInstallSource,
+  ClaudePluginMarketplaceSource,
   ClaudeSettings,
+  Command,
+  EntitySource,
+  Hook,
+  LoadAgentContextOptions,
   McpServerWithSource,
-  ClaudePluginInstallSource
+  Rule,
+  RuleWithSource,
+  Skill
 } from "@ai-systems/shared-types";
-import type { ClaudeEntityManagerOptions, PluginInstallOptions, PluginInstallResult, KnownMarketplacesRegistry, MarketplaceManifest, PluginRegistry, Plugin, PluginSource, EntityScope } from "./types.js"
-import { getClaudeDir, getProjectClaudeDir } from "./utils/paths.js";
-import { SkillLoader } from "./loaders/SkillLoader.js";
-import { CommandLoader } from "./loaders/CommandLoader.js";
-import { AgentLoader } from "./loaders/AgentLoader.js";
-import { HookLoader } from "./loaders/HookLoader.js";
-import { RulesLoader } from "./loaders/RulesLoader.js";
-import { MCPLoader } from "./loaders/MCPLoader.js";
-import { SessionLoader, type SessionMetadata, type ProjectInfo, type ReadSessionOptions, type ParsedJsonlTranscript } from "./loaders/SessionLoader.js";
+import { join } from "path";
 import { PluginDiscovery } from "./discovery/PluginDiscovery.js";
-import { PluginRegistryService } from "./registry/PluginRegistry.js";
-import { MarketplaceRegistryService } from "./registry/MarketplaceRegistry.js";
-import { SettingsManager } from "./registry/SettingsManager.js";
+import { EntityWriter, type McpServerInput, type WriteEntitiesOptions, type WriteResult } from "./installation/EntityWriter.js";
 import { PluginInstaller } from "./installation/PluginInstaller.js";
-import { SourceParser } from "./installation/SourceParser.js";
-import { EntityWriter, type WriteResult, type WriteEntitiesOptions, type McpServerInput } from "./installation/EntityWriter.js";
+import { AgentLoader } from "./loaders/AgentLoader.js";
+import { CommandLoader } from "./loaders/CommandLoader.js";
+import { HookLoader } from "./loaders/HookLoader.js";
+import { MCPLoader } from "./loaders/MCPLoader.js";
+import { RulesLoader } from "./loaders/RulesLoader.js";
+import { SessionLoader, type ParsedJsonlTranscript, type ProjectInfo, type ReadSessionOptions, type SessionMetadata } from "./loaders/SessionLoader.js";
+import { SkillLoader } from "./loaders/SkillLoader.js";
+import { MarketplaceRegistryService } from "./registry/MarketplaceRegistry.js";
+import { PluginRegistryService } from "./registry/PluginRegistry.js";
+import { SettingsManager } from "./registry/SettingsManager.js";
+import type { ClaudeEntityManagerOptions, EntityScope, KnownMarketplacesRegistry, MarketplaceManifest, Plugin, PluginInstallOptions, PluginInstallResult, PluginRegistry } from "./types.js";
+import { getClaudeDir, getProjectClaudeDir } from "./utils/paths.js";
 
 /**
  * Main service class for discovering and managing Claude Code entities
@@ -55,7 +54,6 @@ export class ClaudeEntityManager {
   private marketplaceRegistry: MarketplaceRegistryService;
   private settingsManager: SettingsManager;
   private pluginInstaller: PluginInstaller;
-  private sourceParser: SourceParser;
   private globalEntityWriter?: EntityWriter;
   private projectEntityWriter?: EntityWriter;
 
@@ -79,7 +77,6 @@ export class ClaudeEntityManager {
     this.marketplaceRegistry = new MarketplaceRegistryService(this.claudeDir);
     this.settingsManager = new SettingsManager(this.claudeDir, this.projectDir);
     this.pluginInstaller = new PluginInstaller(this.claudeDir);
-    this.sourceParser = new SourceParser();
   }
 
   // ==================== ENTITY LOADING ====================
@@ -573,31 +570,30 @@ export class ClaudeEntityManager {
 
   // ==================== PLUGIN INSTALLATION ====================
 
-  /**
-   * Parse an install source string
-   */
-  parseInstallSource(source: string): ClaudePluginInstallSource {
-    return this.sourceParser.parse(source);
-  }
+  // /**
+  //  * Parse an install source string
+  //  */
+  // parseInstallSource(source: string): ClaudePluginInstallSource {
+  //   return this.sourceParser.parse(source);
+  // }
 
   /**
    * Install a plugin
    */
   async installPlugin(
-    source: string | ClaudePluginInstallSource,
-    options?: PluginInstallOptions
-  ): Promise<PluginInstallResult> {
-    return this.pluginInstaller.install(source, options);
+    source: ClaudePluginInstallSource,
+  ): Promise<void> {
+    return this.pluginInstaller.install(source);
   }
 
   /**
    * Install a marketplace
    */
   async installMarketplace(
-    source: string | PluginSource,
-    name: string
-  ): Promise<PluginInstallResult> {
-    return this.pluginInstaller.installMarketplace(source, name);
+    source: ClaudePluginMarketplaceSource,
+  ): Promise<void> {
+    return this.pluginInstaller.installMarketplace(source);
+
   }
 
   /**
@@ -610,25 +606,20 @@ export class ClaudeEntityManager {
   /**
    * Update a plugin
    */
-  async updatePlugin(pluginId: string): Promise<PluginInstallResult> {
+  async updatePlugin(pluginId: string): Promise<void> {
     return this.pluginInstaller.update(pluginId);
   }
 
   /**
    * Update all plugins
    */
-  async updateAllPlugins(): Promise<PluginInstallResult[]> {
+  async updateAllPlugins(): Promise<void> {
     const plugins = await this.discoverPlugins();
-    const results: PluginInstallResult[] = [];
-
     for (const plugin of plugins) {
       if (plugin.installInfo && !plugin.installInfo.isLocal) {
-        const result = await this.updatePlugin(plugin.id);
-        results.push(result);
+        await this.updatePlugin(plugin.id);
       }
     }
-
-    return results;
   }
 
   // ==================== REGISTRY ACCESS ====================

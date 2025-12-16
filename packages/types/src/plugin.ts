@@ -7,8 +7,23 @@
  * - github: Install from a GitHub repository
  * - url: Install from a git URL
  */
-export type ClaudePluginInstallSource =
-  | { type: "marketplace"; pluginName: string; marketplaceName: string }
-  | { type: "local"; path: string }
-  | { type: "github"; owner: string; repo: string }
-  | { type: "url"; url: string };
+export type ClaudePluginInstallSource = {
+  marketplace : ClaudePluginMarketplaceSource, 
+  pluginName : string
+}
+
+
+export type ClaudePluginMarketplaceSource = {
+  type : "github",
+  name : string, 
+  gitOwner : string,
+  gitRepo : string
+} | { 
+  type : "local",
+  name : string, 
+  path : string
+} | {
+  type : "url",
+  name : string, 
+  url : string
+}

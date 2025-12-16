@@ -1,9 +1,9 @@
 import { readFile, writeFile, mkdir } from "fs/promises";
 import { dirname } from "path";
+import { ClaudePluginMarketplaceSource } from "@ai-systems/shared-types";
 import type {
   KnownMarketplace,
   KnownMarketplacesRegistry,
-  PluginSource,
 } from "../types.js";
 import { getKnownMarketplacesPath } from "../utils/paths.js";
 
@@ -59,7 +59,7 @@ export class MarketplaceRegistryService {
    */
   async setMarketplace(
     name: string,
-    source: PluginSource,
+    source: ClaudePluginMarketplaceSource,
     installLocation: string
   ): Promise<void> {
     const marketplaces = await this.getMarketplaces();

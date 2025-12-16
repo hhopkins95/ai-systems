@@ -1,6 +1,7 @@
 // Import types we need for local types
 import type {
   McpServerConfig,
+  ClaudePluginMarketplaceSource,
 } from "@ai-systems/shared-types";
 
 // ==================== PLUGIN MANIFEST ====================
@@ -32,7 +33,7 @@ export interface MarketplacePlugin {
   description?: string;
   version?: string;
   author?: string | { name: string; email?: string };
-  source: string | PluginSource;
+  source: string | ClaudePluginMarketplaceSource;
   category?: string;
   strict?: boolean;
   skills?: string[];
@@ -89,7 +90,7 @@ export interface PluginRegistry {
  * Known marketplace entry from known_marketplaces.json
  */
 export interface KnownMarketplace {
-  source: PluginSource;
+  source: ClaudePluginMarketplaceSource;
   installLocation: string;
   lastUpdated: string;
 }
@@ -164,14 +165,6 @@ export type PluginEnabledStatus =
   | "explicit-enabled";
 
 /**
- * Plugin source - where the plugin physically lives (internal type)
- */
-export type PluginSource =
-  | { type: "github"; repo: string; owner: string }
-  | { type: "url"; url: string }
-  | { type: "directory"; path: string };
-
-/**
  * A discovered plugin with all computed states
  */
 export interface Plugin {
@@ -187,7 +180,7 @@ export interface Plugin {
   version?: string;
 
   /** Source for installation */
-  source: PluginSource;
+  source: ClaudePluginMarketplaceSource;
 
   /** Absolute path to plugin directory */
   path: string;
@@ -228,7 +221,7 @@ export interface Marketplace {
   /** Name of the marketplace */
   name: string;
   /** Source configuration */
-  source: PluginSource;
+  source: ClaudePluginMarketplaceSource;
   /** Where the marketplace is installed locally */
   installLocation: string;
   /** ISO timestamp of last update */

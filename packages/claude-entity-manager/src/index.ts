@@ -8,7 +8,7 @@ export type {
   MarketplaceManifest,
   MarketplacePlugin,
   Plugin,
-  PluginSource,
+  ClaudePluginMarketplaceSource as PluginSource,
 
   // Registry types
   PluginRegistry,
