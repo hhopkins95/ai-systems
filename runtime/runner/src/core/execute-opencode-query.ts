@@ -160,10 +160,10 @@ export async function* executeOpencodeQuery(
       }
     })();
 
-    // Send prompt (subscription is definitely established now)
+    // Send prompt (don't await - let it run while we yield events)
     yield createLogEvent('Sending prompt to OpenCode', 'debug', { sessionId: input.sessionId });
 
-    await client.session.prompt({
+    const promptPromise = client.session.prompt({
       sessionID: input.sessionId,
       directory: paths.workspaceDir,
       model: { providerID: "opencode", modelID: "big-pickle" },
@@ -175,7 +175,8 @@ export async function* executeOpencodeQuery(
       yield event;
     }
 
-    // Wait for event subscription to fully complete
+    // Wait for prompt and event subscription to fully complete
+    await promptPromise;
     await eventPromise;
 
     yield createLogEvent('OpenCode SDK query completed', 'info', { sessionId: input.sessionId });
