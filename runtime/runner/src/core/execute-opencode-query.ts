@@ -144,22 +144,6 @@ export async function* executeOpencodeQuery(
           || (event as any).properties?.info?.sessionID;
         const isOurSession = eventSessionId === input.sessionId;
 
-        console.error(`[DEBUG] Event: ${event.type}, sessionId: ${eventSessionId}, isOurs: ${isOurSession}, sawActivity: ${sawActivity}`);
-
-        // Log full event for message.part.updated to see delta and content
-        if (event.type === 'message.part.updated') {
-          console.error(`[DEBUG] Full message.part.updated:`, JSON.stringify(event, null, 2));
-        }
-
-        // Track activity - any message event for our session means processing started
-        if (isOurSession && (
-          event.type === 'message.updated' ||
-          event.type === 'message.part.updated' ||
-          (event.type === 'session.status' && (event as any).properties?.status?.type === 'busy')
-        )) {
-          sawActivity = true;
-          console.error(`[DEBUG] Saw activity!`);
-        }
 
         // Convert OpenCode event to StreamEvents using stateful parser
         const streamEvents = parser.parseEvent(event);
@@ -169,7 +153,6 @@ export async function* executeOpencodeQuery(
 
         // Close channel when session goes idle AFTER we've seen activity
         if (event.type === 'session.idle' && isOurSession && sawActivity) {
-          console.error(`[DEBUG] Closing channel - session idle after activity`);
           eventChannel.close();
           break;
         }

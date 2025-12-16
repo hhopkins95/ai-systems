@@ -28,7 +28,7 @@ function generateSessionId(): string {
 // Configuration - Edit these as needed
 // ============================================================================
 
-const PROMPT = 'Tell me about opencode';
+const PROMPT = 'What is your cwd? What files do you see there?';
 const MODEL = 'big-pickle';
 
 // ============================================================================
