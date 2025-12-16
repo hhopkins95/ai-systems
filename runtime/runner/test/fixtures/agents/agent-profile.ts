@@ -45,7 +45,8 @@ export const TestAgentProfile: AgentProfile = {
             name: "test-skill",
             content: "echo 'Hello, world!'",
             metadata: {
-                description: "A test skill",
+                name : " Test Skill",
+                description: "A test skill for testing the tests of the skill.",
                 tags: ["test"],
             },
             files: ["test.txt"],

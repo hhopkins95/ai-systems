@@ -15,7 +15,7 @@ import { readFile } from 'fs/promises';
 import { execFile } from 'child_process';
 import { promisify } from 'util';
 import { loadSessionTranscript, readSessionTranscript } from '../src/core/index.js';
-import { setupTestWorkspace, TEST_PROJECT_DIR } from './test-setup.js';
+import { setupTestWorkspace, TEST_WORKSPACE_ROOT } from './test-setup.js';
 
 const execFileAsync = promisify(execFile);
 
@@ -55,7 +55,7 @@ async function main() {
   console.log('Test: Load and Export OpenCode Session Transcript');
   console.log('='.repeat(60));
   console.log(`Session: ${SESSION_ID}`);
-  console.log(`Project Dir: ${TEST_PROJECT_DIR}`);
+  console.log(`Workspace Root: ${TEST_WORKSPACE_ROOT}`);
   console.log('='.repeat(60));
   console.log('');
 
@@ -68,7 +68,7 @@ async function main() {
   }
 
   // Clean and create test workspace
-  await setupTestWorkspace();
+  // await setupTestWorkspace();
 
   const startTime = Date.now();
 
@@ -85,7 +85,7 @@ async function main() {
     console.log('Step 1: Importing transcript via OpenCode CLI...');
 
     const loadResult = await loadSessionTranscript({
-      projectDirPath: TEST_PROJECT_DIR,
+      baseWorkspacePath: TEST_WORKSPACE_ROOT,
       sessionId: SESSION_ID,
       sessionTranscript: fixtureContent,
       architectureType: 'opencode',
@@ -104,7 +104,7 @@ async function main() {
     const readResult = await readSessionTranscript({
       sessionId: SESSION_ID,
       architecture: 'opencode',
-      projectDir: TEST_PROJECT_DIR,
+      baseWorkspacePath: TEST_WORKSPACE_ROOT,
     });
 
     if (!readResult.success || !readResult.transcript) {
