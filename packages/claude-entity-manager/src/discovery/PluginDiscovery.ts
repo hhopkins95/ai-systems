@@ -130,6 +130,11 @@ export class PluginDiscovery {
     for (const pluginEntry of manifest.plugins) {
       const pluginId = `${pluginEntry.name}@${marketplaceName}`;
 
+      // Skip if not in installed_plugins.json
+      if (!installedPlugins.has(pluginId)) {
+        continue;
+      }
+
       // Resolve plugin path
       let pluginPath: string;
       if (
