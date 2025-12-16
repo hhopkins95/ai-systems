@@ -75,8 +75,17 @@ async function main() {
       eventCount++;
 
       console.log(JSON.stringify(event, null, 2));
-    
+
   }
+
+  const duration = Date.now() - startTime;
+  console.log('\n');
+  console.log('='.repeat(60));
+  console.log(`PASS - ${eventCount} events in ${duration}ms`);
+  console.log('='.repeat(60));
+
+  // Exit explicitly - the OpenCode server connection keeps the process alive otherwise
+  process.exit(0);
 }
 
 main();

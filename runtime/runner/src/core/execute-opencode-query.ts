@@ -11,7 +11,7 @@ import { exec } from 'child_process';
 import { promisify } from 'util';
 import { createStreamEventParser } from '@hhopkins/agent-converters/opencode';
 import type { StreamEvent, UserMessageBlock } from '@ai-systems/shared-types';
-import { getOpencodeConnection } from '../clients/opencode.js';
+import { getOpencodeConnection, closeOpencodeServer } from '../clients/opencode.js';
 import { emptyAsyncIterable, createMessageChannel } from '../clients/channel.js';
 import { createLogEvent, createErrorEvent, errorEventFromError } from '../helpers/create-stream-events.js';
 import type { ExecuteQueryArgs } from '../types.js';
@@ -202,7 +202,9 @@ export async function* executeOpencodeQuery(
     }
 
     // Wait for event subscription to fully complete
+    console.error('[DEBUG] Waiting for eventPromise...');
     await eventPromise;
+    console.error('[DEBUG] eventPromise resolved, generator completing');
 
     yield createLogEvent('OpenCode SDK query completed', 'info', { sessionId: input.sessionId });
   } catch (error) {
