@@ -85,11 +85,11 @@ export async function* executeOpencodeQuery(
     throw new Error('Model is required for opencode architecture (format: provider/model)');
   }
 
-  const [providerID, modelID] = input.model.split('/');
-  if (!providerID || !modelID) {
-    yield createErrorEvent('Model must be in format provider/model', 'INVALID_INPUT');
-    throw new Error('Model must be in format provider/model (e.g., anthropic/claude-sonnet-4-20250514)');
-  }
+  // const [providerID, modelID] = input.model.split('/');
+  // if (!providerID || !modelID) {
+  //   yield createErrorEvent('Model must be in format provider/model', 'INVALID_INPUT');
+  //   throw new Error('Model must be in format provider/model (e.g., anthropic/claude-sonnet-4-20250514)');
+  // }
 
   yield createLogEvent('Connecting to OpenCode server', 'debug');
   let connection;
@@ -112,7 +112,6 @@ export async function* executeOpencodeQuery(
     // Check if session exists, create if not
     const existingSession = await client.session.get({
       path: { id: input.sessionId },
-      query: { directory: paths.workspaceDir },
     });
 
     if (!existingSession.data) {
@@ -128,19 +127,49 @@ export async function* executeOpencodeQuery(
     // Start event subscription in parallel (IMPORTANT: must start before prompt)
     // Events are pushed to channel and yielded in real-time below
     const eventPromise = (async () => {
-      const eventResult = await client.event.subscribe({
-        query: { directory: paths.workspaceDir },
-      });
+      const eventResult = await client.event.subscribe();
+
+      // Track if we've seen any activity for our session
+      // We only close on idle AFTER seeing activity to avoid closing on stale idle state
+      let sawActivity = false;
 
       for await (const event of eventResult.stream) {
+        // Debug: log raw event type and session
+        // sessionID location varies by event type:
+        // - message.updated: properties.info.sessionID
+        // - message.part.updated: properties.part.sessionID
+        // - session.*: properties.sessionID
+        const eventSessionId = (event as any).properties?.sessionID
+          || (event as any).properties?.part?.sessionID
+          || (event as any).properties?.info?.sessionID;
+        const isOurSession = eventSessionId === input.sessionId;
+
+        console.error(`[DEBUG] Event: ${event.type}, sessionId: ${eventSessionId}, isOurs: ${isOurSession}, sawActivity: ${sawActivity}`);
+
+        // Log full event for message.part.updated to see delta and content
+        if (event.type === 'message.part.updated') {
+          console.error(`[DEBUG] Full message.part.updated:`, JSON.stringify(event, null, 2));
+        }
+
+        // Track activity - any message event for our session means processing started
+        if (isOurSession && (
+          event.type === 'message.updated' ||
+          event.type === 'message.part.updated' ||
+          (event.type === 'session.status' && (event as any).properties?.status?.type === 'busy')
+        )) {
+          sawActivity = true;
+          console.error(`[DEBUG] Saw activity!`);
+        }
+
         // Convert OpenCode event to StreamEvents using stateful parser
         const streamEvents = parser.parseEvent(event);
         for (const streamEvent of streamEvents) {
           eventChannel.send(streamEvent);
         }
 
-        // Close channel when session goes idle
-        if (event.type === 'session.idle' && event.properties.sessionID === input.sessionId) {
+        // Close channel when session goes idle AFTER we've seen activity
+        if (event.type === 'session.idle' && isOurSession && sawActivity) {
+          console.error(`[DEBUG] Closing channel - session idle after activity`);
           eventChannel.close();
           break;
         }
@@ -152,21 +181,20 @@ export async function* executeOpencodeQuery(
     await client.auth.set({
       path: { id: 'zen' },
       body: { type: 'api', key: process.env.OPENCODE_API_KEY || '' },
-      query: { directory: paths.workspaceDir },
     });
 
     // Send prompt
     yield createLogEvent('Sending prompt to OpenCode', 'debug');
 
-    await client.session.prompt({
+    const promptResult = await client.session.prompt({
       path: { id: input.sessionId },
-      query: { directory: paths.workspaceDir },
-
       body: {
-        model: { providerID, modelID },
+        model: { providerID : "opencode", modelID : "big-pickle" },
         parts: [{ type: 'text', text: input.prompt }],
       },
     });
+
+    console.error('[DEBUG] session.prompt() result:', JSON.stringify(promptResult, null, 2));
 
     // Yield events in real-time as they arrive from the channel
     for await (const event of eventChannel.receive()) {

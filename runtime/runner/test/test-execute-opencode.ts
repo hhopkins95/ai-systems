@@ -28,8 +28,8 @@ function generateSessionId(): string {
 // Configuration - Edit these as needed
 // ============================================================================
 
-const PROMPT = 'What is 2 + 2? Reply with just the number.';
-const MODEL = 'anthropic/claude-sonnet-4-20250514';
+const PROMPT = 'Tell me about opencode';
+const MODEL = 'big-pickle';
 
 // ============================================================================
 // Test
