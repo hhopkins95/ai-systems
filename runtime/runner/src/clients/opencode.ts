@@ -177,7 +177,7 @@ export async function createIsolatedServer(
       port,
     });
 
-    writeStreamEvent(createLogEvent(`Isolated OpenCode server started on port ${result.server?.port}`, 'info'));
+    writeStreamEvent(createLogEvent(`Isolated OpenCode server started at ${result.server?.url}`, 'info'));
 
     await authenticate(result.client);
 

@@ -123,12 +123,13 @@ export async function* executeOpencodeQuery(
     // Create channel for real-time event streaming
     const eventChannel = createMessageChannel<StreamEvent>();
 
-    // Start event subscription in parallel (IMPORTANT: must start before prompt)
-    // Events are pushed to channel and yielded in real-time below
+    // Establish event subscription BEFORE sending prompt (critical for streaming)
     // NOTE: directory must match session.prompt to receive events from same Bus
-    const eventPromise = (async () => {
-      const eventResult = await client.event.subscribe({ directory: paths.workspaceDir });
+    yield createLogEvent('Establishing event subscription', 'debug');
+    const eventResult = await client.event.subscribe({ directory: paths.workspaceDir });
 
+    // Process events in background (subscription is now established)
+    const eventPromise = (async () => {
       // Track if we've seen any activity for our session
       // We only close on idle AFTER seeing activity to avoid closing on stale idle state
       let sawActivity = false;
@@ -159,7 +160,7 @@ export async function* executeOpencodeQuery(
       }
     })();
 
-    // Send prompt
+    // Send prompt (subscription is definitely established now)
     yield createLogEvent('Sending prompt to OpenCode', 'debug', { sessionId: input.sessionId });
 
     await client.session.prompt({
