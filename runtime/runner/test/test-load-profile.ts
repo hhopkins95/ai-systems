@@ -10,7 +10,7 @@ import { resolve } from 'path';
 import { readdir, readFile } from 'fs/promises';
 import { existsSync } from 'fs';
 import { loadAgentProfile, LoadAgentProfileInput } from '../src/core/index.js';
-import { setupTestWorkspace, TEST_PROJECT_DIR, TEST_CLAUDE_HOME_DIR, TEST_WORKSPACE_ROOT } from './test-setup.js';
+import { setupTestWorkspace, TEST_WORKSPACE_ROOT } from './test-setup.js';
 import { TestAgentProfile } from './fixtures/agents/agent-profile.js';
 
 
