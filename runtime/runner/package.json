@@ -47,19 +47,19 @@
     "node": ">=18.0.0"
   },
   "dependencies": {
+    "@ai-systems/opencode-claude-adapter": "workspace:*",
+    "@ai-systems/opencode-entity-manager": "workspace:*",
     "@ai-systems/shared-types": "workspace:*",
+    "@anthropic-ai/claude-agent-sdk": "^0.1.18",
     "@hhopkins/agent-converters": "workspace:*",
     "@hhopkins/claude-entity-manager": "workspace:*",
-    "@ai-systems/opencode-entity-manager": "workspace:*",
-    "@ai-systems/opencode-claude-adapter": "workspace:*",
-    "@anthropic-ai/claude-agent-sdk": "^0.1.18",
     "@opencode-ai/sdk": "^1.0.126",
     "commander": "^14.0.0",
     "gray-matter": "^4.0.3",
     "zod": "^3.24.1"
   },
   "devDependencies": {
-    "@types/node": "^24.1.0",
+    "@types/node": "^24.10.1",
     "esbuild": "^0.24.0",
     "tsx": "^4.7.0",
     "typescript": "^5.7.2"

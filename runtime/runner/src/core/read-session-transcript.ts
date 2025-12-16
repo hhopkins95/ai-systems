@@ -4,14 +4,17 @@
  * Reads and combines session transcript files.
  */
 
-import { execFile } from 'child_process';
+import { exec } from 'child_process';
 import { promisify } from 'util';
+import { readFile, unlink } from 'fs/promises';
+import { join } from 'path';
+import os from 'os';
 import type { AgentArchitecture } from '@ai-systems/shared-types';
 import { ClaudeEntityManager } from '@hhopkins/claude-entity-manager';
 import { getWorkspacePaths } from '../helpers/get-workspace-paths';
 import { setEnvironment } from '../helpers/set-environment';
 
-const execFileAsync = promisify(execFile);
+const execAsync = promisify(exec);
 
 /**
  * Input for reading a session transcript.
@@ -51,30 +54,34 @@ async function readClaudeSdkTranscript(
 }
 
 /**
- * Read OpenCode session transcript.
+ * Read OpenCode session transcript using temp file to avoid buffer limits.
  */
 async function readOpencodeTranscript(
   sessionId: string,
   projectDir: string
 ): Promise<string | null> {
-  try {
-    const { stdout } = await execFileAsync('opencode', ['export', sessionId], {
-      cwd: projectDir,
-    });
+  const tempPath = join(os.tmpdir(), `opencode-export-${sessionId}-${Date.now()}.json`);
 
-    if (!stdout) {
+  try {
+    // Export to temp file to avoid buffer size issues
+    await execAsync(`opencode export "${sessionId}" > "${tempPath}"`);
+
+    // Read the temp file
+    const content = await readFile(tempPath, 'utf-8');
+
+    if (!content) {
       return null;
     }
 
     // Find the start of valid JSON (should be '{')
-    // opencode export may output non-JSON content (like model identifiers) before the JSON
-    const jsonStart = stdout.indexOf('{');
+    // opencode export may output non-JSON content before the JSON
+    const jsonStart = content.indexOf('{');
     if (jsonStart === -1) {
-      console.error(`OpenCode export did not return JSON object. Output: ${stdout.substring(0, 100)}...`);
+      console.error(`OpenCode export did not return JSON object. Output: ${content.substring(0, 100)}...`);
       return null;
     }
 
-    const jsonContent = stdout.substring(jsonStart);
+    const jsonContent = content.substring(jsonStart);
 
     // Validate it's valid JSON before returning
     try {
@@ -87,6 +94,13 @@ async function readOpencodeTranscript(
   } catch (error) {
     console.error(`OpenCode export command failed:`, error);
     return null;
+  } finally {
+    // Clean up temp file
+    try {
+      await unlink(tempPath);
+    } catch {
+      // Ignore cleanup errors
+    }
   }
 }
 

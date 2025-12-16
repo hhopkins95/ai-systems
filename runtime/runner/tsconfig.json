@@ -7,7 +7,7 @@
     "moduleResolution": "bundler",
     "types": ["node"],
     "outDir": "./dist",
-    "rootDir": "./src",
+    "rootDir": "./",
     "declaration": true,
     "declarationMap": true,
     "sourceMap": true,
