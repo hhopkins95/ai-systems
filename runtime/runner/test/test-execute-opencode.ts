@@ -14,7 +14,16 @@ import { executeOpencodeQuery } from '../src/core/index.js';
 import { setupTestWorkspace, TEST_WORKSPACE_ROOT } from './test-setup.js';
 import path from 'path';
 import { ExecuteQueryArgs } from '../src/types.js';
-
+/**
+ * Generate a session ID in the appropriate format for the architecture
+ */
+function generateSessionId(): string {
+    // OpenCode format: ses_<timestamp_hex>_<random>
+    const timestamp = Date.now();
+    const timeBytes = timestamp.toString(16).padStart(12, '0');
+    const random = Math.random().toString(36).substring(2, 13);
+    return `ses_${timeBytes}_${random}`;
+}
 // ============================================================================
 // Configuration - Edit these as needed
 // ============================================================================
@@ -27,7 +36,7 @@ const MODEL = 'anthropic/claude-sonnet-4-20250514';
 // ============================================================================
 
 async function main() {
-  const sessionId = `test-opencode-${randomUUID().slice(0, 8)}`;
+  const sessionId = generateSessionId();
 
   console.log('='.repeat(60));
   console.log('Test: Execute Query (OpenCode)');
@@ -46,7 +55,7 @@ async function main() {
   }
 
   // Clean and create test workspace
-  await setupTestWorkspace();
+  // await setupTestWorkspace();
 
   const input: ExecuteQueryArgs = {
     prompt: PROMPT,
@@ -67,12 +76,6 @@ async function main() {
 
       console.log(JSON.stringify(event, null, 2));
     
-
-    const duration = Date.now() - startTime;
-    console.log('\n');
-    console.log('='.repeat(60));
-    console.log(`PASS - ${eventCount} events in ${duration}ms`);
-    console.log('='.repeat(60));
   }
 }
 

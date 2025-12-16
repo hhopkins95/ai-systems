@@ -12,7 +12,7 @@ import { promisify } from 'util';
 import { createStreamEventParser } from '@hhopkins/agent-converters/opencode';
 import type { StreamEvent, UserMessageBlock } from '@ai-systems/shared-types';
 import { getOpencodeConnection } from '../clients/opencode.js';
-import { emptyAsyncIterable } from '../clients/channel.js';
+import { emptyAsyncIterable, createMessageChannel } from '../clients/channel.js';
 import { createLogEvent, createErrorEvent, errorEventFromError } from '../helpers/create-stream-events.js';
 import type { ExecuteQueryArgs } from '../types.js';
 import { getWorkspacePaths } from '../helpers/get-workspace-paths.js';
@@ -122,16 +122,11 @@ export async function* executeOpencodeQuery(
       yield createLogEvent('Resuming existing OpenCode session', 'info', { sessionId: input.sessionId });
     }
 
-    // Create a promise that will resolve when we get the idle event
-    let resolveEventStream: () => void;
-    const eventStreamComplete = new Promise<void>(resolve => {
-      resolveEventStream = resolve;
-    });
-
-    // Collect events
-    const events: StreamEvent[] = [];
+    // Create channel for real-time event streaming
+    const eventChannel = createMessageChannel<StreamEvent>();
 
     // Start event subscription in parallel (IMPORTANT: must start before prompt)
+    // Events are pushed to channel and yielded in real-time below
     const eventPromise = (async () => {
       const eventResult = await client.event.subscribe({
         query: { directory: paths.workspaceDir },
@@ -140,11 +135,13 @@ export async function* executeOpencodeQuery(
       for await (const event of eventResult.stream) {
         // Convert OpenCode event to StreamEvents using stateful parser
         const streamEvents = parser.parseEvent(event);
-        events.push(...streamEvents);
+        for (const streamEvent of streamEvents) {
+          eventChannel.send(streamEvent);
+        }
 
-        // Break when session goes idle
+        // Close channel when session goes idle
         if (event.type === 'session.idle' && event.properties.sessionID === input.sessionId) {
-          resolveEventStream!();
+          eventChannel.close();
           break;
         }
       }
@@ -171,15 +168,12 @@ export async function* executeOpencodeQuery(
       },
     });
 
-    // Wait for event stream to complete
-    await eventStreamComplete;
-
-    // Yield all collected events
-    for (const event of events) {
+    // Yield events in real-time as they arrive from the channel
+    for await (const event of eventChannel.receive()) {
       yield event;
     }
 
-    // Also wait for the event promise to finish
+    // Wait for event subscription to fully complete
     await eventPromise;
 
     yield createLogEvent('OpenCode SDK query completed', 'info', { sessionId: input.sessionId });
