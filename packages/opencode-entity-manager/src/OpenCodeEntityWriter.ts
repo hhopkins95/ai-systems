@@ -26,6 +26,7 @@ import {
   getAgentsDir,
   getAgentsMdPath,
   getCommandsDir,
+  getRulesDir,
   getSkillsDir,
   getSkillsMdPath
 } from "./utils/paths.js";
@@ -151,19 +152,16 @@ export class OpenCodeEntityWriter {
    * Write instructions to AGENTS.md
    * Concatenates rule files from CLAUDE.md and rules/ sources
    */
-  async writeInstructions(rules: Rule[]): Promise<WriteResult> {
-    const filePath = getAgentsMdPath(this.configDirectory);
+  async writeRule(rule: Rule): Promise<WriteResult> {
+    console.log(`Writing rule: ${JSON.stringify(rule, null, 2)}`);
+    const rulesDir = getRulesDir(this.configDirectory);
+    await ensureDir(rulesDir)
 
-    if (rules.length === 0) {
-      return { path: filePath, created: false };
-    }
+    const filePath = join(rulesDir, `${rule.name}.md`)
 
-    const content = formatAgentsMd(rules);
-    if (!content) {
-      return { path: filePath, created: false };
-    }
+    let fileContent = rule.content;
 
-    await writeFile(filePath, content, "utf-8");
+    await writeFile(filePath, fileContent, "utf-8");
     return { path: filePath, created: true };
   }
 
@@ -442,8 +440,48 @@ export class OpenCodeEntityWriter {
   }
 
   /**
-   * Sync MCP servers (clears mcp section in opencode.json)
+   * Sync all rules (clears .opencode/rules/ first)
    */
+  async syncRules(rules: Rule[]): Promise<SyncResult> {
+    const result: SyncResult = {
+      written: [],
+      skipped: [],
+      errors: [],
+    };
+
+    const rulesDir = getRulesDir(this.configDirectory);
+    await ensureDir(rulesDir);
+    await clearDirectory(rulesDir);
+
+    if (rules.length === 0) {
+      return result;
+    }
+
+    // Deduplicate by name (later sources override earlier)
+    const ruleMap = new Map<string, Rule>();
+    for (const rule of rules) {
+      ruleMap.set(rule.name, rule);
+    }
+
+    // Write each rule
+    for (const [name, rule] of ruleMap) {
+      console.log(`Writing rule: ${name}`);
+      try {
+        await this.writeRule(rule);
+        result.written.push(name);
+      } catch (error) {
+        const message = error instanceof Error ? error.message : String(error);
+        result.errors.push({ file: name, error: message });
+      }
+    }
+
+    return result;
+  }
+
+
+  /**
+     * Sync MCP servers (clears mcp section in opencode.json)
+     */
   async syncMcpServers(servers: McpServer[]): Promise<SyncResult> {
     const result: SyncResult = {
       written: [],
@@ -497,7 +535,7 @@ export class OpenCodeEntityWriter {
   /**
    * Clear all contents of a subdirectory within .opencode
    */
-   async clearSubDirectory(subPath: string): Promise<void> {
+  async clearSubDirectory(subPath: string): Promise<void> {
     const dir = join(this.configDirectory, subPath);
     await clearDirectory(dir);
   }

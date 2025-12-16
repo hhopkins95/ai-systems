@@ -31,6 +31,11 @@ export function getCommandsDir(opencodeDir: string): string {
   return join(opencodeDir, "command");
 }
 
+
+export function getRulesDir(opencodeDir : string) : string { 
+  return join(opencodeDir, "rules")
+}
+
 /**
  * Get the AGENTS.md file path (OpenCode equivalent of CLAUDE.md)
  */
