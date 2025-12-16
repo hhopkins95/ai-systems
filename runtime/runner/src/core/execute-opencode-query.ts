@@ -112,6 +112,7 @@ export async function* executeOpencodeQuery(
     // Check if session exists, create if not
     const existingSession = await client.session.get({
       path: { id: input.sessionId },
+      query: { directory: paths.workspaceDir },
     });
 
     if (!existingSession.data) {
@@ -171,6 +172,7 @@ export async function* executeOpencodeQuery(
 
     const promptResult = await client.session.prompt({
       path: { id: input.sessionId },
+      query: { directory: paths.workspaceDir },
       body: {
         model: { providerID : "opencode", modelID : "big-pickle" },
         parts: [{ type: 'text', text: input.prompt }],
