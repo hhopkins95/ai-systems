@@ -11,7 +11,8 @@
 
 import { randomUUID } from 'crypto';
 import { executeOpencodeQuery } from '../src/core/index.js';
-import { setupTestWorkspace, TEST_PROJECT_DIR } from './test-setup.js';
+import { setupTestWorkspace, TEST_WORKSPACE_ROOT } from './test-setup.js';
+import path from 'path';
 
 // ============================================================================
 // Configuration - Edit these as needed
@@ -33,7 +34,7 @@ async function main() {
   console.log(`Prompt: "${PROMPT}"`);
   console.log(`Model: ${MODEL}`);
   console.log(`Session: ${sessionId}`);
-  console.log(`Workspace: ${TEST_PROJECT_DIR}`);
+  console.log(`Workspace: ${TEST_WORKSPACE_ROOT}`);
   console.log('='.repeat(60));
   console.log('');
 
@@ -50,7 +51,7 @@ async function main() {
     prompt: PROMPT,
     architecture: 'opencode' as const,
     sessionId,
-    cwd: TEST_PROJECT_DIR,
+    cwd: path.join(TEST_WORKSPACE_ROOT, 'workspace'),
     model: MODEL,
   };
 

@@ -10,7 +10,7 @@ import { resolve } from 'path';
 import { readFile } from 'fs/promises';
 import { loadSessionTranscript, readSessionTranscript } from '../src/core/index.js';
 import type { CombinedClaudeTranscript } from '@hhopkins/agent-converters/claude-sdk';
-import { setupTestWorkspace, TEST_PROJECT_DIR, TEST_CLAUDE_HOME_DIR } from './test-setup.js';
+import { setupTestWorkspace, TEST_WORKSPACE_ROOT } from './test-setup.js';
 
 // ============================================================================
 // Configuration - Fixture paths
@@ -49,13 +49,12 @@ async function main() {
   console.log('Test: Load and Read Session Transcript');
   console.log('='.repeat(60));
   console.log(`Session: ${SESSION_ID}`);
-  console.log(`Project Dir: ${TEST_PROJECT_DIR}`);
-  console.log(`Claude Home: ${TEST_CLAUDE_HOME_DIR}`);
+  console.log(`Workspace Root: ${TEST_WORKSPACE_ROOT}`);
   console.log('='.repeat(60));
   console.log('');
 
   // Clean and create test workspace
-  await setupTestWorkspace();
+  // await setupTestWorkspace();
 
   const startTime = Date.now();
 
@@ -71,11 +70,10 @@ async function main() {
     console.log('Step 1: Writing transcript to test workspace...');
 
     const loadResult = await loadSessionTranscript({
-      projectDir: TEST_PROJECT_DIR,
+      baseWorkspacePath: TEST_WORKSPACE_ROOT,
       sessionId: SESSION_ID,
       sessionTranscript: JSON.stringify(fixtureTranscript),
       architectureType: 'claude-sdk',
-      claudeHomeDir: TEST_CLAUDE_HOME_DIR,
     });
 
     if (!loadResult.success) {
@@ -91,8 +89,7 @@ async function main() {
     const readResult = await readSessionTranscript({
       sessionId: SESSION_ID,
       architecture: 'claude-sdk',
-      projectDir: TEST_PROJECT_DIR,
-      claudeHomeDir: TEST_CLAUDE_HOME_DIR,
+      baseWorkspacePath: TEST_WORKSPACE_ROOT,
     });
 
     if (!readResult.success || !readResult.transcript) {

@@ -457,7 +457,7 @@ export class SessionLoader {
     // Write subagent transcripts
     // ID already includes "agent-" prefix (e.g., "agent-abc123")
     for (const subagent of transcript.subagents) {
-      const subagentPath = join(transcriptDir, `${subagent.id}.jsonl`);
+      const subagentPath = join(transcriptDir, `agent-${subagent.id}.jsonl`);
       await writeFile(subagentPath, subagent.transcript, "utf-8");
     }
 

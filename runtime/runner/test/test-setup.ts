@@ -14,10 +14,10 @@ import { existsSync } from 'fs';
 export const TEST_WORKSPACE_ROOT = resolve(import.meta.dirname, 'test-workspace');
 
 // Claude home config directory (mimics ~/.claude)
-export const TEST_CLAUDE_HOME_DIR = resolve(TEST_WORKSPACE_ROOT, '.claude');
+// export const TEST_CLAUDE_HOME_DIR = resolve(TEST_WORKSPACE_ROOT, '.claude');
 
 // Project workspace directory
-export const TEST_PROJECT_DIR = resolve(TEST_WORKSPACE_ROOT, 'workspace');
+// export const TEST_PROJECT_DIR = resolve(TEST_WORKSPACE_ROOT, 'workspace');
 
 /**
  * Clean and create the test workspace.
@@ -29,8 +29,8 @@ export const TEST_PROJECT_DIR = resolve(TEST_WORKSPACE_ROOT, 'workspace');
  */
 export async function setupTestWorkspace(): Promise<{
   workspaceRoot: string;
-  claudeHomeDir: string;
-  projectDir: string;
+  // claudeHomeDir: string;
+  // projectDir: string;
 }> {
   // Remove existing test workspace
   if (existsSync(TEST_WORKSPACE_ROOT)) {
@@ -38,13 +38,13 @@ export async function setupTestWorkspace(): Promise<{
   }
 
   // Create fresh directories
-  await mkdir(TEST_CLAUDE_HOME_DIR, { recursive: true });
-  await mkdir(TEST_PROJECT_DIR, { recursive: true });
+  // await mkdir(TEST_CLAUDE_HOME_DIR, { recursive: true });
+  // await mkdir(TEST_PROJECT_DIR, { recursive: true });
 
 
   return { 
     workspaceRoot: TEST_WORKSPACE_ROOT,
-    claudeHomeDir: TEST_CLAUDE_HOME_DIR,
-    projectDir: TEST_PROJECT_DIR,
+    // claudeHomeDir: TEST_CLAUDE_HOME_DIR,
+    // projectDir: TEST_PROJECT_DIR,
   }
 }

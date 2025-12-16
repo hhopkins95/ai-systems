@@ -69,22 +69,16 @@ export const TestAgentProfile: AgentProfile = {
             content: "Hello, world!",
         }
     ],
-    plugins : [
-        {
-            marketplace : {
-                type : "github",
-                name : "claude-code-plugins", 
-                gitOwner : "anthropics",
-                gitRepo : "claude-code"
-            },
-            pluginName : "agent-sdk-dev"
-        }
+    // plugins : [
+    //     {
+    //         marketplace : {
+    //             type : "github",
+    //             name : "claude-code-plugins", 
+    //             gitOwner : "anthropics",
+    //             gitRepo : "claude-code"
+    //         },
+    //         pluginName : "agent-sdk-dev"
+    //     }
         
-    ]
-    // plugins: [{
-    //     type: "github",
-    //     owner: "anthropics",
-    //     repo: "claude-code"
-    // }], 
-
-}
+    // ]
+    }

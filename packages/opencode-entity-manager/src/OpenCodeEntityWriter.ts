@@ -153,7 +153,6 @@ export class OpenCodeEntityWriter {
    * Concatenates rule files from CLAUDE.md and rules/ sources
    */
   async writeRule(rule: Rule): Promise<WriteResult> {
-    console.log(`Writing rule: ${JSON.stringify(rule, null, 2)}`);
     const rulesDir = getRulesDir(this.configDirectory);
     await ensureDir(rulesDir)
 
@@ -465,7 +464,6 @@ export class OpenCodeEntityWriter {
 
     // Write each rule
     for (const [name, rule] of ruleMap) {
-      console.log(`Writing rule: ${name}`);
       try {
         await this.writeRule(rule);
         result.written.push(name);
