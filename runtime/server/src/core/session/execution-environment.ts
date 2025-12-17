@@ -2,12 +2,12 @@ import {
     AgentArchitecture,
     AgentArchitectureSessionOptions,
     AgentProfile,
-    StreamEvent,
     WorkspaceFile,
-    LogEvent,
     ScriptOutput,
-    isLogEvent,
     isScriptOutput,
+    type AnySessionEvent,
+    type SessionEvent,
+    isSessionEventType,
 } from "@ai-systems/shared-types";
 import { logger } from '../../config/logger.js';
 import { deriveSessionPaths, EnvironmentPrimitive, SessionPaths, WatchEvent } from "../../lib/environment-primitives/base";
@@ -26,14 +26,15 @@ import type { SessionEventBus } from "./session-event-bus.js";
 import { join } from "path";
 
 /**
- * Forward a LogEvent to the server logger
+ * Forward a log SessionEvent to the server logger
  */
-function forwardLogEvent(event: LogEvent): void {
-    const logFn = event.level === 'error' ? logger.error
-        : event.level === 'warn' ? logger.warn
-        : event.level === 'debug' ? logger.debug
+function forwardLogEvent(event: SessionEvent<'log'>): void {
+    const { level, message, data } = event.payload;
+    const logFn = level === 'error' ? logger.error
+        : level === 'warn' ? logger.warn
+        : level === 'debug' ? logger.debug
         : logger.info;
-    logFn.call(logger, { runnerLog: true, ...event.data }, `[Runner] ${event.message}`);
+    logFn.call(logger, { runnerLog: true, ...data }, `[Runner] ${message}`);
 }
 
 /**
@@ -270,7 +271,7 @@ export class ExecutionEnvironment {
 
         try {
             for await (const event of this.parseRunnerStream(process.stdout)) {
-                this.emitStreamEvent(event);
+                this.emitSessionEvent(event);
             }
         } finally {
             await process.wait();
@@ -280,72 +281,84 @@ export class ExecutionEnvironment {
     }
 
     /**
-     * Convert a StreamEvent to SessionEventBus events and emit
+     * Forward a SessionEvent to the SessionEventBus
+     *
+     * The new unified event format uses the same type names as the event bus,
+     * so we can forward the payload directly with context enrichment.
      */
-    private emitStreamEvent(event: StreamEvent): void {
+    private emitSessionEvent(event: AnySessionEvent): void {
+        // Extract conversationId from context for events that need it
+        const conversationId = event.context.conversationId;
+
         switch (event.type) {
-            case 'block_start':
+            case 'block:start':
                 this.eventBus.emit('block:start', {
-                    conversationId: event.conversationId,
-                    block: event.block,
+                    conversationId,
+                    block: event.payload.block,
                 });
                 break;
 
-            case 'text_delta':
+            case 'block:delta':
                 this.eventBus.emit('block:delta', {
-                    conversationId: event.conversationId,
-                    blockId: event.blockId,
-                    delta: event.delta,
+                    conversationId,
+                    blockId: event.payload.blockId,
+                    delta: event.payload.delta,
                 });
                 break;
 
-            case 'block_update':
+            case 'block:update':
                 this.eventBus.emit('block:update', {
-                    conversationId: event.conversationId,
-                    blockId: event.blockId,
-                    updates: event.updates,
+                    conversationId,
+                    blockId: event.payload.blockId,
+                    updates: event.payload.updates,
                 });
                 break;
 
-            case 'block_complete':
+            case 'block:complete':
                 this.eventBus.emit('block:complete', {
-                    conversationId: event.conversationId,
-                    blockId: event.blockId,
-                    block: event.block,
+                    conversationId,
+                    blockId: event.payload.blockId,
+                    block: event.payload.block,
                 });
                 break;
 
-            case 'metadata_update':
+            case 'metadata:update':
                 this.eventBus.emit('metadata:update', {
-                    conversationId: event.conversationId,
-                    metadata: event.metadata,
+                    conversationId,
+                    metadata: event.payload.metadata,
                 });
                 break;
 
             case 'log':
                 this.eventBus.emit('log', {
-                    level: event.level,
-                    message: event.message,
-                    data: event.data,
+                    level: event.payload.level,
+                    message: event.payload.message,
+                    data: event.payload.data,
                 });
                 break;
 
             case 'error':
                 this.eventBus.emit('error', {
-                    message: event.message,
-                    code: event.code,
+                    message: event.payload.message,
+                    code: event.payload.code,
                 });
                 break;
 
             case 'status':
                 // Status events from runner are handled at AgentSession level
                 // since they need to update SessionState
-                // We emit a log for debugging
-                logger.debug({ status: event.status, message: event.message }, 'Runner status event');
+                logger.debug({ runtime: event.payload.runtime }, 'Runner status event');
                 break;
 
-            case 'script_output':
-                // Script output is internal, not emitted to bus
+            // These events are server-originated, not expected from runner
+            case 'file:created':
+            case 'file:modified':
+            case 'file:deleted':
+            case 'transcript:changed':
+            case 'subagent:discovered':
+            case 'subagent:completed':
+            case 'options:update':
+                logger.warn({ type: event.type }, 'Unexpected server event from runner');
                 break;
         }
     }
@@ -367,12 +380,12 @@ export class ExecutionEnvironment {
     }
 
     /**
-     * Parse JSONL StreamEvents from a runner process stdout
-     * Yields all valid StreamEvents and forwards log events to server logger
+     * Parse JSONL SessionEvents from a runner process stdout
+     * Yields all valid SessionEvents and forwards log events to server logger
      */
     private async *parseRunnerStream(
         stdout: ReadableStream
-    ): AsyncGenerator<StreamEvent> {
+    ): AsyncGenerator<AnySessionEvent> {
         const reader = stdout.getReader();
         let buffer = '';
 
@@ -389,9 +402,9 @@ export class ExecutionEnvironment {
                 for (const line of lines) {
                     if (line.trim()) {
                         try {
-                            const event = JSON.parse(line) as StreamEvent;
+                            const event = JSON.parse(line) as AnySessionEvent;
                             // Forward log events to server logger
-                            if (isLogEvent(event)) {
+                            if (isSessionEventType(event, 'log')) {
                                 forwardLogEvent(event);
                             }
                             yield event;
@@ -405,9 +418,9 @@ export class ExecutionEnvironment {
             // Process any remaining buffer
             if (buffer.trim()) {
                 try {
-                    const event = JSON.parse(buffer) as StreamEvent;
+                    const event = JSON.parse(buffer) as AnySessionEvent;
                     // Forward log events to server logger
-                    if (isLogEvent(event)) {
+                    if (isSessionEventType(event, 'log')) {
                         forwardLogEvent(event);
                     }
                     yield event;

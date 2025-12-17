@@ -12,8 +12,8 @@ export * from './architecture.js';
 // Conversation blocks
 export * from './blocks.js';
 
-// Stream events
-export * from './stream-events.js';
+// Unified session events
+export * from './session-events.js';
 
-// Session Types
+// Session types
 export * from './session.js';

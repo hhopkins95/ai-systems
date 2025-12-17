@@ -11,9 +11,9 @@ import type {
   SubagentBlock,
   ToolResultBlock,
   ToolUseBlock,
-  StreamEvent,
-  LogEvent,
+  AnySessionEvent,
 } from '@ai-systems/shared-types';
+import { createSessionEvent } from '@ai-systems/shared-types';
 import { generateId, noopLogger } from '../utils.js';
 import type { ConvertOptions } from '../types.js';
 
@@ -53,12 +53,12 @@ function getSystemLogMessage(msg: Extract<SDKMessage, { type: 'system' }>): stri
 }
 
 /**
- * Parse a stream event from SDK and convert to StreamEvents
+ * Parse a stream event from SDK and convert to SessionEvents
  */
 export function parseStreamEvent(
   event: SDKMessage,
   options: ConvertOptions = {}
-): StreamEvent[] {
+): AnySessionEvent[] {
   const logger = options.logger ?? noopLogger;
 
   // Handle system error messages from SDK executor
@@ -83,36 +83,41 @@ export function parseStreamEvent(
   if (event.type === 'result') {
     const isSuccess = event.subtype === 'success';
 
-    // Emit result as LogEvent instead of block
-    const logEvent: LogEvent = {
-      type: 'log',
-      level: isSuccess ? 'info' : 'error',
-      message: isSuccess
-        ? `Session completed (${event.num_turns} turns, $${event.total_cost_usd.toFixed(4)})`
-        : `Session ended: ${event.subtype}`,
-      data: {
-        subtype: event.subtype,
-        duration_ms: event.duration_ms,
-        num_turns: event.num_turns,
-        total_cost_usd: event.total_cost_usd,
+    // Emit result as log event
+    const logEvent = createSessionEvent(
+      'log',
+      {
+        level: isSuccess ? 'info' : 'error',
+        message: isSuccess
+          ? `Session completed (${event.num_turns} turns, $${event.total_cost_usd.toFixed(4)})`
+          : `Session ended: ${event.subtype}`,
+        data: {
+          subtype: event.subtype,
+          duration_ms: event.duration_ms,
+          num_turns: event.num_turns,
+          total_cost_usd: event.total_cost_usd,
+        },
       },
-    };
+      { source: 'runner' }
+    );
 
     if (isSuccess) {
-      const metadataEvent: StreamEvent = {
-        type: 'metadata_update',
-        conversationId,
-        metadata: {
-          usage: {
-            inputTokens: event.usage.input_tokens,
-            outputTokens: event.usage.output_tokens,
-            cacheReadTokens: event.usage.cache_read_input_tokens,
-            cacheWriteTokens: event.usage.cache_creation_input_tokens,
-            totalTokens: event.usage.input_tokens + event.usage.output_tokens,
+      const metadataEvent = createSessionEvent(
+        'metadata:update',
+        {
+          metadata: {
+            usage: {
+              inputTokens: event.usage.input_tokens,
+              outputTokens: event.usage.output_tokens,
+              cacheReadTokens: event.usage.cache_read_input_tokens,
+              cacheWriteTokens: event.usage.cache_creation_input_tokens,
+              totalTokens: event.usage.input_tokens + event.usage.output_tokens,
+            },
+            costUSD: event.total_cost_usd,
           },
-          costUSD: event.total_cost_usd,
         },
-      };
+        { conversationId, source: 'runner' }
+      );
       return [metadataEvent, logEvent];
     }
 
@@ -121,60 +126,71 @@ export function parseStreamEvent(
 
   // Handle tool progress messages
   if (event.type === 'tool_progress') {
-    return [{
-      type: 'block_update',
-      blockId: event.tool_use_id,
-      conversationId: event.parent_tool_use_id || 'main',
-      updates: {
-        status: 'running',
-      } as any,
-    }];
+    return [
+      createSessionEvent(
+        'block:update',
+        {
+          blockId: event.tool_use_id,
+          updates: { status: 'running' } as Partial<ConversationBlock>,
+        },
+        { conversationId: event.parent_tool_use_id || 'main', source: 'runner' }
+      ),
+    ];
   }
 
-  // Convert system messages (except error) to LogEvent instead of blocks
+  // Convert system messages (except error) to log events
   if (event.type === 'system') {
-    const logEvent: LogEvent = {
-      type: 'log',
-      level: 'info',
-      message: getSystemLogMessage(event),
-      data: {
-        subtype: event.subtype,
-        ...(event.subtype === 'init' && { model: event.model }),
-        ...(event.subtype === 'status' && { status: event.status }),
-        ...(event.subtype === 'hook_response' && {
-          hook_name: event.hook_name,
-          hook_event: event.hook_event,
-          exit_code: event.exit_code,
-        }),
-        ...(event.subtype === 'compact_boundary' && { trigger: event.compact_metadata?.trigger }),
-      },
-    };
-    return [logEvent];
+    return [
+      createSessionEvent(
+        'log',
+        {
+          level: 'info',
+          message: getSystemLogMessage(event),
+          data: {
+            subtype: event.subtype,
+            ...(event.subtype === 'init' && { model: event.model }),
+            ...(event.subtype === 'status' && { status: event.status }),
+            ...(event.subtype === 'hook_response' && {
+              hook_name: event.hook_name,
+              hook_event: event.hook_event,
+              exit_code: event.exit_code,
+            }),
+            ...(event.subtype === 'compact_boundary' && { trigger: event.compact_metadata?.trigger }),
+          },
+        },
+        { source: 'runner' }
+      ),
+    ];
   }
 
-  // Convert auth_status to LogEvent
+  // Convert auth_status to log event
   if (event.type === 'auth_status') {
-    const logEvent: LogEvent = {
-      type: 'log',
-      level: event.error ? 'error' : 'info',
-      message: event.isAuthenticating ? 'Authenticating...' : (event.error ? `Auth error: ${event.error}` : 'Authentication complete'),
-      data: {
-        isAuthenticating: event.isAuthenticating,
-        hasError: !!event.error,
-      },
-    };
-    return [logEvent];
+    return [
+      createSessionEvent(
+        'log',
+        {
+          level: event.error ? 'error' : 'info',
+          message: event.isAuthenticating ? 'Authenticating...' : (event.error ? `Auth error: ${event.error}` : 'Authentication complete'),
+          data: {
+            isAuthenticating: event.isAuthenticating,
+            hasError: !!event.error,
+          },
+        },
+        { source: 'runner' }
+      ),
+    ];
   }
 
   // For other message types (user, assistant, etc.)
   // Convert to blocks and emit block_complete events
   const blocks = sdkMessageToBlocks(event, options);
-  return blocks.map((block) => ({
-    type: 'block_complete' as const,
-    blockId: block.id,
-    block,
-    conversationId,
-  }));
+  return blocks.map((block) =>
+    createSessionEvent(
+      'block:complete',
+      { blockId: block.id, block },
+      { conversationId, source: 'runner' }
+    )
+  );
 }
 
 /**
@@ -395,50 +411,56 @@ function convertAssistantMessage(msg: Extract<SDKMessage, { type: 'assistant' }>
 }
 
 /**
- * Parse Anthropic SDK RawMessageStreamEvent to StreamEvent
+ * Parse Anthropic SDK RawMessageStreamEvent to SessionEvent
  */
-function parseRawStreamEvent(rawEvent: any, conversationId: 'main' | string): StreamEvent | null {
+function parseRawStreamEvent(rawEvent: any, conversationId: 'main' | string): AnySessionEvent | null {
   switch (rawEvent.type) {
     case 'content_block_start': {
       const block = rawEvent.content_block;
 
       // Create appropriate block based on content type
       if (block.type === 'text') {
-        return {
-          type: 'block_start',
-          conversationId,
-          block: {
-            type: 'assistant_text',
-            id: block.id,
-            timestamp: new Date().toISOString(),
-            content: block.text || '',
+        return createSessionEvent(
+          'block:start',
+          {
+            block: {
+              type: 'assistant_text',
+              id: block.id,
+              timestamp: new Date().toISOString(),
+              content: block.text || '',
+            },
           },
-        };
+          { conversationId, source: 'runner' }
+        );
       } else if (block.type === 'tool_use') {
-        return {
-          type: 'block_start',
-          conversationId,
-          block: {
-            type: 'tool_use',
-            id: block.id,
-            timestamp: new Date().toISOString(),
-            toolName: block.name,
-            toolUseId: block.id,
-            input: block.input || {},
-            status: 'pending',
+        return createSessionEvent(
+          'block:start',
+          {
+            block: {
+              type: 'tool_use',
+              id: block.id,
+              timestamp: new Date().toISOString(),
+              toolName: block.name,
+              toolUseId: block.id,
+              input: block.input || {},
+              status: 'pending',
+            },
           },
-        };
+          { conversationId, source: 'runner' }
+        );
       } else if (block.type === 'thinking') {
-        return {
-          type: 'block_start',
-          conversationId,
-          block: {
-            type: 'thinking',
-            id: block.id,
-            timestamp: new Date().toISOString(),
-            content: '',
+        return createSessionEvent(
+          'block:start',
+          {
+            block: {
+              type: 'thinking',
+              id: block.id,
+              timestamp: new Date().toISOString(),
+              content: '',
+            },
           },
-        };
+          { conversationId, source: 'runner' }
+        );
       }
       return null;
     }
@@ -447,23 +469,27 @@ function parseRawStreamEvent(rawEvent: any, conversationId: 'main' | string): St
       const delta = rawEvent.delta;
 
       if (delta.type === 'text_delta') {
-        return {
-          type: 'text_delta',
-          blockId: '', // Will be set by the caller based on index
-          conversationId,
-          delta: delta.text,
-        };
+        return createSessionEvent(
+          'block:delta',
+          {
+            blockId: '', // Will be set by the caller based on index
+            delta: delta.text,
+          },
+          { conversationId, source: 'runner' }
+        );
       } else if (delta.type === 'input_json_delta') {
         // Tool input is being streamed
         // We don't emit deltas for tool input, just wait for complete
         return null;
       } else if (delta.type === 'thinking_delta') {
-        return {
-          type: 'text_delta',
-          blockId: '', // Will be set by the caller based on index
-          conversationId,
-          delta: (delta as any).thinking || '',
-        };
+        return createSessionEvent(
+          'block:delta',
+          {
+            blockId: '', // Will be set by the caller based on index
+            delta: (delta as any).thinking || '',
+          },
+          { conversationId, source: 'runner' }
+        );
       }
       return null;
     }
@@ -483,17 +509,19 @@ function parseRawStreamEvent(rawEvent: any, conversationId: 'main' | string): St
       // Message metadata update (usage, stop_reason, etc.)
       const usage = rawEvent.usage;
       if (usage) {
-        return {
-          type: 'metadata_update',
-          conversationId,
-          metadata: {
-            usage: {
-              inputTokens: usage.input_tokens || 0,
-              outputTokens: usage.output_tokens || 0,
-              totalTokens: (usage.input_tokens || 0) + (usage.output_tokens || 0),
+        return createSessionEvent(
+          'metadata:update',
+          {
+            metadata: {
+              usage: {
+                inputTokens: usage.input_tokens || 0,
+                outputTokens: usage.output_tokens || 0,
+                totalTokens: (usage.input_tokens || 0) + (usage.output_tokens || 0),
+              },
             },
           },
-        };
+          { conversationId, source: 'runner' }
+        );
       }
       return null;
     }

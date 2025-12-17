@@ -26,10 +26,9 @@ export {
   type ReadSessionTranscriptResult,
 } from './read-session-transcript.js';
 
-// Execution event helpers
+// Session event helpers
 export {
-  createLogEvent,
-  createErrorEvent,
-  createStatusEvent,
-  errorEventFromError,
+  createLogSessionEvent,
+  createErrorSessionEvent,
+  errorSessionEventFromError,
 } from '../helpers/create-stream-events.js';

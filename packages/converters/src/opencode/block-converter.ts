@@ -1,8 +1,8 @@
 /**
- * Block Converter - Convert OpenCode SDK events to StreamEvents
+ * Block Converter - Convert OpenCode SDK events to SessionEvents
  *
  * Transforms OpenCode SDK events (from SSE streaming) into architecture-agnostic
- * StreamEvent structures for real-time UI updates.
+ * SessionEvent structures for real-time UI updates.
  */
 
 import type { Event, Part, EventMessagePartUpdated, EventMessageUpdated, EventSessionIdle } from "@opencode-ai/sdk/v2";
@@ -10,9 +10,9 @@ import type {
   ConversationBlock,
   SubagentBlock,
   ToolExecutionStatus,
-  StreamEvent,
-  LogEvent,
+  AnySessionEvent,
 } from '@ai-systems/shared-types';
+import { createSessionEvent } from '@ai-systems/shared-types';
 import { generateId, toISOTimestamp, noopLogger } from '../utils.js';
 import type { ConvertOptions } from '../types.js';
 import { mapToolStatus, getPartTimestamp } from './transcript-parser.js';
@@ -243,7 +243,7 @@ interface ActiveBlockState {
 }
 
 /**
- * Create a new stream event parser instance
+ * Create a new session event parser instance
  * This allows for isolated state per session
  */
 export function createStreamEventParser(mainSessionId: string, options: ConvertOptions = {}) {
@@ -253,28 +253,32 @@ export function createStreamEventParser(mainSessionId: string, options: ConvertO
   /**
    * Parse a message.part.updated event
    */
-  function parsePartUpdatedEvent(event: EventMessagePartUpdated): StreamEvent[] {
+  function parsePartUpdatedEvent(event: EventMessagePartUpdated): AnySessionEvent[] {
     const { part, delta } = event.properties;
     const conversationId = part.sessionID === mainSessionId ? 'main' : part.sessionID;
-    const events: StreamEvent[] = [];
+    const events: AnySessionEvent[] = [];
 
-    // Convert step/retry events to LogEvent instead of ConversationBlock
+    // Convert step/retry events to log events instead of ConversationBlock
     if (part.type === 'step-start' || part.type === 'step-finish' || part.type === 'retry') {
       const p = part as any;
-      const logEvent: LogEvent = {
-        type: 'log',
-        level: part.type === 'retry' ? 'warn' : 'info',
-        message: part.type === 'step-start' ? 'Step started'
-               : part.type === 'step-finish' ? `Step finished: ${p.reason || 'unknown'}`
-               : `Retry attempt ${p.attempt || '?'}: ${p.error?.message || 'Unknown error'}`,
-        data: {
-          partType: part.type,
-          partId: part.id,
-          ...(part.type === 'step-finish' && { reason: p.reason, cost: p.cost, tokens: p.tokens }),
-          ...(part.type === 'retry' && { attempt: p.attempt, error: p.error }),
-        },
-      };
-      return [logEvent];
+      return [
+        createSessionEvent(
+          'log',
+          {
+            level: part.type === 'retry' ? 'warn' : 'info',
+            message: part.type === 'step-start' ? 'Step started'
+                   : part.type === 'step-finish' ? `Step finished: ${p.reason || 'unknown'}`
+                   : `Retry attempt ${p.attempt || '?'}: ${p.error?.message || 'Unknown error'}`,
+            data: {
+              partType: part.type,
+              partId: part.id,
+              ...(part.type === 'step-finish' && { reason: p.reason, cost: p.cost, tokens: p.tokens }),
+              ...(part.type === 'retry' && { attempt: p.attempt, error: p.error }),
+            },
+          },
+          { source: 'runner' }
+        ),
+      ];
     }
 
     // Check if this is a new block or an update to existing
@@ -285,15 +289,19 @@ export function createStreamEventParser(mainSessionId: string, options: ConvertO
       for (const [blockId, state] of activeBlocks) {
         if (state.block.type === 'assistant_text' || state.block.type === 'thinking') {
           if (state.accumulatedContent.trim()) {
-            events.push({
-              type: 'block_complete',
-              blockId,
-              conversationId: state.conversationId,
-              block: {
-                ...state.block,
-                content: state.accumulatedContent,
-              } as ConversationBlock,
-            });
+            events.push(
+              createSessionEvent(
+                'block:complete',
+                {
+                  blockId,
+                  block: {
+                    ...state.block,
+                    content: state.accumulatedContent,
+                  } as ConversationBlock,
+                },
+                { conversationId: state.conversationId, source: 'runner' }
+              )
+            );
           }
           activeBlocks.delete(blockId);
         }
@@ -308,11 +316,13 @@ export function createStreamEventParser(mainSessionId: string, options: ConvertO
             conversationId,
             accumulatedContent: '',
           });
-          events.push({
-            type: 'block_start',
-            block: subagentBlock,
-            conversationId,
-          });
+          events.push(
+            createSessionEvent(
+              'block:start',
+              { block: subagentBlock },
+              { conversationId, source: 'runner' }
+            )
+          );
           return events;
         }
       }
@@ -325,11 +335,13 @@ export function createStreamEventParser(mainSessionId: string, options: ConvertO
           conversationId,
           accumulatedContent: '',
         });
-        events.push({
-          type: 'block_start',
-          block: incompleteBlock,
-          conversationId,
-        });
+        events.push(
+          createSessionEvent(
+            'block:start',
+            { block: incompleteBlock },
+            { conversationId, source: 'runner' }
+          )
+        );
       }
     }
 
@@ -340,12 +352,13 @@ export function createStreamEventParser(mainSessionId: string, options: ConvertO
         activeState.accumulatedContent += delta;
       }
 
-      events.push({
-        type: 'text_delta',
-        blockId: part.id,
-        delta,
-        conversationId,
-      });
+      events.push(
+        createSessionEvent(
+          'block:delta',
+          { blockId: part.id, delta },
+          { conversationId, source: 'runner' }
+        )
+      );
     }
 
     // Handle tool state updates
@@ -353,15 +366,19 @@ export function createStreamEventParser(mainSessionId: string, options: ConvertO
       const state = part.state as any;
       const status = mapToolStatus(state.status);
 
-      events.push({
-        type: 'block_update',
-        blockId: part.id,
-        conversationId,
-        updates: {
-          status,
-          displayName: state.title,
-        } as any,
-      });
+      events.push(
+        createSessionEvent(
+          'block:update',
+          {
+            blockId: part.id,
+            updates: {
+              status,
+              displayName: state.title,
+            } as Partial<ConversationBlock>,
+          },
+          { conversationId, source: 'runner' }
+        )
+      );
 
       // If tool is completed or errored, emit both tool_use and tool_result blocks
       if (state.status === 'completed' || state.status === 'error') {
@@ -387,12 +404,13 @@ export function createStreamEventParser(mainSessionId: string, options: ConvertO
           displayName: state.title,
         };
 
-        events.push({
-          type: 'block_complete',
-          blockId: part.id,
-          block: toolUseBlock,
-          conversationId,
-        });
+        events.push(
+          createSessionEvent(
+            'block:complete',
+            { blockId: part.id, block: toolUseBlock },
+            { conversationId, source: 'runner' }
+          )
+        );
 
         // Emit tool_result as block_complete
         const resultBlock: ConversationBlock = {
@@ -407,12 +425,13 @@ export function createStreamEventParser(mainSessionId: string, options: ConvertO
             : undefined,
         };
 
-        events.push({
-          type: 'block_complete',
-          blockId: resultBlock.id,
-          block: resultBlock,
-          conversationId,
-        });
+        events.push(
+          createSessionEvent(
+            'block:complete',
+            { blockId: resultBlock.id, block: resultBlock },
+            { conversationId, source: 'runner' }
+          )
+        );
       }
     }
 
@@ -422,7 +441,7 @@ export function createStreamEventParser(mainSessionId: string, options: ConvertO
   /**
    * Parse a message.updated event for metadata updates
    */
-  function parseMessageUpdatedEvent(event: EventMessageUpdated): StreamEvent[] {
+  function parseMessageUpdatedEvent(event: EventMessageUpdated): AnySessionEvent[] {
     const { info } = event.properties;
 
     if (info.role !== 'assistant') {
@@ -436,66 +455,77 @@ export function createStreamEventParser(mainSessionId: string, options: ConvertO
       return [];
     }
 
-    return [{
-      type: 'metadata_update',
-      conversationId,
-      metadata: {
-        usage: assistantInfo.tokens ? {
-          inputTokens: assistantInfo.tokens.input || 0,
-          outputTokens: assistantInfo.tokens.output || 0,
-          thinkingTokens: assistantInfo.tokens.reasoning || 0,
-          cacheReadTokens: assistantInfo.tokens.cache?.read || 0,
-          cacheWriteTokens: assistantInfo.tokens.cache?.write || 0,
-          totalTokens: (assistantInfo.tokens.input || 0) + (assistantInfo.tokens.output || 0),
-        } : undefined,
-        costUSD: assistantInfo.cost,
-        model: assistantInfo.modelID,
-      },
-    }];
+    return [
+      createSessionEvent(
+        'metadata:update',
+        {
+          metadata: {
+            usage: assistantInfo.tokens ? {
+              inputTokens: assistantInfo.tokens.input || 0,
+              outputTokens: assistantInfo.tokens.output || 0,
+              thinkingTokens: assistantInfo.tokens.reasoning || 0,
+              cacheReadTokens: assistantInfo.tokens.cache?.read || 0,
+              cacheWriteTokens: assistantInfo.tokens.cache?.write || 0,
+              totalTokens: (assistantInfo.tokens.input || 0) + (assistantInfo.tokens.output || 0),
+            } : undefined,
+            costUSD: assistantInfo.cost,
+            model: assistantInfo.modelID,
+          },
+        },
+        { conversationId, source: 'runner' }
+      ),
+    ];
   }
 
   /**
    * Parse a session.idle event (session completed)
    */
-  function parseSessionIdleEvent(event: EventSessionIdle): StreamEvent[] {
+  function parseSessionIdleEvent(event: EventSessionIdle): AnySessionEvent[] {
     const { sessionID } = event.properties;
     const conversationId = sessionID === mainSessionId ? 'main' : sessionID;
-    const events: StreamEvent[] = [];
+    const events: AnySessionEvent[] = [];
 
     // Complete all pending text/reasoning blocks before clearing
     for (const [blockId, state] of activeBlocks) {
       if (state.block.type === 'assistant_text' || state.block.type === 'thinking') {
         if (state.accumulatedContent.trim()) {
-          events.push({
-            type: 'block_complete',
-            blockId,
-            conversationId: state.conversationId,
-            block: {
-              ...state.block,
-              content: state.accumulatedContent,
-            } as ConversationBlock,
-          });
+          events.push(
+            createSessionEvent(
+              'block:complete',
+              {
+                blockId,
+                block: {
+                  ...state.block,
+                  content: state.accumulatedContent,
+                } as ConversationBlock,
+              },
+              { conversationId: state.conversationId, source: 'runner' }
+            )
+          );
         }
       }
     }
 
     activeBlocks.clear();
 
-    events.push({
-      type: 'log',
-      message: 'Session completed',
-      data: {
-        sessionId: sessionID,
-      },
-    });
+    events.push(
+      createSessionEvent(
+        'log',
+        {
+          message: 'Session completed',
+          data: { sessionId: sessionID },
+        },
+        { source: 'runner' }
+      )
+    );
 
     return events;
   }
 
   /**
-   * Parse an OpenCode SDK Event into StreamEvents
+   * Parse an OpenCode SDK Event into SessionEvents
    */
-  function parseEvent(event: Event): StreamEvent[] {
+  function parseEvent(event: Event): AnySessionEvent[] {
     try {
       switch (event.type) {
         case 'message.part.updated':
@@ -509,22 +539,19 @@ export function createStreamEventParser(mainSessionId: string, options: ConvertO
 
         case 'session.error': {
           const e = event as any;
-          return [{
-            type: 'block_complete',
-            blockId: generateId(),
-            conversationId: 'main',
-            block: {
-              type: 'system',
-              id: generateId(),
-              timestamp: new Date().toISOString(),
-              subtype: 'error',
-              message: e.properties?.message || 'Session error',
-              metadata: e.properties,
-            },
-          }];
+          return [
+            createSessionEvent(
+              'error',
+              {
+                message: e.properties?.message || 'Session error',
+                data: e.properties,
+              },
+              { source: 'runner' }
+            ),
+          ];
         }
 
-        // Events we don't need to convert to stream events
+        // Events we don't need to convert to session events
         case 'message.removed':
         case 'message.part.removed':
         case 'session.created':
@@ -555,7 +582,7 @@ export function createStreamEventParser(mainSessionId: string, options: ConvertO
           return [];
       }
     } catch (error) {
-      logger.error({ error, event }, 'Failed to parse OpenCode stream event');
+      logger.error({ error, event }, 'Failed to parse OpenCode session event');
       return [];
     }
   }
@@ -574,7 +601,7 @@ export function createStreamEventParser(mainSessionId: string, options: ConvertO
 }
 
 /**
- * Parse an OpenCode SDK Event into StreamEvents (stateless version)
+ * Parse an OpenCode SDK Event into SessionEvents (stateless version)
  * Note: For proper streaming, use createStreamEventParser() instead
  *
  * @deprecated Use createStreamEventParser for stateful parsing
@@ -583,7 +610,7 @@ export function parseOpencodeStreamEvent(
   event: Event,
   mainSessionId: string,
   options: ConvertOptions = {}
-): StreamEvent[] {
+): AnySessionEvent[] {
   const parser = createStreamEventParser(mainSessionId, options);
   return parser.parseEvent(event);
 }

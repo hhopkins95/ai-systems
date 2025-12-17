@@ -1,6 +1,16 @@
 import { AgentArchitecture, AgentArchitectureSessionOptions } from "./architecture.js";
 import type { ConversationBlock } from "./blocks.js";
-import type { ExecutionEnvironmentStatus } from "./stream-events.js";
+
+/**
+ * Execution environment status values.
+ * Represents the lifecycle state of the execution environment container.
+ */
+export type ExecutionEnvironmentStatus =
+  | 'inactive'      // No environment exists
+  | 'starting'      // Being created/initialized
+  | 'ready'         // Healthy and running
+  | 'error'         // Encountered an error
+  | 'terminated';   // Shut down (timeout, explicit, or crash)
 
 /**
  * A file in the workspace during the session
@@ -126,8 +136,6 @@ export interface SessionRuntimeState {
     activeQuery?: ActiveQueryState;
 }
 
-// Re-export for convenience
-export type { ExecutionEnvironmentStatus } from "./stream-events.js";
 
 // =============================================================================
 // Client-Facing Types (persistence data + runtime state)

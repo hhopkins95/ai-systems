@@ -13,8 +13,6 @@ import type { AgentArchitecture } from '@ai-systems/shared-types';
 import { ClaudeEntityManager } from '@hhopkins/claude-entity-manager';
 import { getWorkspacePaths } from '../helpers/get-workspace-paths';
 import { setEnvironment } from '../helpers/set-environment';
-import { writeStreamEvent } from '../cli/shared';
-import { createLogEvent } from '../helpers/create-stream-events';
 
 const execAsync = promisify(exec);
 

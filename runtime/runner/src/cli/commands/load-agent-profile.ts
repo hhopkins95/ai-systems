@@ -10,7 +10,7 @@ import {
   type LoadAgentProfileInput,
 } from '../../core/index.js';
 import { readStdinJson } from '../shared/input.js';
-import { writePlainError, writeLog, writeOutput } from '../shared/output.js';
+import { writePlainError, emitLog, writeOutput } from '../shared/output.js';
 import { setupExceptionHandlers } from '../shared/signal-handlers.js';
 
 // Set up exception handlers early
@@ -20,7 +20,7 @@ export async function loadAgentProfile(): Promise<void> {
   try {
     const input = await readStdinJson<LoadAgentProfileInput>();
 
-    writeLog('info', 'Loading agent profile', {
+    emitLog('info', 'Loading agent profile', {
       baseWorkspacePath: input.baseWorkspacePath,
       architecture: input.architectureType,
     });
@@ -34,10 +34,10 @@ export async function loadAgentProfile(): Promise<void> {
     }
 
     if (input.agentProfile.plugins && input.agentProfile.plugins.length > 0) {
-      writeLog('info', 'Plugins installed', { count: input.agentProfile.plugins.length });
+      emitLog('info', 'Plugins installed', { count: input.agentProfile.plugins.length });
     }
 
-    writeLog('info', 'Agent profile loaded');
+    emitLog('info', 'Agent profile loaded');
     writeOutput({ success: true });
   } catch (error) {
     const errorMessage = error instanceof Error ? error.message : String(error);

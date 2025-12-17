@@ -55,7 +55,34 @@ This results in:
 
 ## Current Status
 
-Starting initial design - creating implementation plan.
+**Phase 1 complete, Phase 2 in progress (needs revision).**
+
+Session 2025-12-17: Created unified `SessionEvent` types in shared-types. Started runner updates but identified architectural misunderstanding that needs correction before continuing.
+
+### Key Architectural Insight
+
+The converters package (`@hhopkins/agent-converters`) outputs `ConversationBlock[]`, NOT events. The event wrapping (`block:start`, `block:complete`, etc.) happens in the **runner**.
+
+**Correct data flow:**
+```
+SDK Messages → Converters → ConversationBlock[] → Runner wraps in SessionEvent → JSONL stdout
+```
+
+### Implementation Corrections Needed
+
+1. **DELETE `StreamEvent`** from shared-types entirely (not deprecate)
+2. **Runner creates `SessionEvent` directly** when wrapping blocks from converters
+3. **Delete bridge files** created during this session:
+   - `runtime/runner/src/helpers/stream-to-session-event.ts`
+   - Simplify/delete `runtime/runner/src/helpers/create-stream-events.ts`
+
+### Progress
+
+- [x] Phase 1: Define unified SessionEvent types
+- [ ] Phase 2: Update runner (in progress, needs cleanup)
+- [ ] Phase 3: Update server
+- [ ] Phase 4: Update wire protocol and client
+- [ ] Phase 5: Final cleanup
 
 ## Quick Links
 

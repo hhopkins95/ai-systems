@@ -7,8 +7,7 @@
  */
 
 import { type createOpencode as CreateOpencodeType, createOpencodeClient} from '@opencode-ai/sdk/v2';
-import { writeStreamEvent } from '../cli/shared/output.js';
-import { createLogEvent } from '../helpers/create-stream-events.js';
+import { emitLog } from '../cli/shared/output.js';
 
 type OpencodeResult = Awaited<ReturnType<typeof CreateOpencodeType>>;
 type OpencodeClient = OpencodeResult['client'];
@@ -39,25 +38,25 @@ export interface IsolatedServerOptions {
  * Check if an OpenCode server is already running by trying to connect.
  */
 async function tryConnectExisting(baseUrl: string): Promise<OpencodeClient | null> {
-  writeStreamEvent(createLogEvent(`Checking for existing OpenCode server at ${baseUrl}`, 'debug'));
+  emitLog('debug', `Checking for existing OpenCode server at ${baseUrl}`);
 
   try {
-    writeStreamEvent(createLogEvent(`Creating OpenCode client for ${baseUrl}`, 'debug'));
+    emitLog('debug', `Creating OpenCode client for ${baseUrl}`);
     const client = await createOpencodeClient({ baseUrl });
 
-    writeStreamEvent(createLogEvent('Testing connection with project.list()', 'debug'));
+    emitLog('debug', 'Testing connection with project.list()');
     const result = await client.project.list();
 
     if (result.error) {
-      writeStreamEvent(createLogEvent(`Server responded with error`, 'debug', { error: result.error }));
+      emitLog('debug', 'Server responded with error', { error: result.error });
       return null;
     }
 
-    writeStreamEvent(createLogEvent(`Successfully connected to existing OpenCode server at ${baseUrl}`, 'info'));
+    emitLog('info', `Successfully connected to existing OpenCode server at ${baseUrl}`);
     return client;
   } catch (error) {
     const msg = error instanceof Error ? error.message : String(error);
-    writeStreamEvent(createLogEvent(`Failed to connect to existing server: ${msg}`, 'debug'));
+    emitLog('debug', `Failed to connect to existing server: ${msg}`);
     return null;
   }
 }
@@ -87,7 +86,7 @@ export async function getOpencodeConnection(
       const port = options.port ?? 4096;
       const baseUrl = `http://${hostname}:${port}`;
 
-      writeStreamEvent(createLogEvent(`Attempting OpenCode connection to ${baseUrl}`, 'debug'));
+      emitLog('debug', `Attempting OpenCode connection to ${baseUrl}`);
 
       // First, try to connect to an existing server
       const existingClient = await tryConnectExisting(baseUrl);
@@ -107,13 +106,13 @@ export async function getOpencodeConnection(
       try {
         const { createOpencode } = await import('@opencode-ai/sdk/v2');
 
-        writeStreamEvent(createLogEvent(`Calling createOpencode({ hostname: '${hostname}', port: ${port} })`, 'debug'));
+        emitLog('debug', `Calling createOpencode({ hostname: '${hostname}', port: ${port} })`);
         const result = await createOpencode({
           hostname,
           port,
         });
 
-        writeStreamEvent(createLogEvent('OpenCode server started successfully', 'info'));
+        emitLog('info', 'OpenCode server started successfully');
 
         await authenticate(result.client);
 
@@ -124,7 +123,7 @@ export async function getOpencodeConnection(
         };
       } catch (error) {
         const msg = error instanceof Error ? error.message : String(error);
-        writeStreamEvent(createLogEvent(`Failed to start OpenCode server: ${msg}`, 'error'));
+        emitLog('error', `Failed to start OpenCode server: ${msg}`);
         throw error;
       }
     })();
@@ -167,7 +166,7 @@ export async function createIsolatedServer(
   // Set config env var before starting server - server subprocess inherits it
   process.env.OPENCODE_CONFIG = configPath;
 
-  writeStreamEvent(createLogEvent(`Creating isolated OpenCode server with config: ${configPath}`, 'debug'));
+  emitLog('debug', `Creating isolated OpenCode server with config: ${configPath}`);
 
   try {
     const { createOpencode } = await import('@opencode-ai/sdk/v2');
@@ -177,7 +176,7 @@ export async function createIsolatedServer(
       port,
     });
 
-    writeStreamEvent(createLogEvent(`Isolated OpenCode server started at ${result.server?.url}`, 'info'));
+    emitLog('info', `Isolated OpenCode server started at ${result.server?.url}`);
 
     await authenticate(result.client);
 
@@ -185,13 +184,13 @@ export async function createIsolatedServer(
       client: result.client,
       server: result.server,
       close: () => {
-        writeStreamEvent(createLogEvent('Closing isolated OpenCode server', 'debug'));
+        emitLog('debug', 'Closing isolated OpenCode server');
         result.server?.close();
       },
     };
   } catch (error) {
     const msg = error instanceof Error ? error.message : String(error);
-    writeStreamEvent(createLogEvent(`Failed to start isolated OpenCode server: ${msg}`, 'error'));
+    emitLog('error', `Failed to start isolated OpenCode server: ${msg}`);
     throw error;
   }
 }

@@ -4,7 +4,7 @@
  * Provides graceful shutdown handling for SIGINT and SIGTERM signals.
  */
 
-import { writeError } from './output.js';
+import { writePlainError } from './output.js';
 
 /**
  * Cleanup function type
@@ -18,7 +18,7 @@ export type CleanupFunction = () => void | Promise<void>;
  */
 export function setupSignalHandlers(cleanup?: CleanupFunction): void {
   const handleSignal = async (signal: NodeJS.Signals, exitCode: number) => {
-    writeError(`Execution interrupted by ${signal}`);
+    writePlainError(`Execution interrupted by ${signal}`);
 
     if (cleanup) {
       try {
@@ -40,13 +40,13 @@ export function setupSignalHandlers(cleanup?: CleanupFunction): void {
  */
 export function setupExceptionHandlers(): void {
   process.on('uncaughtException', (error) => {
-    writeError(error);
+    writePlainError(error);
     process.exit(1);
   });
 
   process.on('unhandledRejection', (reason) => {
     const error = reason instanceof Error ? reason : new Error(String(reason));
-    writeError(error);
+    writePlainError(error);
     process.exit(1);
   });
 }

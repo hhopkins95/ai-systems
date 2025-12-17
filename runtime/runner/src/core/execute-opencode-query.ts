@@ -1,7 +1,7 @@
 /**
  * OpenCode SDK query execution.
  *
- * Pure async generator that yields StreamEvents from OpenCode responses.
+ * Pure async generator that yields SessionEvents from OpenCode responses.
  */
 
 import * as fs from 'fs';
@@ -10,10 +10,14 @@ import os from 'os';
 import { exec } from 'child_process';
 import { promisify } from 'util';
 import { createStreamEventParser } from '@hhopkins/agent-converters/opencode';
-import type { StreamEvent, UserMessageBlock } from '@ai-systems/shared-types';
+import type { AnySessionEvent, UserMessageBlock } from '@ai-systems/shared-types';
 import { createIsolatedServer } from '../clients/opencode.js';
 import { emptyAsyncIterable, createMessageChannel } from '../clients/channel.js';
-import { createLogEvent, createErrorEvent, errorEventFromError } from '../helpers/create-stream-events.js';
+import {
+  createLogSessionEvent,
+  createErrorSessionEvent,
+  errorSessionEventFromError,
+} from '../helpers/create-stream-events.js';
 import type { ExecuteQueryArgs } from '../types.js';
 import { getWorkspacePaths } from '../helpers/get-workspace-paths.js';
 
@@ -68,20 +72,20 @@ async function createOpencodeSession(sessionId: string, cwd: string): Promise<vo
  *
  * @param input - Query parameters
  * @param messages - Optional async iterable of follow-up messages
- * @yields StreamEvent objects converted from OpenCode events
+ * @yields SessionEvent objects converted from OpenCode events
  */
 export async function* executeOpencodeQuery(
   input: ExecuteQueryArgs,
   _messages: AsyncIterable<UserMessageBlock> = emptyAsyncIterable()
-): AsyncGenerator<StreamEvent> {
-  yield createLogEvent('Starting OpenCode SDK query execution', 'info', {
+): AsyncGenerator<AnySessionEvent> {
+  yield createLogSessionEvent('Starting OpenCode SDK query execution', 'info', {
     sessionId: input.sessionId,
     baseWorkspacePath: input.baseWorkspacePath,
     model: input.model,
   });
 
   if (!input.model) {
-    yield createErrorEvent('Model is required for opencode architecture (format: provider/model)', 'INVALID_INPUT');
+    yield createErrorSessionEvent('Model is required for opencode architecture (format: provider/model)', 'INVALID_INPUT');
     throw new Error('Model is required for opencode architecture (format: provider/model)');
   }
 
@@ -89,15 +93,15 @@ export async function* executeOpencodeQuery(
   const paths = getWorkspacePaths({baseWorkspacePath: input.baseWorkspacePath});
 
   // Create isolated server with specific config for this workspace
-  yield createLogEvent('Creating isolated OpenCode server', 'debug');
+  yield createLogSessionEvent('Creating isolated OpenCode server', 'debug');
   let connection;
   try {
     connection = await createIsolatedServer({
       configPath: paths.opencodeConfigFile,
     });
-    yield createLogEvent('Isolated OpenCode server started', 'debug');
+    yield createLogSessionEvent('Isolated OpenCode server started', 'debug');
   } catch (error) {
-    yield errorEventFromError(error, 'CONNECTION_ERROR');
+    yield errorSessionEventFromError(error, 'CONNECTION_ERROR');
     throw error;
   }
 
@@ -111,21 +115,21 @@ export async function* executeOpencodeQuery(
     });
 
     if (!existingSession.data) {
-      yield createLogEvent('Creating new OpenCode session', 'info', { sessionId: input.sessionId, cwd: paths.workspaceDir });
+      yield createLogSessionEvent('Creating new OpenCode session', 'info', { sessionId: input.sessionId, cwd: paths.workspaceDir });
       await createOpencodeSession(input.sessionId, paths.workspaceDir);
     } else {
-      yield createLogEvent('Resuming existing OpenCode session', 'info', { sessionId: input.sessionId });
+      yield createLogSessionEvent('Resuming existing OpenCode session', 'info', { sessionId: input.sessionId });
     }
 
-    // Create stateful parser for this session
+    // Create stateful parser for this session (still uses old StreamEvent format)
     const parser = createStreamEventParser(input.sessionId);
 
     // Create channel for real-time event streaming
-    const eventChannel = createMessageChannel<StreamEvent>();
+    const eventChannel = createMessageChannel<AnySessionEvent>();
 
     // Establish event subscription BEFORE sending prompt (critical for streaming)
     // NOTE: directory must match session.prompt to receive events from same Bus
-    yield createLogEvent('Establishing event subscription', 'debug');
+    yield createLogSessionEvent('Establishing event subscription', 'debug');
     const eventResult = await client.event.subscribe({ directory: paths.workspaceDir });
 
     // Process events in background (subscription is now established)
@@ -146,10 +150,10 @@ export async function* executeOpencodeQuery(
           sawActivity = true;
         }
 
-        // Convert OpenCode event to StreamEvents using stateful parser
-        const streamEvents = parser.parseEvent(event);
-        for (const streamEvent of streamEvents) {
-          eventChannel.send(streamEvent);
+        // Convert OpenCode event to SessionEvents using stateful parser
+        const sessionEvents = parser.parseEvent(event);
+        for (const sessionEvent of sessionEvents) {
+          eventChannel.send(sessionEvent);
         }
 
         // Close channel when session goes idle AFTER we've seen activity
@@ -161,7 +165,7 @@ export async function* executeOpencodeQuery(
     })();
 
     // Send prompt (don't await - let it run while we yield events)
-    yield createLogEvent('Sending prompt to OpenCode', 'debug', { sessionId: input.sessionId });
+    yield createLogSessionEvent('Sending prompt to OpenCode', 'debug', { sessionId: input.sessionId });
 
     const promptPromise = client.session.prompt({
       sessionID: input.sessionId,
@@ -179,13 +183,13 @@ export async function* executeOpencodeQuery(
     await promptPromise;
     await eventPromise;
 
-    yield createLogEvent('OpenCode SDK query completed', 'info', { sessionId: input.sessionId });
+    yield createLogSessionEvent('OpenCode SDK query completed', 'info', { sessionId: input.sessionId });
   } catch (error) {
-    yield errorEventFromError(error, 'QUERY_EXECUTION_ERROR');
+    yield errorSessionEventFromError(error, 'QUERY_EXECUTION_ERROR');
     throw error;
   } finally {
     // Always close the isolated server when done
-    yield createLogEvent('Closing isolated OpenCode server', 'debug');
+    yield createLogSessionEvent('Closing isolated OpenCode server', 'debug');
     connection.close();
   }
 }

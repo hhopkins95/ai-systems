@@ -3,7 +3,7 @@
  *
  * Pure transformation functions for parsing agent transcripts
  * and converting SDK-specific messages to architecture-agnostic
- * ConversationBlocks and StreamEvents.
+ * ConversationBlocks and SessionEvents.
  *
  * This package provides converters for:
  * - Claude SDK (Anthropic's agent SDK)
@@ -32,16 +32,15 @@ export type {
   ToolExecutionStatus,
   SubagentStatus,
   ToolIO,
-  // Stream event types
-  StreamEvent,
-  BlockStartEvent,
-  TextDeltaEvent,
-  BlockUpdateEvent,
-  BlockCompleteEvent,
-  MetadataUpdateEvent,
+  // Session event types
+  SessionEvent,
+  AnySessionEvent,
+  SessionEventType,
+  SessionEventPayloads,
+  SessionEventContext,
 } from '@ai-systems/shared-types';
 
-// Re-export type guards from shared-types
+// Re-export type guards and helpers from shared-types
 export {
   // Block type guards
   isUserMessageBlock,
@@ -52,12 +51,13 @@ export {
   isSystemBlock,
   isSubagentBlock,
   isErrorBlock,
-  // Stream event type guards
-  isBlockStartEvent,
-  isTextDeltaEvent,
-  isBlockUpdateEvent,
-  isBlockCompleteEvent,
-  isMetadataUpdateEvent,
+  // Session event helpers
+  createSessionEvent,
+  enrichEventContext,
+  isSessionEventType,
+  isBlockEvent,
+  isFileEvent,
+  isSubagentEvent,
 } from '@ai-systems/shared-types';
 
 // Utilities
