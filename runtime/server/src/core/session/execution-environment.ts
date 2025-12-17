@@ -8,6 +8,8 @@ import {
     type AnySessionEvent,
     type SessionEvent,
     isSessionEventType,
+    enrichEventContext,
+    createSessionEvent,
 } from "@ai-systems/shared-types";
 import { logger } from '../../config/logger.js';
 import { deriveSessionPaths, EnvironmentPrimitive, SessionPaths, WatchEvent } from "../../lib/environment-primitives/base";
@@ -283,84 +285,15 @@ export class ExecutionEnvironment {
     /**
      * Forward a SessionEvent to the SessionEventBus
      *
-     * The new unified event format uses the same type names as the event bus,
-     * so we can forward the payload directly with context enrichment.
+     * Enriches the event context with sessionId and emits the full SessionEvent.
+     * The unified event format flows unchanged through the system.
      */
     private emitSessionEvent(event: AnySessionEvent): void {
-        // Extract conversationId from context for events that need it
-        const conversationId = event.context.conversationId;
+        // Enrich with sessionId (runner doesn't know it)
+        const enriched = enrichEventContext(event, { sessionId: this.sessionId });
 
-        switch (event.type) {
-            case 'block:start':
-                this.eventBus.emit('block:start', {
-                    conversationId,
-                    block: event.payload.block,
-                });
-                break;
-
-            case 'block:delta':
-                this.eventBus.emit('block:delta', {
-                    conversationId,
-                    blockId: event.payload.blockId,
-                    delta: event.payload.delta,
-                });
-                break;
-
-            case 'block:update':
-                this.eventBus.emit('block:update', {
-                    conversationId,
-                    blockId: event.payload.blockId,
-                    updates: event.payload.updates,
-                });
-                break;
-
-            case 'block:complete':
-                this.eventBus.emit('block:complete', {
-                    conversationId,
-                    blockId: event.payload.blockId,
-                    block: event.payload.block,
-                });
-                break;
-
-            case 'metadata:update':
-                this.eventBus.emit('metadata:update', {
-                    conversationId,
-                    metadata: event.payload.metadata,
-                });
-                break;
-
-            case 'log':
-                this.eventBus.emit('log', {
-                    level: event.payload.level,
-                    message: event.payload.message,
-                    data: event.payload.data,
-                });
-                break;
-
-            case 'error':
-                this.eventBus.emit('error', {
-                    message: event.payload.message,
-                    code: event.payload.code,
-                });
-                break;
-
-            case 'status':
-                // Status events from runner are handled at AgentSession level
-                // since they need to update SessionState
-                logger.debug({ runtime: event.payload.runtime }, 'Runner status event');
-                break;
-
-            // These events are server-originated, not expected from runner
-            case 'file:created':
-            case 'file:modified':
-            case 'file:deleted':
-            case 'transcript:changed':
-            case 'subagent:discovered':
-            case 'subagent:completed':
-            case 'options:update':
-                logger.warn({ type: event.type }, 'Unexpected server event from runner');
-                break;
-        }
+        // Emit the full SessionEvent to the bus
+        this.eventBus.emit(enriched.type, enriched);
     }
 
     /**
@@ -370,12 +303,20 @@ export class ExecutionEnvironment {
         const transcript = await this.readSessionTranscript();
         logger.info("Fetched transcript: " + transcript);
         if (transcript) {
-            this.eventBus.emit('transcript:changed', { content: transcript });
-        } else { 
-            this.eventBus.emit('error', {
+            this.eventBus.emit('transcript:changed', createSessionEvent('transcript:changed', {
+                content: transcript,
+            }, {
+                sessionId: this.sessionId,
+                source: 'server',
+            }));
+        } else {
+            this.eventBus.emit('error', createSessionEvent('error', {
                 message: "Failed to fetch transcript",
                 code: "TRANSCRIPT_FETCH_FAILED",
-            });
+            }, {
+                sessionId: this.sessionId,
+                source: 'server',
+            }));
         }
     }
 
@@ -528,18 +469,20 @@ export class ExecutionEnvironment {
                 return;
             }
 
+            const context = { sessionId: this.sessionId, source: 'server' as const };
+
             if (event.type === 'add' && event.content !== undefined) {
-                this.eventBus.emit('file:created', {
+                this.eventBus.emit('file:created', createSessionEvent('file:created', {
                     file: { path: event.path, content: event.content },
-                });
+                }, context));
             } else if (event.type === 'change' && event.content !== undefined) {
-                this.eventBus.emit('file:modified', {
+                this.eventBus.emit('file:modified', createSessionEvent('file:modified', {
                     file: { path: event.path, content: event.content },
-                });
+                }, context));
             } else if (event.type === 'unlink') {
-                this.eventBus.emit('file:deleted', {
+                this.eventBus.emit('file:deleted', createSessionEvent('file:deleted', {
                     path: event.path,
-                });
+                }, context));
             }
         }, {
             ignorePatterns : [

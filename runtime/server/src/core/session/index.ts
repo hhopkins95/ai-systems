@@ -23,7 +23,6 @@ export type { ExecutionEnvironmentConfig } from './execution-environment.js';
 
 // Core event bus
 export { SessionEventBus } from './session-event-bus.js';
-export type { SessionEvents } from './session-event-bus.js';
 
 // State management
 export { SessionState } from './session-state.js';

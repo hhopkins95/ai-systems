@@ -4,143 +4,16 @@
  * Abstracts the transport mechanism (Socket.IO, WebSocket, SSE, etc.)
  * so sessions can broadcast events without knowing the underlying transport.
  *
+ * Uses the unified SessionEvent structure from shared-types - events flow
+ * unchanged from runner → server → client.
+ *
  * Implementations:
  * - SocketIOClientHub: Socket.IO rooms-based broadcasting
  * - MockClientHub: For testing
  * - Future: SSEClientHub, WebSocketClientHub, DurableObjectClientHub
  */
 
-import type {
-  AgentArchitectureSessionOptions,
-  ConversationBlock,
-  SessionRuntimeState,
-  WorkspaceFile,
-} from '@ai-systems/shared-types';
-
-// ============================================================================
-// Client Hub Events Interface
-// ============================================================================
-
-/**
- * Events that can be broadcast to clients
- *
- * These map to ServerToClientEvents but are defined here to avoid
- * coupling ClientHub to the WebSocket types directly.
- */
-export interface ClientHubEvents {
-  // -------------------------------------------------------------------------
-  // Block streaming events
-  // -------------------------------------------------------------------------
-
-  'session:block:start': {
-    sessionId: string;
-    conversationId: string;
-    block: ConversationBlock;
-  };
-
-  'session:block:delta': {
-    sessionId: string;
-    conversationId: string;
-    blockId: string;
-    delta: string;
-  };
-
-  'session:block:update': {
-    sessionId: string;
-    conversationId: string;
-    blockId: string;
-    updates: Partial<ConversationBlock>;
-  };
-
-  'session:block:complete': {
-    sessionId: string;
-    conversationId: string;
-    blockId: string;
-    block: ConversationBlock;
-  };
-
-  // -------------------------------------------------------------------------
-  // Status events
-  // -------------------------------------------------------------------------
-
-  'session:status': {
-    sessionId: string;
-    runtime: SessionRuntimeState;
-  };
-
-  // -------------------------------------------------------------------------
-  // File events
-  // -------------------------------------------------------------------------
-
-  'session:file:created': {
-    sessionId: string;
-    file: WorkspaceFile;
-  };
-
-  'session:file:modified': {
-    sessionId: string;
-    file: WorkspaceFile;
-  };
-
-  'session:file:deleted': {
-    sessionId: string;
-    path: string;
-  };
-
-  // -------------------------------------------------------------------------
-  // Metadata events
-  // -------------------------------------------------------------------------
-
-  'session:metadata:update': {
-    sessionId: string;
-    conversationId: string;
-    metadata: Record<string, unknown>;
-  };
-
-  // -------------------------------------------------------------------------
-  // Subagent events
-  // -------------------------------------------------------------------------
-
-  'session:subagent:discovered': {
-    sessionId: string;
-    subagent: {
-      id: string;
-      blocks: ConversationBlock[];
-    };
-  };
-
-  'session:subagent:completed': {
-    sessionId: string;
-    subagentId: string;
-    status: 'completed' | 'failed';
-  };
-
-  // -------------------------------------------------------------------------
-  // Log/error events
-  // -------------------------------------------------------------------------
-
-  'session:log': {
-    sessionId: string;
-    level?: 'debug' | 'info' | 'warn' | 'error';
-    message: string;
-    data?: Record<string, unknown>;
-  };
-
-  'error': {
-    sessionId: string;
-    message: string;
-    code?: string;
-  };
-
-  // -------------------------------------------------------------------------
-  // Options events
-  // -------------------------------------------------------------------------
-
-  'session:options:update': {
-    sessionId: string;
-    options: AgentArchitectureSessionOptions;
-  };
-}
+import type { AnySessionEvent } from '@ai-systems/shared-types';
 
 // ============================================================================
 // ClientHub Interface
@@ -154,17 +27,12 @@ export interface ClientHubEvents {
  */
 export interface ClientHub {
   /**
-   * Broadcast an event to all clients subscribed to a session
+   * Broadcast a session event to all clients subscribed to a session
    *
    * @param sessionId - The session to broadcast to
-   * @param event - The event name (must be key of ClientHubEvents)
-   * @param data - The event payload
+   * @param event - The full SessionEvent object (type + payload + context)
    */
-  broadcast<K extends keyof ClientHubEvents>(
-    sessionId: string,
-    event: K,
-    data: ClientHubEvents[K]
-  ): void;
+  broadcast(sessionId: string, event: AnySessionEvent): void;
 
   /**
    * Get the count of connected clients for a session
@@ -185,22 +53,17 @@ export interface ClientHub {
  * Records all broadcasts for assertions.
  */
 export class MockClientHub implements ClientHub {
-  /** Record of all broadcasts: [sessionId, event, data][] */
+  /** Record of all broadcasts: [sessionId, event][] */
   readonly broadcasts: Array<{
     sessionId: string;
-    event: keyof ClientHubEvents;
-    data: ClientHubEvents[keyof ClientHubEvents];
+    event: AnySessionEvent;
   }> = [];
 
   /** Mock client counts per session */
   private clientCounts: Map<string, number> = new Map();
 
-  broadcast<K extends keyof ClientHubEvents>(
-    sessionId: string,
-    event: K,
-    data: ClientHubEvents[K]
-  ): void {
-    this.broadcasts.push({ sessionId, event, data });
+  broadcast(sessionId: string, event: AnySessionEvent): void {
+    this.broadcasts.push({ sessionId, event });
   }
 
   getClientCount(sessionId: string): number {
@@ -233,13 +96,9 @@ export class MockClientHub implements ClientHub {
   /**
    * Get broadcasts of a specific event type
    */
-  getBroadcastsByEvent<K extends keyof ClientHubEvents>(
-    event: K
-  ): Array<{ sessionId: string; event: K; data: ClientHubEvents[K] }> {
-    return this.broadcasts.filter((b) => b.event === event) as Array<{
-      sessionId: string;
-      event: K;
-      data: ClientHubEvents[K];
-    }>;
+  getBroadcastsByEventType(
+    eventType: AnySessionEvent['type']
+  ): typeof this.broadcasts {
+    return this.broadcasts.filter((b) => b.event.type === eventType);
   }
 }

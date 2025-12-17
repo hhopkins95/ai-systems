@@ -19,16 +19,17 @@ import { randomUUID } from 'crypto';
 import { logger } from '../../config/logger.js';
 import type { PersistenceAdapter } from '../../types/persistence-adapter.js';
 import type { AgentProfile } from '@ai-systems/shared-types';
-import type {
-  RuntimeSessionData,
-  PersistedSessionListData,
-  WorkspaceFile,
-  AgentArchitecture,
-  SessionRuntimeState,
-  CreateSessionArgs,
-  AgentArchitectureSessionOptions,
+import {
+  createSessionEvent,
+  type RuntimeSessionData,
+  type PersistedSessionListData,
+  type WorkspaceFile,
+  type AgentArchitecture,
+  type SessionRuntimeState,
+  type CreateSessionArgs,
+  type AgentArchitectureSessionOptions,
+  type ConversationBlock,
 } from '@ai-systems/shared-types';
-import type { ConversationBlock } from '@ai-systems/shared-types';
 import type { RuntimeConfig } from '../../types/runtime.js';
 import type { ClientHub } from '../host/client-hub.js';
 import { ExecutionEnvironment } from './execution-environment.js';
@@ -240,9 +241,9 @@ export class AgentSession {
    */
   private setupEventListeners(): void {
     // Update state when transcript changes
-    this.eventBus.on('transcript:changed', (data) => {
-      this.state.setRawTranscript(data.content);
-      const parsed = parseTranscript(this.state.architecture, data.content);
+    this.eventBus.on('transcript:changed', (event) => {
+      this.state.setRawTranscript(event.payload.content);
+      const parsed = parseTranscript(this.state.architecture, event.payload.content);
       this.state.setBlocks(parsed.blocks);
       this.state.setSubagents(parsed.subagents.map(sub => ({
         id: sub.id,
@@ -251,23 +252,23 @@ export class AgentSession {
     });
 
     // Update state when files change
-    this.eventBus.on('file:created', (data) => {
-      this.state.updateWorkspaceFile(data.file);
+    this.eventBus.on('file:created', (event) => {
+      this.state.updateWorkspaceFile(event.payload.file);
     });
 
-    this.eventBus.on('file:modified', (data) => {
-      this.state.updateWorkspaceFile(data.file);
+    this.eventBus.on('file:modified', (event) => {
+      this.state.updateWorkspaceFile(event.payload.file);
     });
 
-    this.eventBus.on('file:deleted', (data) => {
-      this.state.removeWorkspaceFile(data.path);
+    this.eventBus.on('file:deleted', (event) => {
+      this.state.removeWorkspaceFile(event.payload.path);
     });
 
     // Handle errors
-    this.eventBus.on('error', (data) => {
+    this.eventBus.on('error', (event) => {
       this.state.setLastError({
-        message: data.message,
-        code: data.code,
+        message: event.payload.message,
+        code: event.payload.code,
         timestamp: Date.now(),
       });
     });
@@ -348,9 +349,12 @@ export class AgentSession {
    * Emit the current runtime status to event bus
    */
   private emitRuntimeStatus(): void {
-    this.eventBus.emit('status:changed', {
+    this.eventBus.emit('status', createSessionEvent('status', {
       runtime: this.state.getRuntimeState(),
-    });
+    }, {
+      sessionId: this.sessionId,
+      source: 'server',
+    }));
   }
 
   /**
@@ -386,15 +390,19 @@ export class AgentSession {
         timestamp: new Date().toISOString(),
       };
 
-      this.eventBus.emit('block:start', {
+      const context = {
+        sessionId: this.sessionId,
         conversationId: 'main',
+        source: 'server' as const,
+      };
+
+      this.eventBus.emit('block:start', createSessionEvent('block:start', {
         block: userBlock,
-      });
-      this.eventBus.emit('block:complete', {
-        conversationId: 'main',
+      }, context));
+      this.eventBus.emit('block:complete', createSessionEvent('block:complete', {
         blockId: userBlockId,
         block: userBlock,
-      });
+      }, context));
 
       logger.info(
         {
@@ -429,9 +437,12 @@ export class AgentSession {
       this.emitRuntimeStatus();
 
       // Emit error event for error block display
-      this.eventBus.emit('error', {
+      this.eventBus.emit('error', createSessionEvent('error', {
         message: errorMessage,
-      });
+      }, {
+        sessionId: this.sessionId,
+        source: 'server',
+      }));
 
       throw error;
     } finally {
@@ -518,9 +529,12 @@ export class AgentSession {
   async updateSessionOptions(sessionOptions: AgentArchitectureSessionOptions): Promise<void> {
     this.state.setSessionOptions(sessionOptions);
     // Emit to event bus - PersistenceListener and ClientBroadcastListener will handle it
-    this.eventBus.emit('options:update', {
+    this.eventBus.emit('options:update', createSessionEvent('options:update', {
       options: sessionOptions,
-    });
+    }, {
+      sessionId: this.sessionId,
+      source: 'server',
+    }));
   }
 
   /**

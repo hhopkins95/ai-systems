@@ -6,6 +6,7 @@
  */
 
 import { useEffect, useReducer, useRef, type ReactNode } from 'react';
+import type { AnySessionEvent } from '@ai-systems/shared-types';
 import { RestClient } from '../client/rest';
 import { WebSocketManager } from '../client/websocket';
 import { AgentServiceContext } from './AgentServiceContext';
@@ -89,180 +90,188 @@ export function AgentServiceProvider({
   // Set up WebSocket event listeners
   useEffect(() => {
     // Helper to log events when debug mode is enabled
-    const logEvent = (event: string, data: unknown) => {
+    const logEvent = (eventType: string, data: unknown) => {
       if (debug) {
-        console.log(`[WS Event] ${event}`, data);
+        console.log(`[WS Event] session:event:${eventType}`, data);
       }
     };
 
     // =========================================================================
-    // Block Streaming Events
+    // Unified Session Event Handler
     // =========================================================================
 
-    wsManager.on('session:block:start', (data) => {
-      logEvent('session:block:start', data);
-      dispatch({ type: 'EVENT_LOGGED', eventName: 'session:block:start', payload: data });
-      dispatch({
-        type: 'STREAM_STARTED',
-        sessionId: data.sessionId,
-        conversationId: data.conversationId,
-        block: data.block,
-      });
-    });
+    wsManager.on('session:event', (event: AnySessionEvent) => {
+      const { type, payload, context } = event;
+      const sessionId = context.sessionId;
+      const conversationId = context.conversationId ?? 'main';
 
-    wsManager.on('session:block:delta', (data) => {
-      // Don't log full delta to avoid spam, just note it happened
-      if (debug) {
-        console.log(`[WS Event] session:block:delta (blockId: ${data.blockId}, +${data.delta.length} chars)`);
+      // Log the event
+      logEvent(type, event);
+      dispatch({ type: 'EVENT_LOGGED', eventName: `session:${type}`, payload: event });
+
+      // Handle each event type
+      switch (type) {
+        // Block Streaming Events
+        case 'block:start':
+          dispatch({
+            type: 'STREAM_STARTED',
+            sessionId,
+            conversationId,
+            block: payload.block,
+          });
+          break;
+
+        case 'block:delta':
+          dispatch({
+            type: 'STREAM_DELTA',
+            sessionId,
+            conversationId,
+            blockId: payload.blockId,
+            delta: payload.delta,
+          });
+          break;
+
+        case 'block:update':
+          dispatch({
+            type: 'BLOCK_UPDATED',
+            sessionId,
+            conversationId,
+            blockId: payload.blockId,
+            updates: payload.updates,
+          });
+          break;
+
+        case 'block:complete':
+          // Handle user_message blocks specially - replace optimistic message
+          if (payload.block.type === 'user_message') {
+            dispatch({
+              type: 'REPLACE_OPTIMISTIC_USER_MESSAGE',
+              sessionId,
+              block: payload.block,
+            });
+          } else {
+            dispatch({
+              type: 'STREAM_COMPLETED',
+              sessionId,
+              conversationId,
+              blockId: payload.blockId,
+              block: payload.block,
+            });
+          }
+          break;
+
+        // Metadata Events
+        case 'metadata:update':
+          dispatch({
+            type: 'METADATA_UPDATED',
+            sessionId,
+            conversationId,
+            metadata: payload.metadata,
+          });
+          break;
+
+        // Status Events
+        case 'status':
+          dispatch({
+            type: 'SESSION_RUNTIME_UPDATED',
+            sessionId,
+            runtime: payload.runtime,
+          });
+          break;
+
+        // File Events
+        case 'file:created':
+          dispatch({
+            type: 'FILE_CREATED',
+            sessionId,
+            file: payload.file,
+          });
+          break;
+
+        case 'file:modified':
+          dispatch({
+            type: 'FILE_MODIFIED',
+            sessionId,
+            file: payload.file,
+          });
+          break;
+
+        case 'file:deleted':
+          dispatch({
+            type: 'FILE_DELETED',
+            sessionId,
+            path: payload.path,
+          });
+          break;
+
+        // Subagent Events
+        case 'subagent:discovered':
+          dispatch({
+            type: 'SUBAGENT_DISCOVERED',
+            sessionId,
+            subagent: payload.subagent,
+          });
+          break;
+
+        case 'subagent:completed':
+          dispatch({
+            type: 'SUBAGENT_COMPLETED',
+            sessionId,
+            subagentId: payload.subagentId,
+            status: payload.status,
+          });
+          break;
+
+        // Log Events
+        case 'log':
+          dispatch({
+            type: 'SESSION_LOG_RECEIVED',
+            sessionId,
+            log: {
+              level: payload.level,
+              message: payload.message,
+              data: payload.data,
+            },
+          });
+          break;
+
+        // Error Events
+        case 'error':
+          dispatch({
+            type: 'ERROR_BLOCK_ADDED',
+            sessionId,
+            error: {
+              message: payload.message,
+              code: payload.code,
+            },
+          });
+          break;
+
+        // Options Events
+        case 'options:update':
+          dispatch({
+            type: 'SESSION_OPTIONS_UPDATED',
+            sessionId,
+            sessionOptions: payload.options,
+          });
+          break;
+
+        // Transcript Events (internal, not typically needed by UI)
+        case 'transcript:changed':
+          // Transcript changes are handled server-side for persistence
+          // Client typically doesn't need to handle these
+          break;
+
+        default: {
+          // TypeScript exhaustiveness check
+          const _exhaustive: never = type;
+          console.warn('[AgentService] Unhandled event type:', _exhaustive);
+        }
       }
-      dispatch({ type: 'EVENT_LOGGED', eventName: 'session:block:delta', payload: { ...data, delta: `[${data.delta.length} chars]` } });
-      dispatch({
-        type: 'STREAM_DELTA',
-        sessionId: data.sessionId,
-        conversationId: data.conversationId,
-        blockId: data.blockId,
-        delta: data.delta,
-      });
-    });
-
-    wsManager.on('session:block:update', (data) => {
-      logEvent('session:block:update', data);
-      dispatch({ type: 'EVENT_LOGGED', eventName: 'session:block:update', payload: data });
-      dispatch({
-        type: 'BLOCK_UPDATED',
-        sessionId: data.sessionId,
-        conversationId: data.conversationId,
-        blockId: data.blockId,
-        updates: data.updates,
-      });
-    });
-
-    wsManager.on('session:block:complete', (data) => {
-      logEvent('session:block:complete', data);
-      dispatch({ type: 'EVENT_LOGGED', eventName: 'session:block:complete', payload: data });
-
-      // Handle user_message blocks specially - replace optimistic message
-      if (data.block.type === 'user_message') {
-        dispatch({
-          type: 'REPLACE_OPTIMISTIC_USER_MESSAGE',
-          sessionId: data.sessionId,
-          block: data.block,
-        });
-      } else {
-        dispatch({
-          type: 'STREAM_COMPLETED',
-          sessionId: data.sessionId,
-          conversationId: data.conversationId,
-          blockId: data.blockId,
-          block: data.block,
-        });
-      }
-    });
-
-    wsManager.on('session:metadata:update', (data) => {
-      logEvent('session:metadata:update', data);
-      dispatch({ type: 'EVENT_LOGGED', eventName: 'session:metadata:update', payload: data });
-      dispatch({
-        type: 'METADATA_UPDATED',
-        sessionId: data.sessionId,
-        conversationId: data.conversationId,
-        metadata: data.metadata,
-      });
     });
 
     // =========================================================================
-    // Subagent Events
-    // =========================================================================
-
-    wsManager.on('session:subagent:discovered', (data) => {
-      logEvent('session:subagent:discovered', data);
-      dispatch({ type: 'EVENT_LOGGED', eventName: 'session:subagent:discovered', payload: data });
-      dispatch({
-        type: 'SUBAGENT_DISCOVERED',
-        sessionId: data.sessionId,
-        subagent: data.subagent,
-      });
-    });
-
-    wsManager.on('session:subagent:completed', (data) => {
-      logEvent('session:subagent:completed', data);
-      dispatch({ type: 'EVENT_LOGGED', eventName: 'session:subagent:completed', payload: data });
-      dispatch({
-        type: 'SUBAGENT_COMPLETED',
-        sessionId: data.sessionId,
-        subagentId: data.subagentId,
-        status: data.status,
-      });
-    });
-
-    // =========================================================================
-    // File Events
-    // =========================================================================
-
-    wsManager.on('session:file:created', (data) => {
-      logEvent('session:file:created', data);
-      dispatch({ type: 'EVENT_LOGGED', eventName: 'session:file:created', payload: { sessionId: data.sessionId, path: data.file.path } });
-      dispatch({
-        type: 'FILE_CREATED',
-        sessionId: data.sessionId,
-        file: data.file,
-      });
-    });
-
-    wsManager.on('session:file:modified', (data) => {
-      logEvent('session:file:modified', data);
-      dispatch({ type: 'EVENT_LOGGED', eventName: 'session:file:modified', payload: { sessionId: data.sessionId, path: data.file.path } });
-      dispatch({
-        type: 'FILE_MODIFIED',
-        sessionId: data.sessionId,
-        file: data.file,
-      });
-    });
-
-    wsManager.on('session:file:deleted', (data) => {
-      logEvent('session:file:deleted', data);
-      dispatch({ type: 'EVENT_LOGGED', eventName: 'session:file:deleted', payload: data });
-      dispatch({
-        type: 'FILE_DELETED',
-        sessionId: data.sessionId,
-        path: data.path,
-      });
-    });
-
-    // =========================================================================
-    // Session Lifecycle Events
-    // =========================================================================
-
-    wsManager.on('session:status', (data) => {
-      logEvent('session:status', data);
-      dispatch({ type: 'EVENT_LOGGED', eventName: 'session:status', payload: data });
-      dispatch({
-        type: 'SESSION_RUNTIME_UPDATED',
-        sessionId: data.sessionId,
-        runtime: data.runtime,
-      });
-    });
-
-    // =========================================================================
-    // Log Events
-    // =========================================================================
-
-    wsManager.on('session:log', (data) => {
-      logEvent('session:log', data);
-      dispatch({ type: 'EVENT_LOGGED', eventName: 'session:log', payload: data });
-      dispatch({
-        type: 'SESSION_LOG_RECEIVED',
-        sessionId: data.sessionId,
-        log: {
-          level: data.level,
-          message: data.message,
-          data: data.data,
-        },
-      });
-    });
-
-    // =========================================================================
-    // Error Events
+    // Connection-level Error Events
     // =========================================================================
 
     wsManager.on('error', (error) => {

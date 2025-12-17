@@ -1,185 +1,37 @@
 /**
  * WebSocket Event Schema for Agent Service
  *
- * Event naming convention: resource:scope:action
+ * Uses the unified SessionEvent structure from shared-types.
+ * Events flow unchanged from runner → server → client via a single 'session:event' emission.
  *
- * Examples:
- * - session:main:message - Main transcript message
- * - session:subagent:discovered - New subagent detected
- * - session:file:modified - File changed in workspace
- * - session:status - Session lifecycle status change
- *
- * Note: Session list is REST-only (no WebSocket broadcast)
+ * Event structure: { type, payload, context }
+ * - type: Event type (e.g., 'block:start', 'status', 'file:created')
+ * - payload: Event-specific data
+ * - context: Metadata (sessionId, conversationId, source, timestamp)
  */
 
-import type { ConversationBlock, SessionRuntimeState, WorkspaceFile, AgentArchitectureSessionOptions } from "@ai-systems/shared-types";
+import type { AnySessionEvent } from "@ai-systems/shared-types";
 
 // ============================================================================
 // Server → Client Events
 // ============================================================================
 
 export interface ServerToClientEvents {
-  // -------------------------------------------------------------------------
-  // Block Streaming Events (session:block:*)
-  // -------------------------------------------------------------------------
-
   /**
-   * New block started in conversation (main or subagent)
+   * Unified session event - all session events use this single handler
+   *
+   * The event object contains:
+   * - type: The event type (e.g., 'block:start', 'block:delta', 'status', etc.)
+   * - payload: Event-specific data
+   * - context: Metadata including sessionId, conversationId, source, timestamp
+   *
+   * Client should switch on event.type to handle different event types.
    */
-  'session:block:start': (data: {
-    sessionId: string;
-    conversationId: 'main' | string; // 'main' or subagentId
-    block: ConversationBlock;
-  }) => void;
+  'session:event': (event: AnySessionEvent) => void;
 
   /**
-   * Text delta for streaming block content
-   */
-  'session:block:delta': (data: {
-    sessionId: string;
-    conversationId: 'main' | string;
-    blockId: string;
-    delta: string;
-  }) => void;
-
-  /**
-   * Block metadata/status updated
-   */
-  'session:block:update': (data: {
-    sessionId: string;
-    conversationId: 'main' | string;
-    blockId: string;
-    updates: Partial<ConversationBlock>;
-  }) => void;
-
-  /**
-   * Block completed and finalized
-   */
-  'session:block:complete': (data: {
-    sessionId: string;
-    conversationId: 'main' | string;
-    blockId: string;
-    block: ConversationBlock;
-  }) => void;
-
-  /**
-   * Session metadata updated (tokens, cost, etc.)
-   */
-  'session:metadata:update': (data: {
-    sessionId: string;
-    conversationId: 'main' | string;
-    metadata: {
-      usage?: {
-        inputTokens: number;
-        outputTokens: number;
-        cacheReadTokens?: number;
-        cacheWriteTokens?: number;
-        thinkingTokens?: number;
-        totalTokens: number;
-      };
-      costUSD?: number;
-      model?: string;
-      [key: string]: unknown;
-    };
-  }) => void;
-
-
-  /**
-   * Session options updated
-   */
-  'session:options:update': (data: {
-    sessionId: string;
-    options: AgentArchitectureSessionOptions;
-  }) => void;
-
-
-  // -------------------------------------------------------------------------
-  // Subagent Events (session:subagent:*)
-  // -------------------------------------------------------------------------
-
-  /**
-   * New subagent discovered
-   * Sent when SDK spawns a new task/agent
-   */
-  'session:subagent:discovered': (data: {
-    sessionId: string;
-    subagent: {
-      id: string;
-      blocks: ConversationBlock[];
-    };
-  }) => void;
-
-  /**
-   * Subagent task completed
-   */
-  'session:subagent:completed': (data: {
-    sessionId: string;
-    subagentId: string;
-    status: 'completed' | 'failed';
-  }) => void;
-
-  // -------------------------------------------------------------------------
-  // File Events (session:file:*)
-  // -------------------------------------------------------------------------
-
-  /**
-   * File created in workspace
-   */
-  'session:file:created': (data: {
-    sessionId: string;
-    file: WorkspaceFile;
-  }) => void;
-
-  /**
-   * File modified in workspace
-   */
-  'session:file:modified': (data: {
-    sessionId: string;
-    file: WorkspaceFile;
-  }) => void;
-
-  /**
-   * File deleted from workspace
-   */
-  'session:file:deleted': (data: {
-    sessionId: string;
-    path: string;
-  }) => void;
-
-  // -------------------------------------------------------------------------
-  // Session Lifecycle Events
-  // -------------------------------------------------------------------------
-
-  /**
-   * Session runtime status changed (unified event)
-   * Covers: session loaded/unloaded, sandbox starting/ready/terminated
-   */
-  'session:status': (data: {
-    sessionId: string;
-    runtime: SessionRuntimeState;
-  }) => void;
-
-  // -------------------------------------------------------------------------
-  // Log Events
-  // -------------------------------------------------------------------------
-
-  /**
-   * Log message from runner/execution environment
-   * Operational logs for debugging and monitoring
-   */
-  'session:log': (data: {
-    sessionId: string;
-    level?: 'debug' | 'info' | 'warn' | 'error';
-    message: string;
-    data?: Record<string, unknown>;
-  }) => void;
-
-  // -------------------------------------------------------------------------
-  // Error Events
-  // -------------------------------------------------------------------------
-
-  /**
-   * Error occurred during session operation
+   * Connection-level error (not session-specific)
+   * For errors that occur outside a session context
    */
   'error': (error: {
     message: string;

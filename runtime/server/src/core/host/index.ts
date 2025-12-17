@@ -16,4 +16,4 @@ export type { SessionHost } from './session-host.js';
 
 // Client communication interface (internal to hosts)
 export { MockClientHub } from './client-hub.js';
-export type { ClientHub, ClientHubEvents } from './client-hub.js';
+export type { ClientHub } from './client-hub.js';

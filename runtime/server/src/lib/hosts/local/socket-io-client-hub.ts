@@ -4,11 +4,13 @@
  * Uses Socket.IO rooms for session-scoped broadcasting.
  * Clients join room `session:${sessionId}` to receive events.
  *
+ * Events are sent as a single 'session:event' with the full SessionEvent structure.
  * This is the production implementation of ClientHub for web clients.
  */
 
 import type { Server as SocketIOServer } from 'socket.io';
-import type { ClientHub, ClientHubEvents } from '../../../core/host/client-hub.js';
+import type { ClientHub } from '../../../core/host/client-hub.js';
+import type { AnySessionEvent } from '@ai-systems/shared-types';
 import type {
   ServerToClientEvents,
   ClientToServerEvents,
@@ -44,26 +46,20 @@ export class SocketIOClientHub implements ClientHub {
   /**
    * Broadcast an event to all clients subscribed to a session
    */
-  broadcast<K extends keyof ClientHubEvents>(
-    sessionId: string,
-    event: K,
-    data: ClientHubEvents[K]
-  ): void {
+  broadcast(sessionId: string, event: AnySessionEvent): void {
     const roomName = `session:${sessionId}`;
 
     logger.debug(
       {
         sessionId,
-        event,
+        eventType: event.type,
         room: roomName,
       },
       'Broadcasting to session room'
     );
 
-    // Map ClientHubEvents to ServerToClientEvents
-    // The event names align directly, so we can cast
-    // eslint-disable-next-line @typescript-eslint/no-explicit-any
-    this.io.to(roomName).emit(event as keyof ServerToClientEvents, data as any);
+    // Emit the full SessionEvent as a single 'session:event'
+    this.io.to(roomName).emit('session:event', event);
   }
 
   /**

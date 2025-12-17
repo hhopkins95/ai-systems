@@ -12,6 +12,7 @@ import type {
   InterServerEvents,
   SocketData,
 } from '../../../types/events.js';
+import { createSessionEvent } from '@ai-systems/shared-types';
 import { logger } from '../../../config/logger.js';
 
 /**
@@ -67,10 +68,12 @@ export function setupSessionLifecycleHandlers(
 
       // Send current status immediately so client has correct state
       const state = session.getState();
-      socket.emit('session:status', {
-        sessionId,
+      socket.emit('session:event', createSessionEvent('status', {
         runtime: state.runtime,
-      });
+      }, {
+        sessionId,
+        source: 'server',
+      }));
 
       logger.info(
         {

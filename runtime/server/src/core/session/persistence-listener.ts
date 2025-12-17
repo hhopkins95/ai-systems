@@ -14,7 +14,7 @@
  * - options:update → update session record
  */
 
-import type { AgentArchitectureSessionOptions } from '@ai-systems/shared-types';
+import type { AgentArchitectureSessionOptions, SessionEvent } from '@ai-systems/shared-types';
 import { logger as baseLogger } from '../../config/logger.js';
 import type { PersistenceAdapter } from '../../types/persistence-adapter.js';
 import type { SessionEventBus } from './session-event-bus.js';
@@ -72,61 +72,55 @@ export class PersistenceListener {
   // Event Handlers
   // =========================================================================
 
-  private async handleTranscriptChanged(data: { content: string }): Promise<void> {
+  private async handleTranscriptChanged(event: SessionEvent<'transcript:changed'>): Promise<void> {
     try {
-      await this.persistence.saveTranscript(this.sessionId, data.content);
+      await this.persistence.saveTranscript(this.sessionId, event.payload.content);
       this.logger.debug('Persisted transcript');
     } catch (error) {
       this.logger.error({ error }, 'Failed to persist transcript');
     }
   }
 
-  private async handleFileCreated(data: {
-    file: { path: string; content: string | undefined };
-  }): Promise<void> {
+  private async handleFileCreated(event: SessionEvent<'file:created'>): Promise<void> {
     try {
-      await this.persistence.saveWorkspaceFile(this.sessionId, data.file);
-      this.logger.debug({ path: data.file.path }, 'Persisted new workspace file');
+      await this.persistence.saveWorkspaceFile(this.sessionId, event.payload.file);
+      this.logger.debug({ path: event.payload.file.path }, 'Persisted new workspace file');
     } catch (error) {
       this.logger.error(
-        { error, path: data.file.path },
+        { error, path: event.payload.file.path },
         'Failed to persist new workspace file'
       );
     }
   }
 
-  private async handleFileModified(data: {
-    file: { path: string; content: string | undefined };
-  }): Promise<void> {
+  private async handleFileModified(event: SessionEvent<'file:modified'>): Promise<void> {
     try {
-      await this.persistence.saveWorkspaceFile(this.sessionId, data.file);
-      this.logger.debug({ path: data.file.path }, 'Persisted modified workspace file');
+      await this.persistence.saveWorkspaceFile(this.sessionId, event.payload.file);
+      this.logger.debug({ path: event.payload.file.path }, 'Persisted modified workspace file');
     } catch (error) {
       this.logger.error(
-        { error, path: data.file.path },
+        { error, path: event.payload.file.path },
         'Failed to persist modified workspace file'
       );
     }
   }
 
-  private async handleFileDeleted(data: { path: string }): Promise<void> {
+  private async handleFileDeleted(event: SessionEvent<'file:deleted'>): Promise<void> {
     try {
-      await this.persistence.deleteSessionFile(this.sessionId, data.path);
-      this.logger.debug({ path: data.path }, 'Deleted workspace file from persistence');
+      await this.persistence.deleteSessionFile(this.sessionId, event.payload.path);
+      this.logger.debug({ path: event.payload.path }, 'Deleted workspace file from persistence');
     } catch (error) {
       this.logger.error(
-        { error, path: data.path },
+        { error, path: event.payload.path },
         'Failed to delete workspace file from persistence'
       );
     }
   }
 
-  private async handleOptionsUpdate(data: {
-    options: AgentArchitectureSessionOptions;
-  }): Promise<void> {
+  private async handleOptionsUpdate(event: SessionEvent<'options:update'>): Promise<void> {
     try {
       await this.persistence.updateSessionRecord(this.sessionId, {
-        sessionOptions: data.options,
+        sessionOptions: event.payload.options,
       });
       this.logger.debug('Persisted session options');
     } catch (error) {

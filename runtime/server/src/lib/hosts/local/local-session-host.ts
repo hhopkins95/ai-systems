@@ -12,7 +12,7 @@
 import { logger } from '../../../config/logger.js';
 import type { PersistenceAdapter } from '../../../types/persistence-adapter.js';
 import type { RuntimeConfig } from '../../../types/runtime.js';
-import type { CreateSessionArgs } from '@ai-systems/shared-types';
+import { createSessionEvent, type CreateSessionArgs } from '@ai-systems/shared-types';
 import { AgentSession } from '../../../core/session/agent-session.js';
 import type { ClientHub } from '../../../core/host/client-hub.js';
 import { MockClientHub } from '../../../core/host/client-hub.js';
@@ -171,10 +171,12 @@ export class LocalSessionHost implements SessionHost {
 
       // Broadcast status update via ClientHub (session is now unloaded)
       // This is a per-session event, not a global broadcast
-      this.clientHub.broadcast(sessionId, 'session:status', {
-        sessionId,
+      this.clientHub.broadcast(sessionId, createSessionEvent('status', {
         runtime: { isLoaded: false, executionEnvironment: null },
-      });
+      }, {
+        sessionId,
+        source: 'server',
+      }));
 
       // No global event emission - clients use REST to get session list
     } catch (error) {
