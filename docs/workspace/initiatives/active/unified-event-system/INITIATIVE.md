@@ -55,34 +55,50 @@ This results in:
 
 ## Current Status
 
-**Phase 1 complete, Phase 2 in progress (needs revision).**
+**Phases 1-2 complete. Phase 3 partially done.**
 
-Session 2025-12-17: Created unified `SessionEvent` types in shared-types. Started runner updates but identified architectural misunderstanding that needs correction before continuing.
+### Sessions
 
-### Key Architectural Insight
+- **2025-12-17 (initial):** Created unified `SessionEvent` types in shared-types. Identified architectural insight about converter output.
+- **2025-12-17 (phase2):** Completed full migration of converters, runner, and server parsing. Deleted `StreamEvent` entirely.
 
-The converters package (`@hhopkins/agent-converters`) outputs `ConversationBlock[]`, NOT events. The event wrapping (`block:start`, `block:complete`, etc.) happens in the **runner**.
+### What's Done
 
-**Correct data flow:**
+1. **Unified type definitions** - `SessionEvent<K>` with `type`, `payload`, `context` structure
+2. **Converters output `SessionEvent` directly** - Both Claude SDK and OpenCode converters use `createSessionEvent()`
+3. **Runner consumes SessionEvent** - No more bridge layer, yields events directly from converters
+4. **Server parses SessionEvent** - `execution-environment.ts` updated to handle new format
+5. **Legacy types deleted** - `StreamEvent`, `stream-events.ts` removed entirely
+
+### Actual Data Flow (Implemented)
+
 ```
-SDK Messages → Converters → ConversationBlock[] → Runner wraps in SessionEvent → JSONL stdout
+SDK Messages → Converters → AnySessionEvent[] → Runner yields → Server parses → EventBus
 ```
 
-### Implementation Corrections Needed
-
-1. **DELETE `StreamEvent`** from shared-types entirely (not deprecate)
-2. **Runner creates `SessionEvent` directly** when wrapping blocks from converters
-3. **Delete bridge files** created during this session:
-   - `runtime/runner/src/helpers/stream-to-session-event.ts`
-   - Simplify/delete `runtime/runner/src/helpers/create-stream-events.ts`
+The converters DO output events (not just blocks) for streaming. This was clarified during implementation.
 
 ### Progress
 
 - [x] Phase 1: Define unified SessionEvent types
-- [ ] Phase 2: Update runner (in progress, needs cleanup)
-- [ ] Phase 3: Update server
+- [x] Phase 2: Update converters and runner
+- [~] Phase 3: Update server (parsing done, event bus alignment remaining)
 - [ ] Phase 4: Update wire protocol and client
 - [ ] Phase 5: Final cleanup
+
+### Remaining Work
+
+**Phase 3 (partial):**
+- Server's `SessionEventBus` still defines its own payload types
+- Could unify to use `SessionEventPayloads` from shared-types
+
+**Phase 4:**
+- `ClientBroadcastListener` transformation layer
+- Client-side event consumption
+
+**Phase 5:**
+- Remove `as any` casts
+- Add event flow tests
 
 ## Quick Links
 
