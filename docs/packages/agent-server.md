@@ -98,9 +98,18 @@ DELETE /sessions/:id      - Delete session
 socket.emit('session:create', { agentProfileRef, architecture });
 socket.emit('session:message', { sessionId, content });
 
-// Server → Client
-socket.on('stream:event', ({ sessionId, event }) => {});
-socket.on('session:status', ({ sessionId, runtime }) => {});
+// Server → Client (unified event system)
+socket.on('session:event', (event: SessionEvent) => {
+  // All events use consistent { type, payload, context } structure
+  switch (event.type) {
+    case 'block:start':
+    case 'block:delta':
+    case 'block:complete':
+    case 'status':
+    case 'error':
+      // Handle event.payload based on type
+  }
+});
 ```
 
 ## Key Types

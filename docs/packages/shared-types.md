@@ -5,7 +5,7 @@ Shared TypeScript type definitions used across all packages.
 ## What It Does
 
 - Defines common types for the entire monorepo
-- Provides ConversationBlock and StreamEvent types
+- Provides ConversationBlock and SessionEvent types
 - Defines entity types (Skill, Command, Agent, Hook)
 - Ensures type consistency across packages
 
@@ -15,7 +15,7 @@ Shared TypeScript type definitions used across all packages.
 flowchart TB
     subgraph shared-types
         Blocks[ConversationBlock types]
-        Events[StreamEvent types]
+        Events[SessionEvent types]
         Entities[Entity types]
         Session[Session types]
         Agent[AgentProfile types]
@@ -26,10 +26,11 @@ flowchart TB
     Blocks --> converters[converters]
 
     Events --> server
-    Events --> client
+    Events --> runner[agent-runner]
+    Events --> client[agent-client]
 
     Entities --> cem[claude-entity-manager]
-    Entities --> runner[agent-runner]
+    Entities --> runner
 
     Session --> server
     Agent --> runner
@@ -40,7 +41,7 @@ flowchart TB
 | Component | File | Purpose |
 |-----------|------|---------|
 | ConversationBlock | `src/runtime/blocks.ts` | Message block types |
-| StreamEvent | `src/runtime/stream-events.ts` | Real-time event types |
+| SessionEvent | `src/runtime/session-events.ts` | Unified real-time event types |
 | Entity types | `src/entities/` | Skill, Command, Agent, Hook |
 | Session types | `src/runtime/session.ts` | Session data structures |
 | AgentProfile | `src/agent-profile.ts` | Agent configuration |
@@ -52,12 +53,21 @@ import type {
   ConversationBlock,
   TextBlock,
   ToolUseBlock,
-  StreamEvent,
+  SessionEvent,
+  SessionEventType,
+  SessionEventPayloads,
+  AnySessionEvent,
   Skill,
   Command,
   Agent,
   AgentProfile,
   SessionListItem,
+} from '@ai-systems/shared-types';
+
+import {
+  createSessionEvent,
+  enrichEventContext,
+  isSessionEventType,
 } from '@ai-systems/shared-types';
 ```
 
@@ -94,48 +104,69 @@ interface ToolResultBlock {
 }
 ```
 
-### StreamEvent
+### SessionEvent
 
-Stream events are divided into two categories:
+A unified event system with consistent `{ type, payload, context }` structure that flows unchanged from runner to client.
 
-**Conversation-level events** (for building the transcript):
+**Event structure:**
 ```typescript
-type ConversationStreamEvent =
-  | BlockStartEvent      // New block begins
-  | TextDeltaEvent       // Incremental text content
-  | BlockUpdateEvent     // Block metadata changes
-  | BlockCompleteEvent   // Block finalized
-  | MetadataUpdateEvent; // Session metadata (tokens, cost)
+interface SessionEvent<K extends SessionEventType> {
+  type: K;                        // Event type key
+  payload: SessionEventPayloads[K]; // Type-safe payload
+  context: SessionEventContext;   // Session context
+}
+
+interface SessionEventContext {
+  sessionId: string;           // Added by server
+  conversationId?: string;     // 'main' or subagent ID
+  source?: 'runner' | 'server'; // Where event originated
+  timestamp?: string;          // ISO timestamp
+}
 ```
 
-**Execution-level events** (operational/diagnostic):
+**Event types** (defined in `SessionEventPayloads`):
 ```typescript
-type ExecutionStreamEvent =
-  | StatusEvent    // Execution environment state transitions
-  | LogEvent       // Informational messages with level
-  | ErrorEvent     // Failures and errors
-  | ScriptOutput;  // Final result from non-streaming commands
+// Block streaming events
+'block:start'    // { block: ConversationBlock }
+'block:delta'    // { blockId: string, delta: string }
+'block:update'   // { blockId: string, updates: Partial<ConversationBlock> }
+'block:complete' // { blockId: string, block: ConversationBlock }
 
-interface StatusEvent {
-  type: 'status';
-  status: ExecutionEnvironmentStatus;
-  message?: string;
+// Metadata events
+'metadata:update' // { metadata: SessionMetadata }
+
+// Runtime status events
+'status'          // { runtime: SessionRuntimeState }
+
+// File events (server-originated)
+'file:created'   // { file: WorkspaceFile }
+'file:modified'  // { file: WorkspaceFile }
+'file:deleted'   // { path: string }
+
+// Operational events
+'log'    // { level?, message, data? }
+'error'  // { message, code?, data? }
+```
+
+**Factory functions:**
+```typescript
+// Create a new event
+const event = createSessionEvent('block:start', { block }, {
+  conversationId: 'main',
+  source: 'runner'
+});
+
+// Enrich context without transforming payload
+const enriched = enrichEventContext(event, { sessionId: '123' });
+
+// Type guard for event type
+if (isSessionEventType(event, 'block:delta')) {
+  console.log(event.payload.delta); // TypeScript knows the type
 }
+```
 
-interface LogEvent {
-  type: 'log';
-  level?: 'debug' | 'info' | 'warn' | 'error';
-  message: string;
-  data?: Record<string, unknown>;
-}
-
-interface ErrorEvent {
-  type: 'error';
-  message: string;
-  code?: string;
-  data?: Record<string, unknown>;
-}
-
+**ScriptOutput** (separate from SessionEvent) is used for non-streaming CLI command results:
+```typescript
 interface ScriptOutput<T = unknown> {
   type: 'script_output';
   success: boolean;
@@ -143,8 +174,6 @@ interface ScriptOutput<T = unknown> {
   error?: string;
 }
 ```
-
-**ScriptOutput** is used by runner CLI commands to return structured results. It enables unified JSONL parsing where all stdout from runner scripts is either a `StreamEvent` or `ScriptOutput`.
 
 ### Entity Types
 

@@ -83,7 +83,7 @@ Core functions can be imported and called directly without spawning subprocesses
 ```typescript
 import { executeQuery, loadAgentProfile, createMessageChannel } from '@hhopkins/agent-runner';
 
-// Execute a query - returns AsyncGenerator<StreamEvent>
+// Execute a query - returns AsyncGenerator<SessionEvent>
 const input = {
   prompt: 'What is 2 + 2?',
   architecture: 'claude-sdk',
@@ -92,7 +92,7 @@ const input = {
 };
 
 for await (const event of executeQuery(input)) {
-  console.log(event);
+  console.log(event.type, event.payload);
 }
 
 // Load an agent profile
@@ -152,14 +152,24 @@ await sandbox.exec(['node', '/app/runner.js', 'execute-query', ...]);
 
 ### CLI Output Format
 
-All CLI commands emit JSONL to stdout. Output is always `StreamEvent | ScriptOutput`:
+All CLI commands emit JSONL to stdout. Output is always `SessionEvent | ScriptOutput`:
 
 | Command | Output Format |
 |---------|---------------|
-| `execute-query` | Streams `StreamEvent` lines (block_start, text_delta, etc.) |
+| `execute-query` | Streams `SessionEvent` lines (block:start, block:delta, etc.) |
 | `load-agent-profile` | Log events + final `ScriptOutput<void>` |
 | `load-session-transcript` | Log events + final `ScriptOutput<void>` |
 | `read-session-transcript` | `ScriptOutput<{ transcript: string }>` |
+
+**SessionEvent** uses a unified structure with `type`, `payload`, and `context`:
+
+```typescript
+interface SessionEvent<K extends SessionEventType> {
+  type: K;                        // e.g., 'block:start', 'block:delta'
+  payload: SessionEventPayloads[K]; // Type-safe payload
+  context: SessionEventContext;   // conversationId, source, timestamp
+}
+```
 
 **ScriptOutput** is the final result for non-streaming commands:
 
@@ -175,20 +185,20 @@ interface ScriptOutput<T = unknown> {
 Example outputs:
 
 ```jsonl
-// execute-query (streaming)
-{"type":"block_start","blockId":"msg-1","block":{...}}
-{"type":"text_delta","blockId":"msg-1","delta":"Hello"}
-{"type":"block_complete","blockId":"msg-1","block":{...}}
+// execute-query (streaming SessionEvents)
+{"type":"block:start","payload":{"block":{...}},"context":{"conversationId":"main","source":"runner"}}
+{"type":"block:delta","payload":{"blockId":"msg-1","delta":"Hello"},"context":{...}}
+{"type":"block:complete","payload":{"blockId":"msg-1","block":{...}},"context":{...}}
 
 // load-agent-profile (non-streaming)
-{"type":"block_complete","blockId":"log-123","block":{"type":"system","subtype":"log",...}}
+{"type":"log","payload":{"message":"Profile loaded"},"context":{...}}
 {"type":"script_output","success":true}
 
 // read-session-transcript
 {"type":"script_output","success":true,"data":{"transcript":"..."}}
 ```
 
-This unified format allows `ExecutionEnvironment` to use a single JSONL parser for all commands.
+This unified format allows `ExecutionEnvironment` to use a single JSONL parser for all commands, and events flow unchanged to clients.
 
 ## Key Types
 

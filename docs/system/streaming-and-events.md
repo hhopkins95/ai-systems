@@ -15,66 +15,92 @@ The streaming system handles real-time agent output:
 
 ```mermaid
 flowchart LR
-    SDK[Claude SDK] -->|raw events| Runner[agent-runner]
-    Runner -->|StreamEvent JSON| EE[ExecutionEnvironment]
-    EE -->|emits| SEB[SessionEventBus]
-    SEB -->|ClientBroadcastListener| CH[ClientHub]
+    SDK[Claude SDK] -->|raw events| Conv[Converters]
+    Conv -->|SessionEvent| Runner[agent-runner]
+    Runner -->|SessionEvent JSONL| EE[ExecutionEnvironment]
+    EE -->|enriches context| SEB[SessionEventBus]
+    SEB -->|session:event| CH[ClientHub]
     CH -->|broadcast| WS[WebSocket]
-    WS -->|message| Client[React Client]
+    WS -->|session:event| Client[React Client]
 ```
 
 ### 1. Event Flow
 
-Events originate from the SDK and flow through layers:
+Events use a unified `SessionEvent` structure that flows unchanged through the entire pipeline:
 
 ```typescript
-// ExecutionEnvironment emits events to session's event bus
+// SessionEvent structure - consistent from runner to client
+interface SessionEvent<K extends SessionEventType> {
+  type: K;                        // e.g., 'block:start', 'block:delta'
+  payload: SessionEventPayloads[K]; // Type-safe payload
+  context: SessionEventContext;   // sessionId, conversationId, source, timestamp
+}
+
+// ExecutionEnvironment enriches context (adds sessionId) without transforming
 executeQuery(args, eventBus: SessionEventBus) {
   const process = await this.primitives.exec([...]);
 
   for await (const line of readLines(process.stdout)) {
-    const event = JSON.parse(line) as StreamEvent;
-    // Emit to per-session event bus (no sessionId needed - implicit)
-    eventBus.emit('block:delta', { conversationId, blockId, delta: event.delta });
+    const event = JSON.parse(line) as SessionEvent;
+    // Enrich with sessionId and emit unchanged
+    const enriched = enrichEventContext(event, { sessionId });
+    eventBus.emit(event.type, enriched);
   }
 }
 
-// ClientBroadcastListener subscribes and forwards to ClientHub
-eventBus.on('block:delta', (data) => {
-  clientHub.broadcast(sessionId, 'session:block:delta', { sessionId, ...data });
+// ClientHub broadcasts single 'session:event' to all clients
+eventBus.onAny((event) => {
+  clientHub.broadcast(sessionId, 'session:event', event);
 });
 ```
 
-### 2. StreamEvent Types
+### 2. SessionEvent Types
 
-StreamEvents are divided into conversation events and execution events:
+Events are organized by category in `SessionEventPayloads`:
 
 ```typescript
-type StreamEvent =
-  // Conversation events
-  | BlockStartEvent       // New block begins (may be incomplete)
-  | TextDeltaEvent        // Incremental text for streaming
-  | BlockUpdateEvent      // Block metadata changes
-  | BlockCompleteEvent    // Block finalized
-  | MetadataUpdateEvent   // Token usage, cost updates
-  // Execution events
-  | StatusEvent           // Environment state changes
-  | LogEvent              // Operational logs
-  | ErrorEvent            // Operational errors
-  | ScriptOutput;         // Final result from non-streaming commands
+// Block streaming events (high frequency during query execution)
+'block:start'    // New block begins (may be incomplete)
+'block:delta'    // Incremental text content
+'block:update'   // Block metadata changes
+'block:complete' // Block finalized
+
+// Metadata events
+'metadata:update' // Token usage, cost, model info
+
+// Runtime status events
+'status'          // Session runtime state changed
+
+// File events (server-originated)
+'file:created'   // File created in workspace
+'file:modified'  // File modified in workspace
+'file:deleted'   // File deleted from workspace
+
+// Transcript events
+'transcript:changed' // Combined transcript changed
+
+// Subagent events
+'subagent:discovered' // New subagent found
+'subagent:completed'  // Subagent finished
+
+// Operational events
+'log'    // Operational log message
+'error'  // Error occurred
+
+// Options events
+'options:update' // Session options changed
 ```
 
 | Event | When Emitted |
 |-------|--------------|
-| `block_start` | New conversation block begins |
-| `text_delta` | Each chunk of assistant/thinking text |
-| `block_update` | Block status changes (e.g., tool pending → running) |
-| `block_complete` | Block finalized with full content |
-| `metadata_update` | Token usage or cost information |
-| `status` | Execution environment state transitions |
+| `block:start` | New conversation block begins |
+| `block:delta` | Each chunk of assistant/thinking text |
+| `block:update` | Block status changes (e.g., tool pending → running) |
+| `block:complete` | Block finalized with full content |
+| `metadata:update` | Token usage or cost information |
+| `status` | Session runtime state transitions |
 | `log` | Informational logs from runner |
 | `error` | Operational error occurred |
-| `script_output` | Final result from non-streaming CLI commands |
 
 ### 3. ConversationBlock Structure
 
@@ -112,29 +138,31 @@ interface ToolResultBlock {
 
 | Component | Package | Purpose |
 |-----------|---------|---------|
-| StreamEvent types | shared-types | Event definitions from runner |
+| SessionEvent types | shared-types | Unified event definitions |
+| SessionEventPayloads | shared-types | Type-safe payload map |
 | ConversationBlock | shared-types | Structured message blocks |
 | SessionEventBus | agent-server | Per-session event emitter |
 | ClientHub | agent-server | Broadcasts to connected clients |
-| ClientBroadcastListener | agent-server | Bridges SessionEventBus to ClientHub |
-| TranscriptParser | converters | Parse raw transcripts |
+| createSessionEvent | shared-types | Factory for creating events |
+| enrichEventContext | shared-types | Add context without transforming |
 
 ## Client-Side Handling
 
 ```typescript
-// In useAgentClient hook
-socket.on('stream:event', (data) => {
-  const { sessionId, event } = data;
-
+// Single unified event handler
+socket.on('session:event', (event: SessionEvent) => {
   switch (event.type) {
-    case 'text_delta':
-      appendToCurrentMessage(event.delta);
+    case 'block:delta':
+      appendToCurrentMessage(event.payload.delta);
       break;
-    case 'message_complete':
-      finalizeCurrentMessage(event.content);
+    case 'block:complete':
+      finalizeCurrentMessage(event.payload.block);
       break;
     case 'error':
-      handleError(event.message);
+      handleError(event.payload.message);
+      break;
+    case 'status':
+      updateRuntimeState(event.payload.runtime);
       break;
   }
 });
@@ -142,19 +170,20 @@ socket.on('stream:event', (data) => {
 
 ## Key Insight
 
-StreamEvents are **low-level incremental updates** for real-time UI, while ConversationBlocks are **high-level structured data** for persistence and display. The system uses events during streaming, then parses the final transcript into blocks.
+SessionEvents are **low-level incremental updates** for real-time UI, while ConversationBlocks are **high-level structured data** for persistence and display. The system uses events during streaming, then parses the final transcript into blocks.
+
+The unified event system means events flow unchanged from runner to client with a consistent `{ type, payload, context }` structure - no transformation layers needed.
 
 ## Where It Lives
 
 | Concern | Location |
 |---------|----------|
-| StreamEvent types | `packages/types/src/runtime/stream-events.ts` |
+| SessionEvent types | `packages/types/src/runtime/session-events.ts` |
 | ConversationBlock types | `packages/types/src/runtime/blocks.ts` |
 | SessionEventBus | `runtime/server/src/core/session/session-event-bus.ts` |
 | ClientHub interface | `runtime/server/src/core/host/client-hub.ts` |
-| ClientBroadcastListener | `runtime/server/src/core/session/client-broadcast-listener.ts` |
-| Transcript parsing | `packages/converters/src/` |
-| Runner output utilities | `runtime/runner/src/cli/shared/output.ts` |
+| Event creation | `packages/types/src/runtime/session-events.ts` (createSessionEvent) |
+| Runner output | `runtime/runner/src/cli/shared/output.ts` |
 
 ## Related
 
