@@ -465,9 +465,6 @@ export class ExecutionEnvironment {
             this.consumeRunnerOutput<{ transcript: string }>(process.stdout)
         ]);
 
-
-        console.log("Transcript Read Output: " + JSON.stringify(output));
-
         if (!output?.success || !output.data?.transcript) {
             return null;
         }
