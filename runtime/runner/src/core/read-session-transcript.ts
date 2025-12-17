@@ -48,11 +48,9 @@ async function readClaudeSdkTranscript(
   const manager = new ClaudeEntityManager({ projectDir, claudeDir: claudeHomeDir });
   try {
     const transcript = await manager.readSessionRaw(sessionId);
-    writeStreamEvent(createLogEvent('Transcript read successfully', 'info', { transcript }));
     return JSON.stringify(transcript);
   } catch (error) {
     console.error(`Error reading session transcripts: ${error}`);
-    writeStreamEvent(createLogEvent('Error reading session transcripts', 'error', { error }));
     return null;
   }
 }
