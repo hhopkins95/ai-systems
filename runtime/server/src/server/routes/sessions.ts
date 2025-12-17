@@ -2,9 +2,9 @@ import { Hono } from "hono";
 import { HTTPException } from "hono/http-exception";
 import { zValidator } from "@hono/zod-validator";
 import { z } from "zod";
-import type { SessionHost } from "../../../core/host/session-host.js";
+import type { SessionHost } from "../../core/host/session-host.js";
 import type { AgentArchitectureSessionOptions } from "@ai-systems/shared-types";
-import { errorResponse } from "../server";
+import { errorResponse } from "../server.js";
 
 export function createSessionRoutes(
   sessionHost: SessionHost

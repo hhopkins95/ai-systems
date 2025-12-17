@@ -78,9 +78,9 @@ export type { AgentSession } from './core/session/agent-session.js';
 // REST Server (for custom setups)
 // ============================================================================
 
-export { createRestServer, errorResponse } from './transport/rest/server.js';
-export { createSessionRoutes } from './transport/rest/routes/sessions.js';
-export { createMessageRoutes } from './transport/rest/routes/messages.js';
+export { createRestServer, errorResponse } from './server/server.js';
+export { createSessionRoutes } from './server/routes/sessions.js';
+export { createMessageRoutes } from './server/routes/messages.js';
 
 // ============================================================================
 // Utilities

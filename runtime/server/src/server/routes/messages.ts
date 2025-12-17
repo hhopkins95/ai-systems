@@ -2,8 +2,8 @@ import { Hono } from "hono";
 import { HTTPException } from "hono/http-exception";
 import { zValidator } from "@hono/zod-validator";
 import { z } from "zod";
-import type { SessionHost } from "../../../core/host/session-host.js";
-import { errorResponse } from "../server";
+import type { SessionHost } from "../../core/host/session-host.js";
+import { errorResponse } from "../server.js";
 
 export function createMessageRoutes(
   sessionHost: SessionHost

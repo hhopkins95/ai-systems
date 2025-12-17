@@ -3,9 +3,9 @@ import { cors } from "hono/cors";
 import { logger } from "hono/logger";
 import { HTTPException } from "hono/http-exception";
 import type { Context, Next } from "hono";
-import type { SessionHost } from "../../core/host/session-host.js";
-import { createSessionRoutes } from "./routes/sessions";
-import { createMessageRoutes } from "./routes/messages";
+import type { SessionHost } from "../core/host/session-host.js";
+import { createSessionRoutes } from "./routes/sessions.js";
+import { createMessageRoutes } from "./routes/messages.js";
 
 /**
  * Error response helper

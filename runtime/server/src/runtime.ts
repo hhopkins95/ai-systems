@@ -36,7 +36,7 @@ import type { SessionHost } from './core/host/session-host.js';
 import type { PersistenceAdapter } from './types/persistence-adapter.js';
 import type { AgentRuntimeConfig } from './types/runtime.js';
 import type { LocalHostConfig } from './types/host-config.js';
-import { createRestServer } from './transport/rest/server.js';
+import { createRestServer } from './server/server.js';
 import {
   LocalSessionHost,
   attachLocalTransport,
