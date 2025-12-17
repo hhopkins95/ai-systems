@@ -150,10 +150,10 @@ export function getProjectsDir(claudeDir: string): string {
  * getProjectDirName("/Users/hunter/.dotfiles")  // "-Users-hunter--dotfiles"
  */
 export function getProjectDirName(projectPath: string): string {
-  // Replace forward slashes with dashes
-  // Note: dots become double-dashes (e.g., .agent-sessions → --agent-sessions)
-  const path =  projectPath.replace(/\//g, "-");
-  return path;
+  // Replace forward slashes and periods with dashes
+  // This matches Claude's folder naming convention
+  // e.g., "/Users/hunter/.dotfiles" → "-Users-hunter--dotfiles"
+  return projectPath.replace(/[\/\.]/g, "-");
 }
 
 /**
