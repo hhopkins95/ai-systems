@@ -355,8 +355,14 @@ export class ExecutionEnvironment {
      */
     private async sendTranscriptUpdate(): Promise<void> {
         const transcript = await this.readSessionTranscript();
+        logger.info("Fetched transcript: " + transcript);
         if (transcript) {
             this.eventBus.emit('transcript:changed', { content: transcript });
+        } else { 
+            this.eventBus.emit('error', {
+                message: "Failed to fetch transcript",
+                code: "TRANSCRIPT_FETCH_FAILED",
+            });
         }
     }
 
@@ -458,6 +464,9 @@ export class ExecutionEnvironment {
             process.wait(),
             this.consumeRunnerOutput<{ transcript: string }>(process.stdout)
         ]);
+
+
+        console.log("Transcript Read Output: " + JSON.stringify(output));
 
         if (!output?.success || !output.data?.transcript) {
             return null;

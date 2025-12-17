@@ -149,6 +149,7 @@ export interface SessionEvents {
 
 // Import types used in SessionEvents
 import type { SessionRuntimeState, WorkspaceFile } from '@ai-systems/shared-types';
+import { logger } from '../../config/logger';
 
 // ============================================================================
 // SessionEventBus Class
@@ -188,6 +189,7 @@ export class SessionEventBus extends EventEmitter {
     event: K,
     data: SessionEvents[K]
   ): boolean {
+    logger.info("Emitting event: " + event);
     return super.emit(event, data);
   }
 

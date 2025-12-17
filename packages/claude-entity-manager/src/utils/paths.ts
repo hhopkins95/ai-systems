@@ -152,7 +152,8 @@ export function getProjectsDir(claudeDir: string): string {
 export function getProjectDirName(projectPath: string): string {
   // Replace forward slashes with dashes
   // Note: dots become double-dashes (e.g., .agent-sessions → --agent-sessions)
-  return projectPath.replace(/\//g, "-");
+  const path =  projectPath.replace(/\//g, "-");
+  return path;
 }
 
 /**

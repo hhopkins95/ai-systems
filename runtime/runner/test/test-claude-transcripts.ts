@@ -96,6 +96,10 @@ async function main() {
       throw new Error(`Read failed: ${readResult.error}`);
     }
 
+
+    console.log("Transcript: " + readResult.transcript);
+
+
     console.log('  Transcript read successfully');
     console.log('');
 
