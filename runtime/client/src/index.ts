@@ -55,6 +55,7 @@ export type {
   SessionState,
   DebugEvent,
   SessionLogEntry,
+  EEStatus,
 } from './context/reducer';
 
 // Types

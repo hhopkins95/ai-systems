@@ -258,8 +258,48 @@ export function AgentServiceProvider({
 
         // Transcript Events (internal, not typically needed by UI)
         case 'transcript:changed':
-          // Transcript changes are handled server-side for persistence
+        case 'transcript:written':
+          // Transcript events are handled server-side for persistence
           // Client typically doesn't need to handle these
+          break;
+
+        // Session Lifecycle Events
+        case 'session:initialized':
+          // Informational - session was restored or created
+          // Could dispatch an action if we want to track initialization state
+          break;
+
+        // Execution Environment Lifecycle Events
+        case 'ee:creating':
+          dispatch({
+            type: 'EE_STATUS_CHANGED',
+            sessionId,
+            status: 'creating',
+          });
+          break;
+
+        case 'ee:ready':
+          dispatch({
+            type: 'EE_STATUS_CHANGED',
+            sessionId,
+            status: 'ready',
+          });
+          break;
+
+        case 'ee:terminated':
+          dispatch({
+            type: 'EE_STATUS_CHANGED',
+            sessionId,
+            status: 'terminated',
+          });
+          break;
+
+        // Query Lifecycle Events
+        case 'query:started':
+        case 'query:completed':
+        case 'query:failed':
+          // Query events are informational for now
+          // Runtime status already tracks query state via 'status' events
           break;
 
         default: {

@@ -43,6 +43,19 @@ const MAX_EVENT_LOG_SIZE = 100;
 
 export type LogLevel = 'debug' | 'info' | 'warn' | 'error';
 
+// ============================================================================
+// EE Status Types
+// ============================================================================
+
+/**
+ * Execution environment status
+ * - creating: EE is being set up
+ * - ready: EE is ready for queries
+ * - terminated: EE has been shut down
+ * - null: No EE status known
+ */
+export type EEStatus = 'creating' | 'ready' | 'terminated' | null;
+
 export interface SessionLogEntry {
   id: string;
   timestamp: number;
@@ -79,6 +92,9 @@ export interface SessionState {
 
   /** Session logs from execution environment */
   logs: SessionLogEntry[];
+
+  /** Execution environment status */
+  eeStatus: EEStatus;
 
   /** Loading state for async operations */
   isLoading: boolean;
@@ -191,7 +207,10 @@ export type AgentServiceAction =
 
   // Session Logs
   | { type: 'SESSION_LOG_RECEIVED'; sessionId: string; log: { level?: LogLevel; message: string; data?: Record<string, unknown> } }
-  | { type: 'SESSION_LOGS_CLEARED'; sessionId: string };
+  | { type: 'SESSION_LOGS_CLEARED'; sessionId: string }
+
+  // EE Lifecycle
+  | { type: 'EE_STATUS_CHANGED'; sessionId: string; status: EEStatus; eeId?: string };
 
 // ============================================================================
 // Initial State
@@ -262,6 +281,7 @@ export function agentServiceReducer(
         files: existingSession?.files ?? [],
         subagents: existingSession?.subagents ?? new Map(),
         logs: existingSession?.logs ?? [],
+        eeStatus: existingSession?.eeStatus ?? null,
         isLoading: existingSession?.isLoading ?? false,
       });
 
@@ -296,6 +316,7 @@ export function agentServiceReducer(
         files: action.data.workspaceFiles,
         subagents: subagentsMap,
         logs: [],
+        eeStatus: null,
         isLoading: false,
       });
 
@@ -752,6 +773,20 @@ export function agentServiceReducer(
       sessions.set(action.sessionId, {
         ...session,
         logs: [],
+      });
+
+      return { ...state, sessions };
+    }
+
+    case 'EE_STATUS_CHANGED': {
+      const sessions = new Map(state.sessions);
+      const session = sessions.get(action.sessionId);
+
+      if (!session) return state;
+
+      sessions.set(action.sessionId, {
+        ...session,
+        eeStatus: action.status,
       });
 
       return { ...state, sessions };
