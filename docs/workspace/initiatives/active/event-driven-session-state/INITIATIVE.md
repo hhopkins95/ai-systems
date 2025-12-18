@@ -114,7 +114,7 @@ SessionState
 - [x] `ExecutionEnvironment` emits `transcript:written` event
 - [x] Build passes
 - [ ] Runtime testing
-- [ ] Documentation updated
+- [x] Documentation updated
 
 ## Design Decisions
 
@@ -132,7 +132,15 @@ SessionState
 
 ## Current Status
 
-Implementation complete. Build passes. Pending runtime testing.
+**Server implementation complete.** SessionState is now fully event-driven. Build passes.
+
+**Client updated.** The `@hhopkins/agent-client` package now handles all new lifecycle events:
+- `ee:creating`, `ee:ready`, `ee:terminated` dispatch `EE_STATUS_CHANGED` actions
+- `session:initialized`, `query:*`, `transcript:written` are acknowledged (no state changes needed)
+- New `EEStatus` type exported for UI components to display EE state
+- New `eeStatus` field on `SessionState` in reducer
+
+**Pending:** Runtime testing to verify events flow correctly end-to-end.
 
 ## Quick Links
 

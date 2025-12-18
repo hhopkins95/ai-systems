@@ -78,6 +78,20 @@ Events are organized by category in `SessionEventPayloads`:
 
 // Transcript events
 'transcript:changed' // Combined transcript changed
+'transcript:written' // Transcript written to EE filesystem
+
+// Session lifecycle events
+'session:initialized' // Session restored or created
+
+// Execution environment lifecycle events
+'ee:creating'    // EE creation starting
+'ee:ready'       // EE fully initialized
+'ee:terminated'  // EE shut down
+
+// Query lifecycle events
+'query:started'   // User query begins
+'query:completed' // Query finished successfully
+'query:failed'    // Query errored
 
 // Subagent events
 'subagent:discovered' // New subagent found
@@ -99,6 +113,13 @@ Events are organized by category in `SessionEventPayloads`:
 | `block:complete` | Block finalized with full content |
 | `metadata:update` | Token usage or cost information |
 | `status` | Session runtime state transitions |
+| `session:initialized` | Session restored from persistence or newly created |
+| `ee:creating` | Execution environment creation starting |
+| `ee:ready` | Execution environment fully initialized |
+| `ee:terminated` | Execution environment shut down |
+| `query:started` | User message received, query processing begins |
+| `query:completed` | Query finished successfully |
+| `query:failed` | Query errored |
 | `log` | Informational logs from runner |
 | `error` | Operational error occurred |
 

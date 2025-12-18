@@ -8,6 +8,7 @@ React hooks and client library for connecting to agent-server.
 - Manages WebSocket connection to agent-server
 - Handles message streaming and state updates
 - Tracks workspace files and subagent conversations
+- Tracks execution environment lifecycle status
 
 ## Architecture
 
@@ -95,6 +96,9 @@ interface SessionLogEntry {
 }
 
 type LogLevel = 'debug' | 'info' | 'warn' | 'error';
+
+// Execution environment status (tracked in SessionState)
+type EEStatus = 'creating' | 'ready' | 'terminated' | null;
 ```
 
 ## Hooks
@@ -143,6 +147,22 @@ function DebugPanel() {
   );
 }
 ```
+
+## Event Handling
+
+The client handles all session events via a unified `session:event` listener. Key event categories:
+
+| Category | Events | Client Action |
+|----------|--------|---------------|
+| Block streaming | `block:start`, `block:delta`, `block:update`, `block:complete` | Update streaming state and blocks |
+| Files | `file:created`, `file:modified`, `file:deleted` | Update workspace files |
+| Subagents | `subagent:discovered`, `subagent:completed` | Track subagent conversations |
+| EE lifecycle | `ee:creating`, `ee:ready`, `ee:terminated` | Update `eeStatus` in session state |
+| Query lifecycle | `query:started`, `query:completed`, `query:failed` | Informational (logged) |
+| Session | `session:initialized` | Informational (logged) |
+| Metadata | `metadata:update`, `status`, `options:update` | Update session metadata |
+
+Access `eeStatus` via the session state to show UI indicators (e.g., spinner during EE creation).
 
 ## How It Connects
 
