@@ -40,7 +40,7 @@ export class LocalSessionHost implements SessionHost {
     // Use provided clientHub or create a mock one
     // The real clientHub is typically set via setClientHub after WebSocket server is created
     this.clientHub = clientHub ?? new MockClientHub();
-    logger.info('LocalSessionHost initialized');
+    logger.debug('LocalSessionHost initialized');
   }
 
   /**
@@ -49,7 +49,7 @@ export class LocalSessionHost implements SessionHost {
    */
   setClientHub(clientHub: ClientHub): void {
     this.clientHub = clientHub;
-    logger.info('ClientHub updated on LocalSessionHost');
+    logger.debug('ClientHub updated on LocalSessionHost');
   }
 
   /**
@@ -75,7 +75,7 @@ export class LocalSessionHost implements SessionHost {
    */
   async createSession(request: CreateSessionArgs): Promise<AgentSession> {
     try {
-      logger.info({ request }, 'Creating new session...');
+      logger.debug({ request }, 'Creating new session...');
 
       // Create and initialize new AgentSession using static factory
       const session = await AgentSession.create(
@@ -93,7 +93,7 @@ export class LocalSessionHost implements SessionHost {
       // Add to loaded sessions
       this.loadedSessions.set(session.sessionId, session);
 
-      logger.info(
+      logger.debug(
         { sessionId: session.sessionId, loadedCount: this.loadedSessions.size },
         'Session created successfully'
       );
@@ -120,8 +120,6 @@ export class LocalSessionHost implements SessionHost {
         return existing;
       }
 
-      logger.info({ sessionId }, 'Loading session from persistence...');
-
       // Create AgentSession instance using static factory (loads from persistence internally)
       const session = await AgentSession.create(
         { sessionId },
@@ -134,7 +132,7 @@ export class LocalSessionHost implements SessionHost {
       // Add to loaded sessions
       this.loadedSessions.set(sessionId, session);
 
-      logger.info(
+      logger.debug(
         { sessionId, loadedCount: this.loadedSessions.size },
         'Session loaded successfully'
       );
@@ -159,7 +157,7 @@ export class LocalSessionHost implements SessionHost {
     }
 
     try {
-      logger.info({ sessionId }, 'Unloading session...');
+      logger.debug({ sessionId }, 'Unloading session...');
 
       // Destroy session (includes sync and sandbox termination)
       await session.destroy();
@@ -167,7 +165,7 @@ export class LocalSessionHost implements SessionHost {
       // Remove from loaded sessions
       this.loadedSessions.delete(sessionId);
 
-      logger.info({ sessionId, loadedCount: this.loadedSessions.size }, 'Session unloaded');
+      logger.debug({ sessionId, loadedCount: this.loadedSessions.size }, 'Session unloaded');
 
       // Broadcast status update via ClientHub (session is now unloaded)
       // This is a per-session event, not a global broadcast
@@ -205,7 +203,7 @@ export class LocalSessionHost implements SessionHost {
    * Graceful shutdown - unload all sessions
    */
   async shutdown(): Promise<void> {
-    logger.info({ loadedCount: this.loadedSessions.size }, 'Shutting down LocalSessionHost...');
+    logger.debug({ loadedCount: this.loadedSessions.size }, 'Shutting down LocalSessionHost...');
 
     // Unload all loaded sessions
     const sessionIds = Array.from(this.loadedSessions.keys());
@@ -217,7 +215,7 @@ export class LocalSessionHost implements SessionHost {
       }
     }
 
-    logger.info('LocalSessionHost shutdown complete');
+    logger.debug('LocalSessionHost shutdown complete');
   }
 
   // ==========================================================================
@@ -296,7 +294,7 @@ export class LocalSessionHost implements SessionHost {
    * Called when Modal terminates the sandbox (idle timeout)
    */
   private handleEETerminated(sessionId: string): void {
-    logger.info({ sessionId }, 'Sandbox terminated, unloading session...');
+    logger.debug({ sessionId }, 'Sandbox terminated, unloading session...');
     // Use setImmediate to avoid blocking the health check callback
     setImmediate(async () => {
       try {

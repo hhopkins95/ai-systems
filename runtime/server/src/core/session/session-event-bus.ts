@@ -59,7 +59,6 @@ export class SessionEventBus extends EventEmitter {
     eventType: K,
     event: SessionEvent<K>
   ): boolean {
-    logger.info('Emitting event: ' + eventType);
     return super.emit(eventType, event);
   }
 

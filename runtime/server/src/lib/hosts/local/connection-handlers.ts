@@ -45,7 +45,7 @@ export function setupSessionLifecycleHandlers(
    */
   socket.on('session:join', async (sessionId, callback) => {
     try {
-      logger.info({ socketId: socket.id, sessionId }, 'Client joining session room');
+      logger.debug({ socketId: socket.id, sessionId }, 'Client joining session room');
 
       // First check if session is already loaded in memory
       let session = sessionHost.getSession(sessionId);
@@ -75,7 +75,7 @@ export function setupSessionLifecycleHandlers(
         source: 'server',
       }));
 
-      logger.info(
+      logger.debug(
         {
           socketId: socket.id,
           sessionId,
@@ -100,12 +100,12 @@ export function setupSessionLifecycleHandlers(
    */
   socket.on('session:leave', (sessionId, callback) => {
     try {
-      logger.info({ socketId: socket.id, sessionId }, 'Client leaving session room');
+      logger.debug({ socketId: socket.id, sessionId }, 'Client leaving session room');
 
       socket.leave(`session:${sessionId}`);
       socket.data.sessionId = undefined;
 
-      logger.info(
+      logger.debug(
         {
           socketId: socket.id,
           sessionId,
