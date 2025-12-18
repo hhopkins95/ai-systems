@@ -242,6 +242,12 @@ export class ExecutionEnvironment {
             if (!transcriptOutput?.success) {
                 throw new Error(`Failed to load session transcript: ${transcriptOutput?.error || 'Unknown error'}`);
             }
+
+            // Emit transcript:written event
+            this.eventBus.emit('transcript:written', createSessionEvent('transcript:written', {}, {
+                sessionId: this.sessionId,
+                source: 'server',
+            }));
         }
     }
 

@@ -96,20 +96,24 @@ SessionState
 
 ## Completion Criteria
 
-- [ ] Add new event types to `session-events.ts`
-- [ ] `SessionState` subscribes to EventBus in constructor
-- [ ] `SessionState` handles block events (`block:start`, `block:complete`, `block:update`)
-- [ ] `SessionState` handles file events (`file:created`, `file:modified`, `file:deleted`)
-- [ ] `SessionState` handles error events
-- [ ] `SessionState` setters made private
-- [ ] `SessionState` constructor accepts raw transcript and parses internally
-- [ ] `AgentSession.setupEventListeners()` removed
-- [ ] `AgentSession` emits `session:initialized` event
-- [ ] `AgentSession` emits `ee:creating`, `ee:ready`, `ee:terminated` events
-- [ ] `AgentSession` emits `query:started`, `query:completed`, `query:failed` events
-- [ ] `ExecutionEnvironment` emits `transcript:changed` event (already exists, verify)
-- [ ] `ExecutionEnvironment` emits `transcript:written` event
-- [ ] All existing tests pass
+- [x] Add new event types to `session-events.ts`
+- [x] `SessionState` subscribes to EventBus in constructor
+- [x] `SessionState` handles block events (`block:start`, `block:complete`, `block:update`)
+- [x] `SessionState` handles file events (`file:created`, `file:modified`, `file:deleted`)
+- [x] `SessionState` handles error events
+- [x] `SessionState` handles EE lifecycle events (`ee:creating`, `ee:ready`, `ee:terminated`)
+- [x] `SessionState` handles query lifecycle events (`query:started`, `query:completed`, `query:failed`)
+- [x] `SessionState` handles options events (`options:update`)
+- [x] `SessionState` setters made private
+- [x] `SessionState` constructor accepts raw transcript and parses internally
+- [x] `AgentSession.setupEventListeners()` removed
+- [x] `AgentSession` emits `session:initialized` event
+- [x] `AgentSession` emits `ee:creating`, `ee:ready`, `ee:terminated` events
+- [x] `AgentSession` emits `query:started`, `query:completed`, `query:failed` events
+- [x] `ExecutionEnvironment` emits `transcript:changed` event (verified - already exists)
+- [x] `ExecutionEnvironment` emits `transcript:written` event
+- [x] Build passes
+- [ ] Runtime testing
 - [ ] Documentation updated
 
 ## Design Decisions
@@ -122,9 +126,13 @@ SessionState
 
 4. **Transcript events are EE-side concerns** - `transcript:changed` and `transcript:written` deal with the execution environment filesystem, not SessionState's block management.
 
+5. **Fully event-driven state updates** - SessionState listens to ALL state-changing events (including EE lifecycle, query lifecycle, options). AgentSession emits events rather than calling state setters directly. This ensures consistent, auditable state changes.
+
+6. **Removed manual EE sync** - `syncSessionStateWithExecutionEnvironment()` was removed since state is now kept up-to-date via events. The event-driven model eliminates the need for pull-based synchronization.
+
 ## Current Status
 
-Initial design complete. Ready to begin implementation.
+Implementation complete. Build passes. Pending runtime testing.
 
 ## Quick Links
 

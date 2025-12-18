@@ -204,11 +204,16 @@ export interface SessionEventPayloads {
   // ---------------------------------------------------------------------------
 
   /**
-   * Combined transcript changed
+   * Combined transcript changed (content updated in EE)
    */
   'transcript:changed': {
     content: string;
   };
+
+  /**
+   * Transcript written to EE filesystem
+   */
+  'transcript:written': {};
 
   // ---------------------------------------------------------------------------
   // Subagent Events
@@ -263,6 +268,70 @@ export interface SessionEventPayloads {
    */
   'options:update': {
     options: AgentArchitectureSessionOptions;
+  };
+
+  // ---------------------------------------------------------------------------
+  // Session Lifecycle Events
+  // ---------------------------------------------------------------------------
+
+  /**
+   * Session initialized (new or restored from persistence)
+   */
+  'session:initialized': {
+    isNew: boolean;
+    hasTranscript: boolean;
+    workspaceFileCount: number;
+    blockCount: number;
+  };
+
+  // ---------------------------------------------------------------------------
+  // Execution Environment Lifecycle Events
+  // ---------------------------------------------------------------------------
+
+  /**
+   * Execution environment creation starting
+   */
+  'ee:creating': {
+    statusMessage?: string;
+  };
+
+  /**
+   * Execution environment fully initialized and ready
+   */
+  'ee:ready': {
+    eeId: string;
+  };
+
+  /**
+   * Execution environment terminated
+   */
+  'ee:terminated': {
+    reason: 'manual' | 'unhealthy' | 'idle';
+  };
+
+  // ---------------------------------------------------------------------------
+  // Query Lifecycle Events
+  // ---------------------------------------------------------------------------
+
+  /**
+   * Query started (user message received)
+   */
+  'query:started': {
+    message: string;
+  };
+
+  /**
+   * Query completed successfully
+   */
+  'query:completed': {
+    durationMs: number;
+  };
+
+  /**
+   * Query failed with error
+   */
+  'query:failed': {
+    error: string;
   };
 }
 
@@ -464,6 +533,24 @@ export const SUBAGENT_EVENT_TYPES = [
 ] as const satisfies readonly SessionEventType[];
 
 /**
+ * Execution environment lifecycle event types
+ */
+export const EE_LIFECYCLE_EVENT_TYPES = [
+  'ee:creating',
+  'ee:ready',
+  'ee:terminated',
+] as const satisfies readonly SessionEventType[];
+
+/**
+ * Query lifecycle event types
+ */
+export const QUERY_LIFECYCLE_EVENT_TYPES = [
+  'query:started',
+  'query:completed',
+  'query:failed',
+] as const satisfies readonly SessionEventType[];
+
+/**
  * All event types that should be broadcast to clients
  */
 export const CLIENT_BROADCAST_EVENT_TYPES = [
@@ -481,6 +568,14 @@ export const CLIENT_BROADCAST_EVENT_TYPES = [
   'log',
   'error',
   'options:update',
+  // Lifecycle events
+  'session:initialized',
+  'ee:creating',
+  'ee:ready',
+  'ee:terminated',
+  'query:started',
+  'query:completed',
+  'query:failed',
 ] as const satisfies readonly SessionEventType[];
 
 // ============================================================================

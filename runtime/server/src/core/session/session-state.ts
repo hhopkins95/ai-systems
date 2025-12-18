@@ -1,15 +1,21 @@
 /**
- * Session State - Serializable state container for AgentSession
+ * Session State - Event-driven state container for AgentSession
  *
- * Extracts all state management from AgentSession into a dedicated class.
+ * Manages session state and subscribes to the event bus for updates.
  * Provides snapshot/restore capabilities for persistence and future
  * deployment targets (Durable Objects, etc.)
  *
  * Benefits:
+ * - Event-driven: subscribes to event bus, handles its own state updates
  * - Serializable: toSnapshot()/fromSnapshot() for persistence
  * - Single responsibility: state management separate from coordination
  * - Testable: state logic can be tested in isolation
  * - Portable: state can be moved between hosts
+ *
+ * Event Subscriptions:
+ * - block:start, block:complete, block:update → update conversation blocks
+ * - file:created, file:modified, file:deleted → update workspace files
+ * - error → update lastError
  */
 
 import type {
@@ -23,6 +29,8 @@ import type {
   SessionRuntimeState,
   WorkspaceFile,
 } from '@ai-systems/shared-types';
+import { parseTranscript } from '@hhopkins/agent-converters';
+import type { SessionEventBus } from './session-event-bus.js';
 
 // ============================================================================
 // Snapshot Types
@@ -106,36 +114,40 @@ export class SessionState {
   // -------------------------------------------------------------------------
   private _activeQueryStartedAt?: number;
 
+  // -------------------------------------------------------------------------
+  // Event bus (optional - for event-driven updates)
+  // -------------------------------------------------------------------------
+  private readonly _eventBus?: SessionEventBus;
+
   // =========================================================================
   // Constructor
   // =========================================================================
 
-  constructor(init: {
-    sessionId: string;
-    architecture: AgentArchitecture;
-    agentProfileId: string;
-    createdAt?: number;
-    lastActivity?: number;
-    blocks?: ConversationBlock[];
-    subagents?: { id: string; blocks: ConversationBlock[] }[];
-    workspaceFiles?: WorkspaceFile[];
-    rawTranscript?: string;
-    sessionOptions?: AgentArchitectureSessionOptions;
-    eeStatus?: ExecutionEnvironmentStatus | null;
-    eeId?: string;
-    eeRestartCount?: number;
-    statusMessage?: string;
-    lastHealthCheck?: number;
-    lastError?: ExecutionEnvironmentError;
-    activeQueryStartedAt?: number;
-  }) {
+  constructor(
+    init: {
+      sessionId: string;
+      architecture: AgentArchitecture;
+      agentProfileId: string;
+      createdAt?: number;
+      lastActivity?: number;
+      workspaceFiles?: WorkspaceFile[];
+      rawTranscript?: string;
+      sessionOptions?: AgentArchitectureSessionOptions;
+      eeStatus?: ExecutionEnvironmentStatus | null;
+      eeId?: string;
+      eeRestartCount?: number;
+      statusMessage?: string;
+      lastHealthCheck?: number;
+      lastError?: ExecutionEnvironmentError;
+      activeQueryStartedAt?: number;
+    },
+    eventBus?: SessionEventBus
+  ) {
     this._sessionId = init.sessionId;
     this._architecture = init.architecture;
     this._agentProfileId = init.agentProfileId;
     this._createdAt = init.createdAt;
     this._lastActivity = init.lastActivity ?? Date.now();
-    this._blocks = init.blocks ?? [];
-    this._subagents = init.subagents ?? [];
     this._workspaceFiles = init.workspaceFiles ?? [];
     this._rawTranscript = init.rawTranscript;
     this._sessionOptions = init.sessionOptions;
@@ -146,6 +158,126 @@ export class SessionState {
     this._lastHealthCheck = init.lastHealthCheck;
     this._lastError = init.lastError;
     this._activeQueryStartedAt = init.activeQueryStartedAt;
+
+    // Parse transcript to derive blocks and subagents
+    if (init.rawTranscript) {
+      const parsed = parseTranscript(init.architecture, init.rawTranscript);
+      this._blocks = parsed.blocks;
+      this._subagents = parsed.subagents.map((sub) => ({
+        id: sub.id,
+        blocks: sub.blocks,
+      }));
+    } else {
+      this._blocks = [];
+      this._subagents = [];
+    }
+
+    // Store event bus and subscribe to events
+    this._eventBus = eventBus;
+    if (eventBus) {
+      this.subscribeToEvents(eventBus);
+    }
+  }
+
+  // =========================================================================
+  // Event Subscriptions
+  // =========================================================================
+
+  /**
+   * Subscribe to event bus for state updates
+   */
+  private subscribeToEvents(eventBus: SessionEventBus): void {
+    // Block events
+    eventBus.on('block:start', (event) => {
+      this.upsertBlock(event.payload.block);
+    });
+
+    eventBus.on('block:complete', (event) => {
+      this.upsertBlock(event.payload.block);
+    });
+
+    eventBus.on('block:update', (event) => {
+      this.updateBlock(event.payload.blockId, event.payload.updates);
+    });
+
+    // File events
+    eventBus.on('file:created', (event) => {
+      this.updateWorkspaceFile(event.payload.file);
+    });
+
+    eventBus.on('file:modified', (event) => {
+      this.updateWorkspaceFile(event.payload.file);
+    });
+
+    eventBus.on('file:deleted', (event) => {
+      this.removeWorkspaceFile(event.payload.path);
+    });
+
+    // Error events
+    eventBus.on('error', (event) => {
+      this.setLastError({
+        message: event.payload.message,
+        code: event.payload.code,
+        timestamp: Date.now(),
+      });
+    });
+
+    // EE lifecycle events
+    eventBus.on('ee:creating', (event) => {
+      this.setEEStatus('starting');
+      if (event.payload.statusMessage) {
+        this.setStatusMessage(event.payload.statusMessage);
+      }
+    });
+
+    eventBus.on('ee:ready', (event) => {
+      this.setEEStatus('ready');
+      this.setEEId(event.payload.eeId);
+      this.setLastHealthCheck(Date.now());
+      this.setStatusMessage('Ready');
+    });
+
+    eventBus.on('ee:terminated', (event) => {
+      this.setEEStatus('terminated');
+      this.setEEId(undefined);
+      this.setStatusMessage(`Execution environment terminated: ${event.payload.reason}`);
+    });
+
+    // Query lifecycle events
+    eventBus.on('query:started', () => {
+      this.setActiveQueryStartedAt(Date.now());
+      this.setLastActivity(Date.now());
+    });
+
+    eventBus.on('query:completed', () => {
+      this.setActiveQueryStartedAt(undefined);
+      this.setLastActivity(Date.now());
+    });
+
+    eventBus.on('query:failed', (event) => {
+      this.setActiveQueryStartedAt(undefined);
+      this.setLastActivity(Date.now());
+      this.setLastError({
+        message: event.payload.error,
+        timestamp: Date.now(),
+      });
+    });
+
+    // Options events
+    eventBus.on('options:update', (event) => {
+      this.setSessionOptions(event.payload.options);
+    });
+  }
+
+  /**
+   * Cleanup when session is destroyed
+   *
+   * Note: Event listeners are cleaned up by SessionEventBus.destroy()
+   * which is called by AgentSession. This method exists for any future
+   * cleanup needs specific to SessionState.
+   */
+  destroy(): void {
+    // Event listeners are cleaned up by SessionEventBus.destroy()
   }
 
   // =========================================================================
@@ -221,77 +353,77 @@ export class SessionState {
   }
 
   // =========================================================================
-  // Setters (controlled state updates)
+  // Setters (private - called internally or via event handlers)
   // =========================================================================
 
-  setCreatedAt(value: number): void {
+  private setCreatedAt(value: number): void {
     this._createdAt = value;
   }
 
-  setLastActivity(value: number): void {
+  private setLastActivity(value: number): void {
     this._lastActivity = value;
   }
 
-  setBlocks(blocks: ConversationBlock[]): void {
+  private setBlocks(blocks: ConversationBlock[]): void {
     this._blocks = blocks;
   }
 
-  setSubagents(subagents: { id: string; blocks: ConversationBlock[] }[]): void {
+  private setSubagents(subagents: { id: string; blocks: ConversationBlock[] }[]): void {
     this._subagents = subagents;
   }
 
-  setWorkspaceFiles(files: WorkspaceFile[]): void {
+  private setWorkspaceFiles(files: WorkspaceFile[]): void {
     this._workspaceFiles = files;
   }
 
-  setRawTranscript(transcript: string | undefined): void {
+  private setRawTranscript(transcript: string | undefined): void {
     this._rawTranscript = transcript;
   }
 
-  setSessionOptions(options: AgentArchitectureSessionOptions | undefined): void {
+  private setSessionOptions(options: AgentArchitectureSessionOptions | undefined): void {
     this._sessionOptions = options;
   }
 
-  setEEStatus(status: ExecutionEnvironmentStatus | null): void {
+  private setEEStatus(status: ExecutionEnvironmentStatus | null): void {
     this._eeStatus = status;
   }
 
-  setEEId(id: string | undefined): void {
+  private setEEId(id: string | undefined): void {
     this._eeId = id;
   }
 
-  setEERestartCount(count: number): void {
+  private setEERestartCount(count: number): void {
     this._eeRestartCount = count;
   }
 
-  incrementEERestartCount(): void {
+  private incrementEERestartCount(): void {
     this._eeRestartCount++;
   }
 
-  setStatusMessage(message: string | undefined): void {
+  private setStatusMessage(message: string | undefined): void {
     this._statusMessage = message;
   }
 
-  setLastHealthCheck(timestamp: number): void {
+  private setLastHealthCheck(timestamp: number): void {
     this._lastHealthCheck = timestamp;
   }
 
-  setLastError(error: ExecutionEnvironmentError | undefined): void {
+  private setLastError(error: ExecutionEnvironmentError | undefined): void {
     this._lastError = error;
   }
 
-  setActiveQueryStartedAt(timestamp: number | undefined): void {
+  private setActiveQueryStartedAt(timestamp: number | undefined): void {
     this._activeQueryStartedAt = timestamp;
   }
 
   // =========================================================================
-  // State Update Helpers
+  // State Update Helpers (private)
   // =========================================================================
 
   /**
    * Update a workspace file (upsert - insert or update)
    */
-  updateWorkspaceFile(file: WorkspaceFile): void {
+  private updateWorkspaceFile(file: WorkspaceFile): void {
     const index = this._workspaceFiles.findIndex((f) => f.path === file.path);
     if (index >= 0) {
       this._workspaceFiles[index] = file;
@@ -303,9 +435,36 @@ export class SessionState {
   /**
    * Remove a workspace file
    */
-  removeWorkspaceFile(path: string): void {
+  private removeWorkspaceFile(path: string): void {
     this._workspaceFiles = this._workspaceFiles.filter((f) => f.path !== path);
   }
+
+  /**
+   * Add or update a block
+   */
+  private upsertBlock(block: ConversationBlock): void {
+    const index = this._blocks.findIndex((b) => b.id === block.id);
+    if (index >= 0) {
+      this._blocks[index] = block;
+    } else {
+      this._blocks.push(block);
+    }
+  }
+
+  /**
+   * Update a block partially
+   */
+  private updateBlock(blockId: string, updates: Partial<ConversationBlock>): void {
+    const index = this._blocks.findIndex((b) => b.id === blockId);
+    if (index >= 0) {
+      // Type assertion is safe since we're spreading a complete block with partial updates
+      this._blocks[index] = { ...this._blocks[index], ...updates } as ConversationBlock;
+    }
+  }
+
+  // =========================================================================
+  // Public Query Methods
+  // =========================================================================
 
   /**
    * Check if a query is currently active
@@ -355,16 +514,18 @@ export class SessionState {
 
   /**
    * Create a SessionState from a snapshot
+   *
+   * Note: blocks and subagents are derived from rawTranscript in the constructor,
+   * so we don't pass them explicitly. The snapshot stores them for completeness
+   * but they're re-parsed from the transcript on restore.
    */
-  static fromSnapshot(snapshot: SessionStateSnapshot): SessionState {
+  static fromSnapshot(snapshot: SessionStateSnapshot, eventBus?: SessionEventBus): SessionState {
     return new SessionState({
       sessionId: snapshot.sessionId,
       architecture: snapshot.architecture,
       agentProfileId: snapshot.agentProfileId,
       createdAt: snapshot.createdAt,
       lastActivity: snapshot.lastActivity,
-      blocks: snapshot.blocks,
-      subagents: snapshot.subagents,
       workspaceFiles: snapshot.workspaceFiles,
       rawTranscript: snapshot.rawTranscript,
       sessionOptions: snapshot.sessionOptions,
@@ -375,7 +536,7 @@ export class SessionState {
       lastHealthCheck: snapshot.lastHealthCheck,
       lastError: snapshot.lastError,
       activeQueryStartedAt: snapshot.activeQueryStartedAt,
-    });
+    }, eventBus);
   }
 
   // =========================================================================
