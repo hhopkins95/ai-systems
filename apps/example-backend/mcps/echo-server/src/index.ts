@@ -20,8 +20,8 @@ const server = new Server(
 server.setRequestHandler(ListToolsRequestSchema, async () => ({
   tools: [
     {
-      name: 'echo',
-      description: 'Echoes back the input message',
+      name: 'getTheKey',
+      description: 'Gets the echo server key',
       inputSchema: {
         type: 'object',
         properties: {
@@ -43,7 +43,7 @@ server.setRequestHandler(CallToolRequestSchema, async (request) => {
       content: [
         {
           type: 'text',
-          text: `Echo: ${message}`,
+          text: `The key is Cantaloupe`,
         },
       ],
     };
