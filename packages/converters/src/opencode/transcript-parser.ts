@@ -84,8 +84,13 @@ function getPartTimestamp(part: Part): string {
 
 /**
  * Convert a text part to AssistantTextBlock
+ * Returns null if text is empty (filtered out)
  */
-function convertTextPart(part: Part & { type: 'text' }, model?: string): ConversationBlock {
+function convertTextPart(part: Part & { type: 'text' }, model?: string): ConversationBlock | null {
+  // Skip empty text blocks - these occur when OpenCode exports before content is finalized
+  if (!part.text?.trim()) {
+    return null;
+  }
   return {
     type: 'assistant_text',
     id: part.id,
@@ -97,8 +102,13 @@ function convertTextPart(part: Part & { type: 'text' }, model?: string): Convers
 
 /**
  * Convert a reasoning part to ThinkingBlock
+ * Returns null if text is empty (filtered out)
  */
-function convertReasoningPart(part: Part & { type: 'reasoning' }): ConversationBlock {
+function convertReasoningPart(part: Part & { type: 'reasoning' }): ConversationBlock | null {
+  // Skip empty reasoning blocks - OpenCode exports reasoning parts without content
+  if (!part.text?.trim()) {
+    return null;
+  }
   return {
     type: 'thinking',
     id: part.id,
@@ -228,11 +238,15 @@ function extractSubagentFromTaskTool(
 function convertPartToBlocks(part: Part, model: string | undefined, logger: Logger): ConversationBlock[] {
   try {
     switch (part.type) {
-      case 'text':
-        return [convertTextPart(part as any, model)];
+      case 'text': {
+        const block = convertTextPart(part as any, model);
+        return block ? [block] : [];
+      }
 
-      case 'reasoning':
-        return [convertReasoningPart(part as any)];
+      case 'reasoning': {
+        const block = convertReasoningPart(part as any);
+        return block ? [block] : [];
+      }
 
       case 'tool':
         // Don't convert task tools here - they're handled separately for subagent extraction

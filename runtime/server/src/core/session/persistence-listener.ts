@@ -73,10 +73,12 @@ export class PersistenceListener {
   // =========================================================================
 
   private async handleTranscriptChanged(event: SessionEvent<'transcript:changed'>): Promise<void> {
+    this.logger.info('HANDLER CALLED');
     try {
+      this.logger.info('Persisting transcript');
       await this.persistence.saveTranscript(this.sessionId, event.payload.content);
-      this.logger.debug('Persisted transcript');
-    } catch (error) {
+      this.logger.info('Persisted transcript');
+    } catch (error) { 
       this.logger.error({ error }, 'Failed to persist transcript');
     }
   }

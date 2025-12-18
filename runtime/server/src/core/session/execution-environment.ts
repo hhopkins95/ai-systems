@@ -306,8 +306,11 @@ export class ExecutionEnvironment {
      * Helper to send transcript update to event bus
      */
     private async sendTranscriptUpdate(): Promise<void> {
+        logger.info('Sending transcript update');
         const transcript = await this.readSessionTranscript();
         if (transcript) {
+            logger.info("Transcript found")
+            logger.info('Listener count: ' + this.eventBus.listenerCount('transcript:changed'));
             this.eventBus.emit('transcript:changed', createSessionEvent('transcript:changed', {
                 content: transcript,
             }, {
@@ -315,6 +318,7 @@ export class ExecutionEnvironment {
                 source: 'server',
             }));
         } else {
+            logger.error("Failed to fetch transcript");
             this.eventBus.emit('error', createSessionEvent('error', {
                 message: "Failed to fetch transcript",
                 code: "TRANSCRIPT_FETCH_FAILED",

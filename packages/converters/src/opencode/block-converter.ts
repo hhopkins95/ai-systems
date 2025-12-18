@@ -289,6 +289,12 @@ export function createStreamEventParser(mainSessionId: string, options: ConvertO
       for (const [blockId, state] of activeBlocks) {
         if (state.block.type === 'assistant_text' || state.block.type === 'thinking') {
           if (state.accumulatedContent.trim()) {
+            logger.debug({
+              action: 'completing_block_with_content',
+              blockId,
+              blockType: state.block.type,
+              contentLength: state.accumulatedContent.length,
+            }, 'Completing text/reasoning block with content');
             events.push(
               createSessionEvent(
                 'block:complete',
@@ -302,6 +308,15 @@ export function createStreamEventParser(mainSessionId: string, options: ConvertO
                 { conversationId: state.conversationId, source: 'runner' }
               )
             );
+          } else {
+            // Block had no content - this is the problematic case causing ghost blocks
+            logger.warn({
+              action: 'discarding_empty_block',
+              blockId,
+              blockType: state.block.type,
+              newBlockId: part.id,
+              newBlockType: part.type,
+            }, 'Discarding empty text/reasoning block without completing');
           }
           activeBlocks.delete(blockId);
         }
@@ -330,6 +345,12 @@ export function createStreamEventParser(mainSessionId: string, options: ConvertO
       // Create block_start event
       const incompleteBlock = partToIncompleteBlock(part);
       if (incompleteBlock) {
+        logger.debug({
+          action: 'block_start',
+          blockId: part.id,
+          blockType: incompleteBlock.type,
+          partType: part.type,
+        }, 'Starting new block');
         activeBlocks.set(part.id, {
           block: incompleteBlock,
           conversationId,
@@ -350,6 +371,18 @@ export function createStreamEventParser(mainSessionId: string, options: ConvertO
       const activeState = activeBlocks.get(part.id);
       if (activeState) {
         activeState.accumulatedContent += delta;
+        logger.debug({
+          action: 'block_delta',
+          blockId: part.id,
+          deltaLength: delta.length,
+          totalAccumulated: activeState.accumulatedContent.length,
+        }, 'Received block delta');
+      } else {
+        logger.warn({
+          action: 'delta_without_active_block',
+          blockId: part.id,
+          partType: part.type,
+        }, 'Received delta for block not in activeBlocks');
       }
 
       events.push(
