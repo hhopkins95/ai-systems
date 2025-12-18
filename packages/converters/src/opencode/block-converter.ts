@@ -234,12 +234,22 @@ function extractSubagentBlock(part: Part & { type: 'tool' }): SubagentBlock | nu
 // ============================================================================
 
 /**
- * State for tracking active blocks
+ * State for tracking active blocks (have received block:start)
  */
 interface ActiveBlockState {
   block: ConversationBlock;
   conversationId: string;
   accumulatedContent: string; // For text/reasoning blocks
+}
+
+/**
+ * State for tracking pending blocks (waiting for first delta before block:start)
+ * This prevents ghost blocks from appearing when a new block arrives before any content
+ */
+interface PendingBlockState {
+  part: Part;
+  conversationId: string;
+  model?: string;
 }
 
 /**
@@ -249,6 +259,7 @@ interface ActiveBlockState {
 export function createStreamEventParser(mainSessionId: string, options: ConvertOptions = {}) {
   const logger = options.logger ?? noopLogger;
   const activeBlocks = new Map<string, ActiveBlockState>();
+  const pendingBlocks = new Map<string, PendingBlockState>(); // Text/reasoning blocks waiting for first delta
 
   /**
    * Parse a message.part.updated event
@@ -282,42 +293,43 @@ export function createStreamEventParser(mainSessionId: string, options: ConvertO
     }
 
     // Check if this is a new block or an update to existing
-    const isNewBlock = !activeBlocks.has(part.id);
+    const isNewBlock = !activeBlocks.has(part.id) && !pendingBlocks.has(part.id);
 
     if (isNewBlock) {
-      // Before adding a new block, complete any active text/reasoning blocks
+      // Before adding a new block, clear pending blocks (they never received content, so no events needed)
+      for (const [blockId, pending] of pendingBlocks) {
+        logger.debug({
+          action: 'clearing_pending_block',
+          blockId,
+          partType: pending.part.type,
+          newBlockId: part.id,
+        }, 'Clearing pending block that never received content');
+        pendingBlocks.delete(blockId);
+      }
+
+      // Complete any active text/reasoning blocks (they DID receive block:start, so emit block:complete)
       for (const [blockId, state] of activeBlocks) {
         if (state.block.type === 'assistant_text' || state.block.type === 'thinking') {
-          if (state.accumulatedContent.trim()) {
-            logger.debug({
-              action: 'completing_block_with_content',
-              blockId,
-              blockType: state.block.type,
-              contentLength: state.accumulatedContent.length,
-            }, 'Completing text/reasoning block with content');
-            events.push(
-              createSessionEvent(
-                'block:complete',
-                {
-                  blockId,
-                  block: {
-                    ...state.block,
-                    content: state.accumulatedContent,
-                  } as ConversationBlock,
-                },
-                { conversationId: state.conversationId, source: 'runner' }
-              )
-            );
-          } else {
-            // Block had no content - this is the problematic case causing ghost blocks
-            logger.warn({
-              action: 'discarding_empty_block',
-              blockId,
-              blockType: state.block.type,
-              newBlockId: part.id,
-              newBlockType: part.type,
-            }, 'Discarding empty text/reasoning block without completing');
-          }
+          // Always emit block:complete for active blocks (they received block:start)
+          logger.debug({
+            action: 'completing_block',
+            blockId,
+            blockType: state.block.type,
+            contentLength: state.accumulatedContent.length,
+          }, 'Completing text/reasoning block');
+          events.push(
+            createSessionEvent(
+              'block:complete',
+              {
+                blockId,
+                block: {
+                  ...state.block,
+                  content: state.accumulatedContent,
+                } as ConversationBlock,
+              },
+              { conversationId: state.conversationId, source: 'runner' }
+            )
+          );
           activeBlocks.delete(blockId);
         }
       }
@@ -342,47 +354,95 @@ export function createStreamEventParser(mainSessionId: string, options: ConvertO
         }
       }
 
-      // Create block_start event
-      const incompleteBlock = partToIncompleteBlock(part);
-      if (incompleteBlock) {
+      // For text/reasoning blocks, defer block:start until first delta arrives
+      // This prevents ghost blocks when a new block arrives before any content
+      if (part.type === 'text' || part.type === 'reasoning') {
         logger.debug({
-          action: 'block_start',
+          action: 'pending_block',
           blockId: part.id,
-          blockType: incompleteBlock.type,
           partType: part.type,
-        }, 'Starting new block');
-        activeBlocks.set(part.id, {
-          block: incompleteBlock,
+        }, 'Deferring text/reasoning block until first delta');
+        pendingBlocks.set(part.id, {
+          part,
           conversationId,
-          accumulatedContent: '',
+          model: undefined, // Will be set from part if available
         });
-        events.push(
-          createSessionEvent(
-            'block:start',
-            { block: incompleteBlock },
-            { conversationId, source: 'runner' }
-          )
-        );
+        // Don't emit block:start yet - wait for first delta
+      } else {
+        // For non-text/reasoning blocks (tools, etc.), emit block:start immediately
+        const incompleteBlock = partToIncompleteBlock(part);
+        if (incompleteBlock) {
+          logger.debug({
+            action: 'block_start',
+            blockId: part.id,
+            blockType: incompleteBlock.type,
+            partType: part.type,
+          }, 'Starting new block');
+          activeBlocks.set(part.id, {
+            block: incompleteBlock,
+            conversationId,
+            accumulatedContent: '',
+          });
+          events.push(
+            createSessionEvent(
+              'block:start',
+              { block: incompleteBlock },
+              { conversationId, source: 'runner' }
+            )
+          );
+        }
       }
     }
 
     // Handle text delta for streaming content
     if (delta && (part.type === 'text' || part.type === 'reasoning')) {
-      const activeState = activeBlocks.get(part.id);
-      if (activeState) {
-        activeState.accumulatedContent += delta;
-        logger.debug({
-          action: 'block_delta',
-          blockId: part.id,
-          deltaLength: delta.length,
-          totalAccumulated: activeState.accumulatedContent.length,
-        }, 'Received block delta');
+      // Check if this block is pending (waiting for first delta)
+      const pending = pendingBlocks.get(part.id);
+      if (pending) {
+        // First delta! Promote to active and emit block:start
+        pendingBlocks.delete(part.id);
+        const incompleteBlock = partToIncompleteBlock(part);
+        if (incompleteBlock) {
+          logger.debug({
+            action: 'promoting_pending_to_active',
+            blockId: part.id,
+            partType: part.type,
+            deltaLength: delta.length,
+          }, 'First delta received, promoting pending block to active');
+
+          activeBlocks.set(part.id, {
+            block: incompleteBlock,
+            conversationId: pending.conversationId,
+            accumulatedContent: delta,
+          });
+
+          // Now emit block:start (the block has content!)
+          events.push(
+            createSessionEvent(
+              'block:start',
+              { block: incompleteBlock },
+              { conversationId: pending.conversationId, source: 'runner' }
+            )
+          );
+        }
       } else {
-        logger.warn({
-          action: 'delta_without_active_block',
-          blockId: part.id,
-          partType: part.type,
-        }, 'Received delta for block not in activeBlocks');
+        // Block is already active, just accumulate delta
+        const activeState = activeBlocks.get(part.id);
+        if (activeState) {
+          activeState.accumulatedContent += delta;
+          logger.debug({
+            action: 'block_delta',
+            blockId: part.id,
+            deltaLength: delta.length,
+            totalAccumulated: activeState.accumulatedContent.length,
+          }, 'Received block delta');
+        } else {
+          logger.warn({
+            action: 'delta_without_active_block',
+            blockId: part.id,
+            partType: part.type,
+          }, 'Received delta for block not in activeBlocks or pendingBlocks');
+        }
       }
 
       events.push(
@@ -518,24 +578,26 @@ export function createStreamEventParser(mainSessionId: string, options: ConvertO
     const conversationId = sessionID === mainSessionId ? 'main' : sessionID;
     const events: AnySessionEvent[] = [];
 
-    // Complete all pending text/reasoning blocks before clearing
+    // Clear pending blocks (they never received content, so no events needed)
+    pendingBlocks.clear();
+
+    // Complete all active text/reasoning blocks
     for (const [blockId, state] of activeBlocks) {
       if (state.block.type === 'assistant_text' || state.block.type === 'thinking') {
-        if (state.accumulatedContent.trim()) {
-          events.push(
-            createSessionEvent(
-              'block:complete',
-              {
-                blockId,
-                block: {
-                  ...state.block,
-                  content: state.accumulatedContent,
-                } as ConversationBlock,
-              },
-              { conversationId: state.conversationId, source: 'runner' }
-            )
-          );
-        }
+        // Always emit block:complete for active blocks (they received block:start)
+        events.push(
+          createSessionEvent(
+            'block:complete',
+            {
+              blockId,
+              block: {
+                ...state.block,
+                content: state.accumulatedContent,
+              } as ConversationBlock,
+            },
+            { conversationId: state.conversationId, source: 'runner' }
+          )
+        );
       }
     }
 
@@ -621,10 +683,11 @@ export function createStreamEventParser(mainSessionId: string, options: ConvertO
   }
 
   /**
-   * Reset the active blocks tracker
+   * Reset the block trackers
    */
   function reset(): void {
     activeBlocks.clear();
+    pendingBlocks.clear();
   }
 
   return {
