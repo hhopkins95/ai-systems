@@ -152,48 +152,68 @@ export class LocalPrimitive implements EnvironmentPrimitive {
         callback: (event: WatchEvent) => void,
         opts?: { ignorePatterns?: string[] }
     ): Promise<void> {
-        const watcher = chokidar.watch(`${watchPath}/**/*`, {
-            ignored: opts?.ignorePatterns ?? [],
-            persistent: true,
-            usePolling: false,  // Native events work on host
-            ignoreInitial: true,
-        });
-
-        this.watchers.push(watcher);
-
-        const handleEvent = async (eventType: WatchEventType, filePath: string) => {
-            let relativePath = filePath;
-            if (filePath.startsWith(watchPath)) {
-                relativePath = filePath.slice(watchPath.length);
-                if (relativePath.startsWith('/')) {
-                    relativePath = relativePath.slice(1);
-                }
-            }
-
-            logger.info({ eventType, filePath, relativePath, watchPath }, 'File change detected');
-
-            let content: string | undefined;
-            if (eventType !== 'unlink') {
-                try {
-                    content = await this.readFile(filePath) ?? undefined;
-                } catch (err) {
-                    logger.warn({ filePath, error: err }, 'Failed to read file content');
-                }
-            }
-
-            callback({
-                type: eventType,
-                path: relativePath,
-                content,
+        return new Promise((resolve) => {
+            // Note: chokidar 4.x removed glob support, just pass the directory
+            const watcher = chokidar.watch(watchPath, {
+                ignored: opts?.ignorePatterns ?? [],
+                persistent: true,
+                usePolling: true,   // Use polling for reliability (FSEvents unreliable on macOS)
+                interval: 300,      // Poll every 300ms
+                ignoreInitial: true,
             });
-        };
 
-        watcher
-            .on('add', (path) => handleEvent('add', path))
-            .on('change', (path) => handleEvent('change', path))
-            .on('unlink', (path) => handleEvent('unlink', path));
+            this.watchers.push(watcher);
 
-        logger.info({ watchPath }, 'Local file watcher started');
+            const handleEvent = async (eventType: WatchEventType, filePath: string) => {
+                let relativePath = filePath;
+                if (filePath.startsWith(watchPath)) {
+                    relativePath = filePath.slice(watchPath.length);
+                    if (relativePath.startsWith('/')) {
+                        relativePath = relativePath.slice(1);
+                    }
+                }
+
+                logger.info({ eventType, filePath, relativePath, watchPath }, 'File change detected');
+
+                let content: string | undefined;
+                if (eventType !== 'unlink') {
+                    try {
+                        content = await this.readFile(filePath) ?? undefined;
+                    } catch (err) {
+                        logger.warn({ filePath, error: err }, 'Failed to read file content');
+                    }
+                }
+
+                callback({
+                    type: eventType,
+                    path: relativePath,
+                    content,
+                });
+            };
+
+            // Timeout protection - resolve after 10s even if 'ready' doesn't fire
+            const timeoutMs = 10000;
+            const timeout = setTimeout(() => {
+                logger.warn({ watchPath }, 'File watcher ready timeout - resolving anyway');
+                resolve();
+            }, timeoutMs);
+
+            watcher
+                .on('all', (event, filePath) => {
+                    logger.info({ event, filePath, watchPath }, 'Chokidar raw event');
+                })
+                .on('add', (path) => handleEvent('add', path))
+                .on('change', (path) => handleEvent('change', path))
+                .on('unlink', (path) => handleEvent('unlink', path))
+                .on('error', (error) => {
+                    logger.error({ error, watchPath }, 'File watcher error');
+                })
+                .on('ready', () => {
+                    clearTimeout(timeout);
+                    logger.info({ watchPath }, 'Local file watcher ready');
+                    resolve();
+                });
+        });
     }
 
     async terminate(): Promise<void> {

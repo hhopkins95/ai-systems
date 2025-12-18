@@ -307,7 +307,6 @@ export class ExecutionEnvironment {
      */
     private async sendTranscriptUpdate(): Promise<void> {
         const transcript = await this.readSessionTranscript();
-        logger.info("Fetched transcript: " + transcript);
         if (transcript) {
             this.eventBus.emit('transcript:changed', createSessionEvent('transcript:changed', {
                 content: transcript,
