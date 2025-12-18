@@ -144,6 +144,22 @@ export async function loadAgentProfile(
       await opencodeEntityManager.writeSkillsInstructions(fullAgentContext.skills)
       await opencodeEntityManager.addPlugins(['opencode-skills'])
 
+      // Auto-approve all tools in headless execution mode
+      await opencodeEntityManager.writePermissions({
+        Read: 'allow',
+        Write: 'allow',
+        Edit: 'allow',
+        Bash: 'allow',
+        Glob: 'allow',
+        Grep: 'allow',
+        LS: 'allow',
+        Task: 'allow',
+        TodoWrite: 'allow',
+        NotebookEdit: 'allow',
+        WebFetch: 'allow',
+        WebSearch: 'allow',
+      })
+
     }
 
     return {

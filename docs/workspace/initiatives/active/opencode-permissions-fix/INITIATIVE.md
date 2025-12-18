@@ -38,11 +38,11 @@ The OpenCode SDK requires permission configuration to auto-approve tools in head
 
 ## Completion Criteria
 
-- [ ] `writePermissions()` method added to `OpenCodeEntityWriter`
-- [ ] Permissions auto-configured when loading agent profile
-- [ ] File read operations complete without hanging
-- [ ] File write operations complete without hanging
-- [ ] Documentation updated
+- [x] `writePermissions()` method added to `OpenCodeEntityWriter`
+- [x] Permissions auto-configured when loading agent profile
+- [ ] File read operations complete without hanging (needs runtime testing)
+- [ ] File write operations complete without hanging (needs runtime testing)
+- [x] Documentation updated
 
 ## Implementation Plan
 
@@ -87,7 +87,13 @@ Note: By default, all tools are **enabled** and don't need permission. But for h
 
 ## Current Status
 
-Active - ready to implement.
+**Implementation complete.** Awaiting runtime testing.
+
+Changes made:
+1. Added `writePermissions()` method to `OpenCodeEntityWriter` (`packages/opencode-entity-manager/src/OpenCodeEntityWriter.ts`)
+2. Called `writePermissions()` in `loadAgentProfile()` with all standard tools set to `'allow'` (`runtime/runner/src/core/load-agent-profile.ts`)
+
+Tools auto-approved: Read, Write, Edit, Bash, Glob, Grep, LS, Task, TodoWrite, NotebookEdit, WebFetch, WebSearch
 
 ## Quick Links
 

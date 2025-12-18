@@ -9,6 +9,7 @@ import type {
   Agent,
   Command,
   McpServer,
+  OpencodePermissions,
   Rule,
   OpencodeSettings,
   Skill,
@@ -180,14 +181,14 @@ export class OpenCodeEntityWriter {
 
     const content = formatSkillsMd(skills);
 
-    this.writeRule({
+    await this.writeRule({
       name: "SKILLS-INSTRUCTIONS",
       content: content,
       metadata: {
         description: "Skills instructions",
         tags: ["skills"],
       },
-    })
+    });
     return { path: `${rulesDir}/SKILLS-INSTRUCTIONS.md`, created: true };
   }
 
@@ -537,6 +538,29 @@ export class OpenCodeEntityWriter {
   // ============================================
   // Utility Methods
   // ============================================
+
+  /**
+   * Write permission configuration to opencode.json
+   * Used to auto-approve tools in headless execution mode
+   */
+  async writePermissions(permissions: OpencodePermissions): Promise<WriteResult> {
+    const configPath = this.configFilePath;
+
+    // Read existing config
+    let config: OpencodeSettings = {};
+    try {
+      const content = await readFile(configPath, "utf-8");
+      config = JSON.parse(content) as OpencodeSettings;
+    } catch {
+      // File doesn't exist or can't be parsed - start fresh
+    }
+
+    // Set permissions (replaces existing)
+    config.permission = permissions;
+
+    await writeFile(configPath, JSON.stringify(config, null, 2), "utf-8");
+    return { path: configPath, created: true };
+  }
 
   /**
    * Clear all contents of a subdirectory within .opencode
