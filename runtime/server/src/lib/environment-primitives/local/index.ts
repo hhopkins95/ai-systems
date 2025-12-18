@@ -199,9 +199,6 @@ export class LocalPrimitive implements EnvironmentPrimitive {
             }, timeoutMs);
 
             watcher
-                .on('all', (event, filePath) => {
-                    logger.info({ event, filePath, watchPath }, 'Chokidar raw event');
-                })
                 .on('add', (path) => handleEvent('add', path))
                 .on('change', (path) => handleEvent('change', path))
                 .on('unlink', (path) => handleEvent('unlink', path))
