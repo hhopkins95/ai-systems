@@ -16,8 +16,6 @@ export type { CombinedClaudeTranscript, SessionConversationState } from '@ai-sys
 // Transcript parsing
 export {
   parseClaudeTranscriptFile,
-  extractSubagentId,
-  detectSubagentStatus,
   parseCombinedClaudeTranscript,
 } from './transcript-parser.js';
 

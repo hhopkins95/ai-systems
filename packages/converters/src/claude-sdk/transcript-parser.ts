@@ -17,10 +17,7 @@ import type {
   SessionConversationState,
   AnySessionEvent,
 } from '@ai-systems/shared-types';
-import {
-  createInitialConversationState,
-  createSubagentState,
-} from '@ai-systems/shared-types';
+import { createInitialConversationState } from '@ai-systems/shared-types';
 import { noopLogger } from '../utils.js';
 import type { ParseTranscriptOptions } from '../types.js';
 import { sdkMessageToEvents } from './block-converter.js';
@@ -58,57 +55,6 @@ export function parseClaudeTranscriptFile(
   }
 
   return messages;
-}
-
-/**
- * Extract subagent ID from filename
- *
- * Examples:
- * - "agent-abc123.jsonl" → "agent-abc123"
- * - "abc123.jsonl" → null (main transcript)
- *
- * @param filename - Transcript filename
- * @returns Subagent ID or null if main transcript
- */
-export function extractSubagentId(filename: string): string | null {
-  const basename = filename.replace('.jsonl', '');
-
-  // Check if it starts with agent-
-  if (basename.startsWith('agent-')) {
-    return basename;
-  }
-
-  return null;
-}
-
-/**
- * Detect subagent status from transcript messages
- *
- * A subagent is considered:
- * - active: Has messages but no final result
- * - completed: Has a result message
- * - failed: Currently not detected from transcript (errors are handled separately)
- *
- * @param messages - Subagent transcript messages
- * @returns Subagent status
- */
-export function detectSubagentStatus(
-  messages: SDKMessage[]
-): 'active' | 'completed' | 'failed' {
-  if (messages.length === 0) {
-    return 'active';
-  }
-
-  // Check last few messages for result
-  const lastMessages = messages.slice(-5);
-
-  for (const msg of lastMessages.reverse()) {
-    if (msg.type === 'result') {
-      return 'completed';
-    }
-  }
-
-  return 'active';
 }
 
 // =============================================================================
@@ -177,6 +123,7 @@ export function parseCombinedClaudeTranscript(
     }
 
     // Process each subagent transcript
+    // Subagent entries are created by subagent:spawned events from the main transcript
     for (const rawSubagent of combined.subagents) {
       const subagentMessages = parseClaudeTranscriptFile(rawSubagent.transcript, options);
 
@@ -185,25 +132,8 @@ export function parseCombinedClaudeTranscript(
         continue;
       }
 
-      // Create subagent entry if it doesn't exist
-      // (it may have been created by a subagent:spawned event from main)
-      const existingSubagent = state.subagents.find(
-        (s) => s.id === rawSubagent.id || s.agentId === rawSubagent.id
-      );
-
-      if (!existingSubagent) {
-        // Create subagent entry manually since we're loading from transcript
-        const newSubagent = createSubagentState(rawSubagent.id, {
-          agentId: rawSubagent.id,
-          status: detectSubagentStatus(subagentMessages) === 'completed' ? 'success' : 'running',
-        });
-        state = {
-          ...state,
-          subagents: [...state.subagents, newSubagent],
-        };
-      }
-
       // Convert subagent messages to events and reduce
+      // Events are routed to the correct subagent by conversationId
       const subagentEvents = messagesToEvents(subagentMessages, rawSubagent.id, options);
 
       for (const event of subagentEvents) {

@@ -116,7 +116,7 @@ Blocks routed by `event.context.conversationId`:
 
 ## Current Status
 
-**Implementation ~90% complete** (2025-12-19)
+**Implementation complete, needs testing** (2025-12-19)
 
 ### Completed:
 - [x] Types updated with flexible SubagentBlock and new subagent events
@@ -124,14 +124,19 @@ Blocks routed by `event.context.conversationId`:
 - [x] Claude SDK converter emits `subagent:spawned` / `subagent:completed` events
 - [x] Server SessionState uses shared reducer
 - [x] Client reducer updated with new action handlers
+- [x] **Type reorganization** - moved `SessionConversationState` etc. to shared-types
+- [x] **RuntimeSessionData restructure** - now uses `conversationState` field
+- [x] **Converter simplification** - single code path via `sdkMessageToEvents()`
+- [x] **Removed `ParsedTranscript`** - all parsers return `SessionConversationState`
+- [x] All packages build successfully
 
 ### Remaining:
-- [ ] Verify build passes (small fix applied to opencode transcript-parser)
 - [ ] Test subagent streaming end-to-end
-- [ ] Documentation updated
+- [ ] Verify streaming + transcript loading produce identical state
 
 ### Session Notes:
-See [sessions/2025-12-19-implementation.md](sessions/2025-12-19-implementation.md) for details.
+- [2025-12-19-implementation.md](sessions/2025-12-19-implementation.md) - Initial implementation
+- [2025-12-19-type-reorganization.md](sessions/2025-12-19-type-reorganization.md) - Type cleanup & converter simplification
 
 ## Quick Links
 
