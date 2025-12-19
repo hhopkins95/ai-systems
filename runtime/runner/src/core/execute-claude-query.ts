@@ -6,7 +6,7 @@
 
 import { query, Options } from '@anthropic-ai/claude-agent-sdk';
 import { parseStreamEvent } from '@hhopkins/agent-converters/claude-sdk';
-import type { AnySessionEvent, UserMessageBlock } from '@ai-systems/shared-types';
+import type { AnySessionEvent, UserMessageBlock, McpServerConfig } from '@ai-systems/shared-types';
 import { ClaudeEntityManager } from '@hhopkins/claude-entity-manager';
 import { findClaudeExecutable } from '../clients/claude.js';
 import { emptyAsyncIterable } from '../clients/channel.js';
@@ -69,6 +69,25 @@ export async function* executeClaudeQuery(
     throw error;
   }
 
+  // Load MCP servers from the .mcp.json that loadAgentProfile wrote
+  yield createLogSessionEvent('Loading MCP servers from config', 'debug');
+  const claudeEntityManager = new ClaudeEntityManager({
+    projectDir: paths.workspaceDir,
+    claudeDir: paths.claudeConfigDir,
+  });
+  const mcpServersArray = await claudeEntityManager.loadMcpServers();
+
+  // Convert array to Record<string, McpServerConfig> for SDK
+  const mcpServers: Record<string, McpServerConfig> = {};
+  for (const server of mcpServersArray) {
+    const { name, source, ...config } = server;
+    mcpServers[name] = config as McpServerConfig;
+  }
+  yield createLogSessionEvent('Loaded MCP servers', 'debug', {
+    count: mcpServersArray.length,
+    names: Object.keys(mcpServers),
+  });
+
   const options: Options = {
     pathToClaudeCodeExecutable: claudeCodePath,
     cwd: paths.workspaceDir,
@@ -80,7 +99,7 @@ export async function* executeClaudeQuery(
     allowedTools: input.tools
       ? [...input.tools, 'Skill']
       : ['Skill'],
-    mcpServers: input.mcpServers as Options['mcpServers'],
+    mcpServers: mcpServers as Options['mcpServers'],
   };
 
   const needsCreation = !(await claudeSessionExists(input.sessionId));
