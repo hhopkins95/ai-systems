@@ -87,7 +87,6 @@ export async function* executeClaudeQuery(
   yield createLogSessionEvent('Loaded MCP servers', 'debug', {
     count: mcpServersArray.length,
     names: Object.keys(mcpServers),
-    tools: input.tools,
   });
 
   const allowedTools = ['Read', 'Write', 'Edit', 'Glob', 'Grep', 'Skill', 'Task', 'WebFetch'];
@@ -133,6 +132,13 @@ export async function* executeClaudeQuery(
     };
   };
 
+
+  yield createLogSessionEvent('Creating options', 'debug', {
+    allowedTools: allowedTools,
+    mcpServers: mcpServers,
+    systemPrompt: 'Adding system prompt to the options' 
+  });
+
   const options: Options = {
     pathToClaudeCodeExecutable: claudeCodePath,
     cwd: paths.workspaceDir,
@@ -142,6 +148,7 @@ export async function* executeClaudeQuery(
     permissionMode: 'acceptEdits',
     allowedTools: allowedTools,
     mcpServers: mcpServers as Options['mcpServers'],
+    systemPrompt: 'You are a helpful assistant that can use the following tools to help the user: ' + allowedTools.join(', '),
     hooks: {
       PreToolUse: [
         // Restrict file access to workspace directory only
