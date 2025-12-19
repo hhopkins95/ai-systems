@@ -116,8 +116,8 @@ export async function loadAgentProfile(
       mcpServers.push({
         name: mcpServer.name,
         type: 'stdio',
-        command: path.join(mcpServerDir, mcpServer.startCommand),
-        args: [],
+        command: '/bin/sh',
+        args: ['-c', `cd "${mcpServerDir}" && ${mcpServer.startCommand}`],
       });
     }
 

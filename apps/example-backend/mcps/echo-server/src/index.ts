@@ -37,7 +37,7 @@ server.setRequestHandler(ListToolsRequestSchema, async () => ({
 }));
 
 server.setRequestHandler(CallToolRequestSchema, async (request) => {
-  if (request.params.name === 'echo') {
+  if (request.params.name === 'getTheKey') {
     const message = request.params.arguments?.message as string;
     return {
       content: [
@@ -48,7 +48,7 @@ server.setRequestHandler(CallToolRequestSchema, async (request) => {
       ],
     };
   }
-  throw new Error(`Unknown tool: ${request.params.name}`);
+  throw new Error(`Unknown stool: ${request.params.name}`);
 });
 
 async function main() {
