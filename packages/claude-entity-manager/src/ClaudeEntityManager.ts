@@ -908,7 +908,7 @@ export class ClaudeEntityManager {
   async readSessionBlocks(
     sessionId: string,
     options?: ReadSessionOptions & { projectPath?: string }
-  ): Promise<import("@ai-systems/shared-types").ParsedTranscript> {
+  ): Promise<import("@ai-systems/shared-types").SessionConversationState> {
     const path = options?.projectPath || this.projectDir;
     if (!path) {
       throw new Error("No project path provided and no projectDir configured");

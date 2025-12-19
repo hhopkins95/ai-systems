@@ -17,7 +17,7 @@ import { join } from "path";
 import type { SDKMessage } from "@anthropic-ai/claude-agent-sdk";
 import type {
   CombinedClaudeTranscript,
-  ParsedTranscript,
+  SessionConversationState,
 } from "@ai-systems/shared-types";
 import {
   parseClaudeTranscriptFile,
@@ -410,16 +410,16 @@ export class SessionLoader {
   }
 
   /**
-   * Read session transcript as ConversationBlocks
+   * Read session transcript as SessionConversationState
    *
-   * Parses and converts to the architecture-agnostic block format.
-   * Use this when you need the unified block representation.
+   * Parses and converts to the architecture-agnostic state format.
+   * Use this when you need the unified conversation representation.
    */
   async readBlocks(
     projectPath: string,
     sessionId: string,
     options: ReadSessionOptions = {}
-  ): Promise<ParsedTranscript> {
+  ): Promise<SessionConversationState> {
     const raw = await this.readRaw(projectPath, sessionId, options);
 
     // Use the combined transcript parser which handles both main and subagents

@@ -5,7 +5,7 @@
  */
 
 import { query, Options, HookCallback, PreToolUseHookInput } from '@anthropic-ai/claude-agent-sdk';
-import { parseStreamEvent } from '@hhopkins/agent-converters/claude-sdk';
+import { sdkMessageToEvents } from '@hhopkins/agent-converters/claude-sdk';
 import type { AnySessionEvent, UserMessageBlock, McpServerConfig } from '@ai-systems/shared-types';
 import { ClaudeEntityManager } from '@hhopkins/claude-entity-manager';
 import { findClaudeExecutable } from '../clients/claude.js';
@@ -187,7 +187,7 @@ export async function* executeClaudeQuery(
       }}
 
       // Convert SDK message to SessionEvents using converter
-      const sessionEvents = parseStreamEvent(sdkMessage);
+      const sessionEvents = sdkMessageToEvents(sdkMessage);
       for (const sessionEvent of sessionEvents) {
         yield sessionEvent;
       }

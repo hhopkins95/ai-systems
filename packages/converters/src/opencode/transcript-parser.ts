@@ -10,7 +10,7 @@ import type {
   ConversationBlock,
   SubagentBlock,
   ToolExecutionStatus,
-  ParsedTranscript,
+  SessionConversationState,
 } from '@ai-systems/shared-types';
 import { generateId, toISOTimestamp, noopLogger, type Logger } from '../utils.js';
 import type { ParseTranscriptOptions } from '../types.js';
@@ -289,16 +289,16 @@ function convertPartToBlocks(part: Part, model: string | undefined, logger: Logg
 // ============================================================================
 
 /**
- * Parse an OpenCode exported transcript file into ConversationBlocks
+ * Parse an OpenCode exported transcript file into SessionConversationState
  *
  * @param content - JSON string content of the exported transcript
  * @param options - Optional configuration including logger
- * @returns Parsed blocks and extracted subagent conversations
+ * @returns SessionConversationState with blocks, subagents, and streaming state
  */
 export function parseOpenCodeTranscriptFile(
   content: string,
   options: ParseTranscriptOptions = {}
-): ParsedTranscript {
+): SessionConversationState {
   const logger = options.logger ?? noopLogger;
 
   let transcript: OpenCodeSessionTranscript;
@@ -359,13 +359,18 @@ export function parseOpenCodeTranscriptFile(
     }
   }
 
-  // Convert subagents map to array
-  const subagents = Array.from(subagentsMap.entries()).map(([id, blocks]) => ({
+  // Convert subagents map to SubagentState array
+  const subagents = Array.from(subagentsMap.entries()).map(([id, subagentBlocks]) => ({
     id,
-    blocks,
+    blocks: subagentBlocks,
+    status: 'success' as const,
   }));
 
-  return { blocks, subagents };
+  return {
+    blocks,
+    subagents,
+    streaming: { byConversation: new Map() },
+  };
 }
 
 // Export helper functions for use in block converter

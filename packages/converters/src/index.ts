@@ -89,7 +89,8 @@ export * from './session-state/index.js';
 // Unified Transcript Parsing
 // =============================================================================
 
-import type { AgentArchitecture, ParsedTranscript } from '@ai-systems/shared-types';
+import type { AgentArchitecture, SessionConversationState } from '@ai-systems/shared-types';
+import { createInitialConversationState } from '@ai-systems/shared-types';
 import { parseCombinedClaudeTranscript } from './claude-sdk/index.js';
 import { parseOpenCodeTranscriptFile } from './opencode/index.js';
 
@@ -101,14 +102,14 @@ import { parseOpenCodeTranscriptFile } from './opencode/index.js';
  *
  * @param architecture - The agent architecture type
  * @param rawTranscript - The raw transcript string
- * @returns Parsed blocks and subagent conversations
+ * @returns SessionConversationState with blocks, subagents, and streaming state
  */
 export function parseTranscript(
   architecture: AgentArchitecture,
   rawTranscript: string
-): ParsedTranscript {
+): SessionConversationState {
   if (!rawTranscript) {
-    return { blocks: [], subagents: [] };
+    return createInitialConversationState();
   }
 
   switch (architecture) {
@@ -117,6 +118,6 @@ export function parseTranscript(
     case 'opencode':
       return parseOpenCodeTranscriptFile(rawTranscript);
     default:
-      return { blocks: [], subagents: [] };
+      return createInitialConversationState();
   }
 }
