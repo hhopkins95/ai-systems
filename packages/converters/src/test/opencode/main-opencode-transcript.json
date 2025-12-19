@@ -1,0 +1,682 @@
+{
+  "info": {
+    "id": "ses_019b38d16719_9fwj8902kdq",
+    "version": "1.0.120",
+    "projectID": "global",
+    "directory": "/Users/hunterhopkins/dev/projects/ai-systems/runtime/runner/test/test-workspace/workspace",
+    "title": "New Session",
+    "time": {
+      "created": 1766184807345,
+      "updated": 1766184879493
+    },
+    "summary": {
+      "additions": 0,
+      "deletions": 0,
+      "files": 0
+    }
+  },
+  "messages": [
+    {
+      "info": {
+        "id": "msg_b38d16ed7001NqDKnVK90yFslb",
+        "sessionID": "ses_019b38d16719_9fwj8902kdq",
+        "role": "user",
+        "time": {
+          "created": 1766184808151
+        },
+        "summary": {
+          "title": "Executing multi-step subagent file I/O workflow",
+          "diffs": []
+        },
+        "agent": "build",
+        "model": {
+          "providerID": "opencode",
+          "modelID": "big-pickle"
+        }
+      },
+      "parts": [
+        {
+          "id": "prt_b38d16ed7002QbauvMxnhGxj22",
+          "sessionID": "ses_019b38d16719_9fwj8902kdq",
+          "messageID": "msg_b38d16ed7001NqDKnVK90yFslb",
+          "type": "text",
+          "text": "Do the following in order : \n\n1. Load a skill.Any Skill will do.\n\n2. Launch a subagent to write a file to the workspace called 'subagent-test.txt' with the content 'Hello world from the subagent!'.Use the Task tool to do this.\n\n3. Write a file to the workspace called 'test.txt' with the content 'Hello world from the main agent!'.\n\n\nDo not ask any questions first, please just immediately do the steps above.Use thinking tokens to begin."
+        }
+      ]
+    },
+    {
+      "info": {
+        "id": "msg_b38d16ef6001rSYZZC3WE7AbSD",
+        "sessionID": "ses_019b38d16719_9fwj8902kdq",
+        "role": "assistant",
+        "time": {
+          "created": 1766184808182,
+          "completed": 1766184820262
+        },
+        "parentID": "msg_b38d16ed7001NqDKnVK90yFslb",
+        "modelID": "big-pickle",
+        "providerID": "opencode",
+        "mode": "build",
+        "agent": "build",
+        "path": {
+          "cwd": "/Users/hunterhopkins/dev/projects/ai-systems/runtime/runner/test/test-workspace/workspace",
+          "root": "/Users/hunterhopkins/dev/projects/ai-systems"
+        },
+        "cost": 0,
+        "tokens": {
+          "input": 14427,
+          "output": 180,
+          "reasoning": 0,
+          "cache": {
+            "read": 73,
+            "write": 0
+          }
+        },
+        "finish": "tool-calls"
+      },
+      "parts": [
+        {
+          "id": "prt_b38d17f29001lBPezCGXBXKxay",
+          "sessionID": "ses_019b38d16719_9fwj8902kdq",
+          "messageID": "msg_b38d16ef6001rSYZZC3WE7AbSD",
+          "type": "step-start",
+          "snapshot": "3a385933909cd19f2ae82e78dbb018a2965e95a5"
+        },
+        {
+          "id": "prt_b38d17f2a001PnH57w4Pb8OFhn",
+          "sessionID": "ses_019b38d16719_9fwj8902kdq",
+          "messageID": "msg_b38d16ef6001rSYZZC3WE7AbSD",
+          "type": "reasoning",
+          "text": "",
+          "time": {
+            "start": 1766184812330,
+            "end": 1766184814107
+          }
+        },
+        {
+          "id": "prt_b38d17f2b001cbAlnwoD0Ft0mP",
+          "sessionID": "ses_019b38d16719_9fwj8902kdq",
+          "messageID": "msg_b38d16ef6001rSYZZC3WE7AbSD",
+          "type": "text",
+          "text": "\n<thinking>\nThe user wants me to:\n1. Load any skill\n2. Launch a subagent to write a file called 'subagent-test.txt' with specific content\n3. Write a file called 'test.txt' with specific content\n\nLet me start by loading a skill. I'll pick one of the available skills - let me use the Test Skill since it's specifically for testing.\n\nThen I'll use the Task tool to launch a subagent to write the first file.\n\nFinally, I'll use the Write tool to write the second file myself.\n\nI need to do this immediately without asking questions.\n</thinking>\nI'll execute these steps in order. First, let me load a skill:",
+          "time": {
+            "start": 1766184814107,
+            "end": 1766184814107
+          }
+        },
+        {
+          "id": "prt_b38d1849b001E0gRhyvlG4dVs9",
+          "sessionID": "ses_019b38d16719_9fwj8902kdq",
+          "messageID": "msg_b38d16ef6001rSYZZC3WE7AbSD",
+          "type": "tool",
+          "callID": "call_499d379c3296400fbf595aaa",
+          "tool": "task",
+          "state": {
+            "status": "completed",
+            "input": {
+              "description": "Load Test Skill",
+              "prompt": "skills_test",
+              "subagent_type": "general"
+            },
+            "output": "\nPickles from /Users/hunterhopkins/dev/projects/ai-systems/.opencode/plugin\n\n<task_metadata>\nsession_id: ses_4c72e7b62ffeN60u5X8Jv0Rck7\n</task_metadata>",
+            "title": "Load Test Skill",
+            "metadata": {
+              "summary": [
+                {
+                  "id": "prt_b38d1907d0015fGzOb9uaKy1l0",
+                  "tool": "testTool",
+                  "state": {
+                    "status": "completed",
+                    "title": ""
+                  }
+                }
+              ],
+              "sessionId": "ses_4c72e7b62ffeN60u5X8Jv0Rck7"
+            },
+            "time": {
+              "start": 1766184813726,
+              "end": 1766184820239
+            }
+          }
+        },
+        {
+          "id": "prt_b38d19e0f001DtTfhmr2lDBTAU",
+          "sessionID": "ses_019b38d16719_9fwj8902kdq",
+          "messageID": "msg_b38d16ef6001rSYZZC3WE7AbSD",
+          "type": "step-finish",
+          "reason": "tool-calls",
+          "snapshot": "3a385933909cd19f2ae82e78dbb018a2965e95a5",
+          "cost": 0,
+          "tokens": {
+            "input": 14427,
+            "output": 180,
+            "reasoning": 0,
+            "cache": {
+              "read": 73,
+              "write": 0
+            }
+          }
+        }
+      ]
+    },
+    {
+      "info": {
+        "id": "msg_b38d19e27001zireLWlJFoHqPu",
+        "sessionID": "ses_019b38d16719_9fwj8902kdq",
+        "role": "assistant",
+        "time": {
+          "created": 1766184820263,
+          "completed": 1766184848288
+        },
+        "parentID": "msg_b38d16ed7001NqDKnVK90yFslb",
+        "modelID": "big-pickle",
+        "providerID": "opencode",
+        "mode": "build",
+        "agent": "build",
+        "path": {
+          "cwd": "/Users/hunterhopkins/dev/projects/ai-systems/runtime/runner/test/test-workspace/workspace",
+          "root": "/Users/hunterhopkins/dev/projects/ai-systems"
+        },
+        "cost": 0,
+        "tokens": {
+          "input": 10172,
+          "output": 75,
+          "reasoning": 0,
+          "cache": {
+            "read": 4567,
+            "write": 0
+          }
+        },
+        "finish": "tool-calls"
+      },
+      "parts": [
+        {
+          "id": "prt_b38d1a8b8001R6J6iLK4cVLXaz",
+          "sessionID": "ses_019b38d16719_9fwj8902kdq",
+          "messageID": "msg_b38d19e27001zireLWlJFoHqPu",
+          "type": "step-start",
+          "snapshot": "3a385933909cd19f2ae82e78dbb018a2965e95a5"
+        },
+        {
+          "id": "prt_b38d1a8b9001wUAH7iKVxaMu22",
+          "sessionID": "ses_019b38d16719_9fwj8902kdq",
+          "messageID": "msg_b38d19e27001zireLWlJFoHqPu",
+          "type": "reasoning",
+          "text": "",
+          "time": {
+            "start": 1766184822969,
+            "end": 1766184831835
+          }
+        },
+        {
+          "id": "prt_b38d1ad4d0013bBXTp4H59oX4T",
+          "sessionID": "ses_019b38d16719_9fwj8902kdq",
+          "messageID": "msg_b38d19e27001zireLWlJFoHqPu",
+          "type": "text",
+          "text": "\nNow I'll launch a subagent to write the first file:",
+          "time": {
+            "start": 1766184831836,
+            "end": 1766184831836
+          }
+        },
+        {
+          "id": "prt_b38d1c9f7001PzQjrVPHTb6B1y",
+          "sessionID": "ses_019b38d16719_9fwj8902kdq",
+          "messageID": "msg_b38d19e27001zireLWlJFoHqPu",
+          "type": "tool",
+          "callID": "call_89ae295e49a949b8b67a3637",
+          "tool": "task",
+          "state": {
+            "status": "completed",
+            "input": {
+              "description": "Write subagent test file",
+              "prompt": "Write a file to the workspace called 'subagent-test.txt' with the content 'Hello world from the subagent!'",
+              "subagent_type": "general"
+            },
+            "output": "\nFile created with content \"Hello world from the subagent!\"\n\n<task_metadata>\nsession_id: ses_4c72e3604ffefkLKmFGZXMq2KD\n</task_metadata>",
+            "title": "Write subagent test file",
+            "metadata": {
+              "summary": [
+                {
+                  "id": "prt_b38d1e769001kGwAf95XaAzHD7",
+                  "tool": "write",
+                  "state": {
+                    "status": "error"
+                  }
+                },
+                {
+                  "id": "prt_b38d1f5de001NH77zxtY4Ko7nG",
+                  "tool": "read",
+                  "state": {
+                    "status": "completed",
+                    "title": "runtime/runner/test/test-workspace/workspace/subagent-test.txt"
+                  }
+                },
+                {
+                  "id": "prt_b38d1ff31001uCAyNN2JzgxlPT",
+                  "tool": "write",
+                  "state": {
+                    "status": "completed",
+                    "title": "runtime/runner/test/test-workspace/workspace/subagent-test.txt"
+                  }
+                }
+              ],
+              "sessionId": "ses_4c72e3604ffefkLKmFGZXMq2KD"
+            },
+            "time": {
+              "start": 1766184831484,
+              "end": 1766184848265
+            }
+          }
+        },
+        {
+          "id": "prt_b38d20b89001k7ZtP2gDJTR3nE",
+          "sessionID": "ses_019b38d16719_9fwj8902kdq",
+          "messageID": "msg_b38d19e27001zireLWlJFoHqPu",
+          "type": "step-finish",
+          "reason": "tool-calls",
+          "snapshot": "3a385933909cd19f2ae82e78dbb018a2965e95a5",
+          "cost": 0,
+          "tokens": {
+            "input": 10172,
+            "output": 75,
+            "reasoning": 0,
+            "cache": {
+              "read": 4567,
+              "write": 0
+            }
+          }
+        }
+      ]
+    },
+    {
+      "info": {
+        "id": "msg_b38d20ba20011ykfllaWnp5BVw",
+        "sessionID": "ses_019b38d16719_9fwj8902kdq",
+        "role": "assistant",
+        "time": {
+          "created": 1766184848290,
+          "completed": 1766184851510
+        },
+        "parentID": "msg_b38d16ed7001NqDKnVK90yFslb",
+        "modelID": "big-pickle",
+        "providerID": "opencode",
+        "mode": "build",
+        "agent": "build",
+        "path": {
+          "cwd": "/Users/hunterhopkins/dev/projects/ai-systems/runtime/runner/test/test-workspace/workspace",
+          "root": "/Users/hunterhopkins/dev/projects/ai-systems"
+        },
+        "cost": 0,
+        "tokens": {
+          "input": 49,
+          "output": 61,
+          "reasoning": 0,
+          "cache": {
+            "read": 14813,
+            "write": 0
+          }
+        },
+        "finish": "tool-calls"
+      },
+      "parts": [
+        {
+          "id": "prt_b38d21332001ClYF1PIWKqDD3k",
+          "sessionID": "ses_019b38d16719_9fwj8902kdq",
+          "messageID": "msg_b38d20ba20011ykfllaWnp5BVw",
+          "type": "step-start",
+          "snapshot": "3a385933909cd19f2ae82e78dbb018a2965e95a5"
+        },
+        {
+          "id": "prt_b38d21332002NuJx7nZZwwyDcS",
+          "sessionID": "ses_019b38d16719_9fwj8902kdq",
+          "messageID": "msg_b38d20ba20011ykfllaWnp5BVw",
+          "type": "reasoning",
+          "text": "",
+          "time": {
+            "start": 1766184850226,
+            "end": 1766184851471
+          }
+        },
+        {
+          "id": "prt_b38d21363001xiWysPWgU4iyDL",
+          "sessionID": "ses_019b38d16719_9fwj8902kdq",
+          "messageID": "msg_b38d20ba20011ykfllaWnp5BVw",
+          "type": "text",
+          "text": "\nFinally, I'll write the second file myself:",
+          "time": {
+            "start": 1766184851472,
+            "end": 1766184851472
+          }
+        },
+        {
+          "id": "prt_b38d21636001yCT0JLnrHAwzyO",
+          "sessionID": "ses_019b38d16719_9fwj8902kdq",
+          "messageID": "msg_b38d20ba20011ykfllaWnp5BVw",
+          "type": "tool",
+          "callID": "call_2263fee915bc4f119851436f",
+          "tool": "write",
+          "state": {
+            "status": "error",
+            "input": {
+              "content": "Hello world from the main agent!",
+              "filePath": "/Users/hunterhopkins/dev/projects/ai-systems/runtime/runner/test/test-workspace/workspace/test.txt"
+            },
+            "error": "Error: You must read the file /Users/hunterhopkins/dev/projects/ai-systems/runtime/runner/test/test-workspace/workspace/test.txt before overwriting it. Use the Read tool first",
+            "time": {
+              "start": 1766184851000,
+              "end": 1766184851001
+            }
+          }
+        },
+        {
+          "id": "prt_b38d21811001TcMqiSZJJBPS47",
+          "sessionID": "ses_019b38d16719_9fwj8902kdq",
+          "messageID": "msg_b38d20ba20011ykfllaWnp5BVw",
+          "type": "step-finish",
+          "reason": "tool-calls",
+          "snapshot": "3a385933909cd19f2ae82e78dbb018a2965e95a5",
+          "cost": 0,
+          "tokens": {
+            "input": 49,
+            "output": 61,
+            "reasoning": 0,
+            "cache": {
+              "read": 14813,
+              "write": 0
+            }
+          }
+        }
+      ]
+    },
+    {
+      "info": {
+        "id": "msg_b38d21839001bhaP5ISspjOBsp",
+        "sessionID": "ses_019b38d16719_9fwj8902kdq",
+        "role": "assistant",
+        "time": {
+          "created": 1766184851513,
+          "completed": 1766184854709
+        },
+        "parentID": "msg_b38d16ed7001NqDKnVK90yFslb",
+        "modelID": "big-pickle",
+        "providerID": "opencode",
+        "mode": "build",
+        "agent": "build",
+        "path": {
+          "cwd": "/Users/hunterhopkins/dev/projects/ai-systems/runtime/runner/test/test-workspace/workspace",
+          "root": "/Users/hunterhopkins/dev/projects/ai-systems"
+        },
+        "cost": 0,
+        "tokens": {
+          "input": 10401,
+          "output": 37,
+          "reasoning": 0,
+          "cache": {
+            "read": 4567,
+            "write": 0
+          }
+        },
+        "finish": "tool-calls"
+      },
+      "parts": [
+        {
+          "id": "prt_b38d221730017wg2oUZ6QB4xCa",
+          "sessionID": "ses_019b38d16719_9fwj8902kdq",
+          "messageID": "msg_b38d21839001bhaP5ISspjOBsp",
+          "type": "step-start",
+          "snapshot": "3a385933909cd19f2ae82e78dbb018a2965e95a5"
+        },
+        {
+          "id": "prt_b38d22174001vq5Yq9QC6kfnJ6",
+          "sessionID": "ses_019b38d16719_9fwj8902kdq",
+          "messageID": "msg_b38d21839001bhaP5ISspjOBsp",
+          "type": "reasoning",
+          "text": "",
+          "time": {
+            "start": 1766184853876,
+            "end": 1766184854682
+          }
+        },
+        {
+          "id": "prt_b38d22174002TH3A4SpWKVFLWe",
+          "sessionID": "ses_019b38d16719_9fwj8902kdq",
+          "messageID": "msg_b38d21839001bhaP5ISspjOBsp",
+          "type": "text",
+          "text": "",
+          "time": {
+            "start": 1766184854683,
+            "end": 1766184854683
+          }
+        },
+        {
+          "id": "prt_b38d222b1001Kts663XVMSRq40",
+          "sessionID": "ses_019b38d16719_9fwj8902kdq",
+          "messageID": "msg_b38d21839001bhaP5ISspjOBsp",
+          "type": "tool",
+          "callID": "call_15225e83abc84342995c7c32",
+          "tool": "read",
+          "state": {
+            "status": "completed",
+            "input": {
+              "filePath": "/Users/hunterhopkins/dev/projects/ai-systems/runtime/runner/test/test-workspace/workspace/test.txt"
+            },
+            "output": "<file>\n00001| Hello world from the main agent!\n\n(End of file - total 1 lines)\n</file>",
+            "title": "runtime/runner/test/test-workspace/workspace/test.txt",
+            "metadata": {
+              "preview": "Hello world from the main agent!"
+            },
+            "time": {
+              "start": 1766184854196,
+              "end": 1766184854199
+            }
+          }
+        },
+        {
+          "id": "prt_b38d2249b001Z9fgRVXtnnkt8I",
+          "sessionID": "ses_019b38d16719_9fwj8902kdq",
+          "messageID": "msg_b38d21839001bhaP5ISspjOBsp",
+          "type": "step-finish",
+          "reason": "tool-calls",
+          "snapshot": "3a385933909cd19f2ae82e78dbb018a2965e95a5",
+          "cost": 0,
+          "tokens": {
+            "input": 10401,
+            "output": 37,
+            "reasoning": 0,
+            "cache": {
+              "read": 4567,
+              "write": 0
+            }
+          }
+        }
+      ]
+    },
+    {
+      "info": {
+        "id": "msg_b38d224b7001iuhY0WJQEX6DFO",
+        "sessionID": "ses_019b38d16719_9fwj8902kdq",
+        "role": "assistant",
+        "time": {
+          "created": 1766184854711,
+          "completed": 1766184879484
+        },
+        "parentID": "msg_b38d16ed7001NqDKnVK90yFslb",
+        "modelID": "big-pickle",
+        "providerID": "opencode",
+        "mode": "build",
+        "agent": "build",
+        "path": {
+          "cwd": "/Users/hunterhopkins/dev/projects/ai-systems/runtime/runner/test/test-workspace/workspace",
+          "root": "/Users/hunterhopkins/dev/projects/ai-systems"
+        },
+        "cost": 0,
+        "tokens": {
+          "input": 14963,
+          "output": 51,
+          "reasoning": 0,
+          "cache": {
+            "read": 73,
+            "write": 0
+          }
+        },
+        "finish": "tool-calls"
+      },
+      "parts": [
+        {
+          "id": "prt_b38d28118001EVu21dEBcQwtHo",
+          "sessionID": "ses_019b38d16719_9fwj8902kdq",
+          "messageID": "msg_b38d224b7001iuhY0WJQEX6DFO",
+          "type": "step-start",
+          "snapshot": "3a385933909cd19f2ae82e78dbb018a2965e95a5"
+        },
+        {
+          "id": "prt_b38d28119001jYr11XsZHA43Ai",
+          "sessionID": "ses_019b38d16719_9fwj8902kdq",
+          "messageID": "msg_b38d224b7001iuhY0WJQEX6DFO",
+          "type": "reasoning",
+          "text": "",
+          "time": {
+            "start": 1766184878361,
+            "end": 1766184879458
+          }
+        },
+        {
+          "id": "prt_b38d2812d001jvnS7aRdZYN1Hv",
+          "sessionID": "ses_019b38d16719_9fwj8902kdq",
+          "messageID": "msg_b38d224b7001iuhY0WJQEX6DFO",
+          "type": "text",
+          "text": "",
+          "time": {
+            "start": 1766184879459,
+            "end": 1766184879459
+          }
+        },
+        {
+          "id": "prt_b38d2835f001kP2BlyOwK9jw7h",
+          "sessionID": "ses_019b38d16719_9fwj8902kdq",
+          "messageID": "msg_b38d224b7001iuhY0WJQEX6DFO",
+          "type": "tool",
+          "callID": "call_b4d7efcdf12c4c8199fe1f5d",
+          "tool": "write",
+          "state": {
+            "status": "completed",
+            "input": {
+              "content": "Hello world from the main agent!",
+              "filePath": "/Users/hunterhopkins/dev/projects/ai-systems/runtime/runner/test/test-workspace/workspace/test.txt"
+            },
+            "output": "",
+            "title": "runtime/runner/test/test-workspace/workspace/test.txt",
+            "metadata": {
+              "diagnostics": {},
+              "filepath": "/Users/hunterhopkins/dev/projects/ai-systems/runtime/runner/test/test-workspace/workspace/test.txt",
+              "exists": true
+            },
+            "time": {
+              "start": 1766184878944,
+              "end": 1766184878946
+            }
+          }
+        },
+        {
+          "id": "prt_b38d28563001IF7oMqLRXETOmE",
+          "sessionID": "ses_019b38d16719_9fwj8902kdq",
+          "messageID": "msg_b38d224b7001iuhY0WJQEX6DFO",
+          "type": "step-finish",
+          "reason": "tool-calls",
+          "snapshot": "3a385933909cd19f2ae82e78dbb018a2965e95a5",
+          "cost": 0,
+          "tokens": {
+            "input": 14963,
+            "output": 51,
+            "reasoning": 0,
+            "cache": {
+              "read": 73,
+              "write": 0
+            }
+          }
+        }
+      ]
+    },
+    {
+      "info": {
+        "id": "msg_b38d28580001pq0sdOQHVaEFMV",
+        "sessionID": "ses_019b38d16719_9fwj8902kdq",
+        "role": "assistant",
+        "time": {
+          "created": 1766184879488,
+          "completed": 1766184891056
+        },
+        "parentID": "msg_b38d16ed7001NqDKnVK90yFslb",
+        "modelID": "big-pickle",
+        "providerID": "opencode",
+        "mode": "build",
+        "agent": "build",
+        "path": {
+          "cwd": "/Users/hunterhopkins/dev/projects/ai-systems/runtime/runner/test/test-workspace/workspace",
+          "root": "/Users/hunterhopkins/dev/projects/ai-systems"
+        },
+        "cost": 0,
+        "tokens": {
+          "input": 15019,
+          "output": 49,
+          "reasoning": 0,
+          "cache": {
+            "read": 73,
+            "write": 0
+          }
+        },
+        "finish": "stop"
+      },
+      "parts": [
+        {
+          "id": "prt_b38d291d4001S97ECaat9cBjzG",
+          "sessionID": "ses_019b38d16719_9fwj8902kdq",
+          "messageID": "msg_b38d28580001pq0sdOQHVaEFMV",
+          "type": "step-start",
+          "snapshot": "3a385933909cd19f2ae82e78dbb018a2965e95a5"
+        },
+        {
+          "id": "prt_b38d291d5001O8Gq2gbUhQGrLi",
+          "sessionID": "ses_019b38d16719_9fwj8902kdq",
+          "messageID": "msg_b38d28580001pq0sdOQHVaEFMV",
+          "type": "reasoning",
+          "text": "",
+          "time": {
+            "start": 1766184882645,
+            "end": 1766184891023
+          }
+        },
+        {
+          "id": "prt_b38d2ad92001OIhp4u7kubJNzz",
+          "sessionID": "ses_019b38d16719_9fwj8902kdq",
+          "messageID": "msg_b38d28580001pq0sdOQHVaEFMV",
+          "type": "text",
+          "text": "\nDone! I've completed all three steps:\n1. Loaded the Test Skill\n2. Launched a subagent that created 'subagent-test.txt' \n3. Wrote 'test.txt' with the specified content",
+          "time": {
+            "start": 1766184891023,
+            "end": 1766184891023
+          }
+        },
+        {
+          "id": "prt_b38d2b28f0019WncsWGe1aYcJd",
+          "sessionID": "ses_019b38d16719_9fwj8902kdq",
+          "messageID": "msg_b38d28580001pq0sdOQHVaEFMV",
+          "type": "step-finish",
+          "reason": "stop",
+          "snapshot": "3a385933909cd19f2ae82e78dbb018a2965e95a5",
+          "cost": 0,
+          "tokens": {
+            "input": 15019,
+            "output": 49,
+            "reasoning": 0,
+            "cache": {
+              "read": 73,
+              "write": 0
+            }
+          }
+        }
+      ]
+    }
+  ]
+}

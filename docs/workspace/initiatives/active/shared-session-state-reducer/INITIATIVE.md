@@ -116,7 +116,7 @@ Blocks routed by `event.context.conversationId`:
 
 ## Current Status
 
-**Implementation complete, needs testing** (2025-12-19)
+**Claude SDK tests set up, parity issues identified** (2025-12-19)
 
 ### Completed:
 - [x] Types updated with flexible SubagentBlock and new subagent events
@@ -128,15 +128,32 @@ Blocks routed by `event.context.conversationId`:
 - [x] **RuntimeSessionData restructure** - now uses `conversationState` field
 - [x] **Converter simplification** - single code path via `sdkMessageToEvents()`
 - [x] **Removed `ParsedTranscript`** - all parsers return `SessionConversationState`
+- [x] **Cleaned up transcript-parser** - removed unused `extractSubagentId`, `detectSubagentStatus`
+- [x] **Set up Vitest** - added test infrastructure to converters package
+- [x] **Created parity tests** - `src/test/claude/transcript-parser.test.ts`
 - [x] All packages build successfully
 
-### Remaining:
-- [ ] Test subagent streaming end-to-end
-- [ ] Verify streaming + transcript loading produce identical state
+### Parity Issues Identified (Claude SDK):
+Tests in `packages/converters/src/test/claude/` compare streaming vs transcript loading:
+
+| Issue | Streaming | Transcript |
+|-------|-----------|------------|
+| Extra text block | Has duplicate `assistant_text` | - |
+| Subagent block | Creates `subagent` block on spawn | Missing |
+| Block ordering | `tool_result, skill_load` | `skill_load, tool_result` |
+| Subagent blocks | Missing `assistant_text` blocks | Has all blocks |
+
+Output files written to `src/test/claude/output/` for inspection.
+
+### Next Steps:
+1. [ ] Analyze OpenCode implementation with same parity testing approach
+2. [ ] Fix identified parity issues in Claude SDK converter
+3. [ ] End-to-end streaming test
 
 ### Session Notes:
 - [2025-12-19-implementation.md](sessions/2025-12-19-implementation.md) - Initial implementation
 - [2025-12-19-type-reorganization.md](sessions/2025-12-19-type-reorganization.md) - Type cleanup & converter simplification
+- [2025-12-19-parity-tests.md](sessions/2025-12-19-parity-tests.md) - Test setup & parity analysis
 
 ## Quick Links
 
