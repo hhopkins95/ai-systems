@@ -133,12 +133,6 @@ export async function* executeClaudeQuery(
   };
 
 
-  yield createLogSessionEvent('Creating options', 'debug', {
-    allowedTools: allowedTools,
-    mcpServers: mcpServers,
-    systemPrompt: 'Adding system prompt to the options' 
-  });
-
   const options: Options = {
     pathToClaudeCodeExecutable: claudeCodePath,
     cwd: paths.workspaceDir,
