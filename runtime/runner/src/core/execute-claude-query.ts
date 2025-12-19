@@ -120,6 +120,19 @@ export async function* executeClaudeQuery(
     return {};
   };
 
+  // Hook to auto-approve all MCP server tools
+  const autoApproveMcpTools: HookCallback = async (hookInput) => {
+    if (hookInput.hook_event_name !== 'PreToolUse') return {};
+
+    return {
+      hookSpecificOutput: {
+        hookEventName: 'PreToolUse',
+        permissionDecision: 'allow',
+        permissionDecisionReason: 'MCP tool auto-approved',
+      },
+    };
+  };
+
   const options: Options = {
     pathToClaudeCodeExecutable: claudeCodePath,
     cwd: paths.workspaceDir,
@@ -129,12 +142,17 @@ export async function* executeClaudeQuery(
     permissionMode: 'acceptEdits',
     allowedTools: allowedTools,
     mcpServers: mcpServers as Options['mcpServers'],
-    // Restrict file access to workspace directory only
     hooks: {
       PreToolUse: [
+        // Restrict file access to workspace directory only
         {
           matcher: 'Read|Write|Edit|Glob|Grep|NotebookEdit',
           hooks: [blockParentDirectoryAccess],
+        },
+        // Auto-approve all MCP server tools
+        {
+          matcher: '^mcp__',
+          hooks: [autoApproveMcpTools],
         },
       ],
     },
