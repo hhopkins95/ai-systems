@@ -139,6 +139,15 @@ export async function* executeOpencodeQuery(
       let sawActivity = false;
 
       for await (const event of eventResult.stream) {
+        eventChannel.send({type : "log", payload : { 
+          message : "RAW SDK MESSAGE",
+          data : event,
+        }, context : {
+          timestamp : new Date().toISOString(),
+          sessionId : input.sessionId,
+          source : "runner",
+        }});
+
         // Extract session ID from event
         const eventSessionId = (event as any).properties?.sessionID
           || (event as any).properties?.part?.sessionID
