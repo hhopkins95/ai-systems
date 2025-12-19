@@ -209,9 +209,13 @@ export class SessionState {
     ] as const;
 
     for (const eventType of conversationEventTypes) {
-      eventBus.on(eventType, (event: AnySessionEvent) => {
-        this._conversationState = reduceSessionEvent(this._conversationState, event);
-      });
+      // Type assertion needed because TypeScript can't narrow the union type in a loop
+      (eventBus as { on: (type: string, cb: (e: AnySessionEvent) => void) => void }).on(
+        eventType,
+        (event: AnySessionEvent) => {
+          this._conversationState = reduceSessionEvent(this._conversationState, event);
+        }
+      );
     }
 
     // File events
@@ -562,12 +566,8 @@ export class SessionState {
       lastActivity: this._lastActivity,
       sessionOptions: this._sessionOptions,
       runtime: this.getRuntimeState(),
-      blocks: this._conversationState.blocks,
+      conversationState: this._conversationState,
       workspaceFiles: this._workspaceFiles,
-      subagents: this._conversationState.subagents.map((s) => ({
-        id: s.id,
-        blocks: s.blocks,
-      })),
     };
   }
 

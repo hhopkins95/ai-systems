@@ -1,5 +1,5 @@
 import { AgentArchitecture, AgentArchitectureSessionOptions } from "./architecture.js";
-import type { ConversationBlock } from "./blocks.js";
+import type { SessionConversationState } from "./conversation-state.js";
 
 /**
  * Execution environment status values.
@@ -151,15 +151,13 @@ export interface SessionListItem extends PersistedSessionListData {
 
 /**
  * Full session data returned to clients.
- * Includes parsed blocks and subagent conversations.
+ * Includes conversation state (blocks, subagents, streaming) and workspace files.
  */
 export interface RuntimeSessionData extends SessionListItem {
-    blocks: ConversationBlock[],
-    workspaceFiles: WorkspaceFile[],
-    subagents: {
-        id: string,
-        blocks: ConversationBlock[],
-    }[]
+    /** Conversation state managed by the shared reducer */
+    conversationState: SessionConversationState;
+    /** Files in the workspace */
+    workspaceFiles: WorkspaceFile[];
 }
 
 

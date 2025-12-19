@@ -300,23 +300,25 @@ export function agentServiceReducer(
 
     case 'SESSION_LOADED': {
       const sessions = new Map(state.sessions);
+      const { conversationState } = action.data;
 
       // Convert subagents array to Map
+      // Map from shared SubagentState to client SubagentState (which has metadata)
       const subagentsMap = new Map<string, SubagentState>(
-        action.data.subagents.map((sub) => [
+        conversationState.subagents.map((sub) => [
           sub.id,
           {
             id: sub.id,
             blocks: sub.blocks,
+            status: sub.status === 'success' ? 'completed' : sub.status === 'error' ? 'failed' : 'running',
             metadata: {},
-            status: 'running' as const,
           },
         ])
       );
 
       sessions.set(action.sessionId, {
         info: action.data,
-        blocks: action.data.blocks,
+        blocks: conversationState.blocks,
         streaming: new Map(),
         metadata: {},
         files: action.data.workspaceFiles,

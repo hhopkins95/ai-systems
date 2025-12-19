@@ -8,14 +8,17 @@
 // Main reducer
 export { reduceSessionEvent, isConversationEvent } from './reducer.js';
 
-// State types and factories
+// State types and factories (re-exported from shared-types via ./types.js)
 export {
   type SessionConversationState,
   type SubagentState,
   type StreamingState,
   type StreamingContent,
-  createInitialState,
+  createInitialState,  // Alias for backward compatibility
   createSubagentState,
   findSubagent,
   findSubagentIndex,
 } from './types.js';
+
+// Also export the canonical name
+export { createInitialConversationState } from '@ai-systems/shared-types';

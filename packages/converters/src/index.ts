@@ -38,6 +38,11 @@ export type {
   SessionEventType,
   SessionEventPayloads,
   SessionEventContext,
+  // Conversation state types
+  SessionConversationState,
+  SubagentState,
+  StreamingState,
+  StreamingContent,
 } from '@ai-systems/shared-types';
 
 // Re-export type guards and helpers from shared-types
@@ -58,6 +63,11 @@ export {
   isBlockEvent,
   isFileEvent,
   isSubagentEvent,
+  // Conversation state helpers
+  createInitialConversationState,
+  createSubagentState,
+  findSubagent,
+  findSubagentIndex,
 } from '@ai-systems/shared-types';
 
 // Utilities
