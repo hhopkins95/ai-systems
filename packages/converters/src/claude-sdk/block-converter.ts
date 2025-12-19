@@ -169,11 +169,12 @@ export function parseStreamEvent(
   }
 
   // Determine which conversation this belongs to
-  // Check parent_tool_use_id on all event types, not just stream_event
-  const conversationId: 'main' | string =
-    (event as any).parent_tool_use_id
-      ? (event as any).parent_tool_use_id
-      : 'main';
+  // Check parent_tool_use_id in multiple locations:
+  // 1. On the outer event wrapper (for result/system events)
+  // 2. On the inner event.event (for stream_event types from subagents)
+  const outerParentId = (event as any).parent_tool_use_id;
+  const innerParentId = event.type === 'stream_event' ? (event as any).event?.parent_tool_use_id : undefined;
+  const conversationId: 'main' | string = outerParentId || innerParentId || 'main';
 
   // Handle streaming events (SDKPartialAssistantMessage)
   if (event.type === 'stream_event') {
@@ -384,7 +385,8 @@ function convertUserMessage(msg: Extract<SDKMessage, { type: 'user' }>): Convers
     for (const block of content) {
       if ((block as any).type === 'tool_result') {
         const toolResultBlock = block as any;
-        const toolUseResult = (msg as any).toolUseResult;
+        // SDK uses snake_case: tool_use_result
+        const toolUseResult = (msg as any).tool_use_result;
 
         if (toolUseResult?.agentId) {
           // Task tool result → SubagentBlock

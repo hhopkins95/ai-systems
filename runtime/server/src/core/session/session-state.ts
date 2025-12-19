@@ -187,17 +187,32 @@ export class SessionState {
    * Subscribe to event bus for state updates
    */
   private subscribeToEvents(eventBus: SessionEventBus): void {
-    // Block events
+    // Subagent discovery - initialize subagent before blocks arrive
+    eventBus.on('subagent:discovered', (event) => {
+      const subagentId = event.payload.subagent.id;
+      // Only add if not already present
+      if (!this._subagents.find((s) => s.id === subagentId)) {
+        this._subagents.push({
+          id: subagentId,
+          blocks: event.payload.subagent.blocks ?? [],
+        });
+      }
+    });
+
+    // Block events - route to correct conversation based on context
     eventBus.on('block:start', (event) => {
-      this.upsertBlock(event.payload.block);
+      const conversationId = event.context?.conversationId ?? 'main';
+      this.upsertBlock(event.payload.block, conversationId);
     });
 
     eventBus.on('block:complete', (event) => {
-      this.upsertBlock(event.payload.block);
+      const conversationId = event.context?.conversationId ?? 'main';
+      this.upsertBlock(event.payload.block, conversationId);
     });
 
     eventBus.on('block:update', (event) => {
-      this.updateBlock(event.payload.blockId, event.payload.updates);
+      const conversationId = event.context?.conversationId ?? 'main';
+      this.updateBlock(event.payload.blockId, event.payload.updates, conversationId);
     });
 
     // File events
@@ -440,25 +455,53 @@ export class SessionState {
   }
 
   /**
-   * Add or update a block
+   * Add or update a block in the correct conversation
    */
-  private upsertBlock(block: ConversationBlock): void {
-    const index = this._blocks.findIndex((b) => b.id === block.id);
-    if (index >= 0) {
-      this._blocks[index] = block;
+  private upsertBlock(block: ConversationBlock, conversationId: string): void {
+    if (conversationId === 'main') {
+      // Main conversation
+      const index = this._blocks.findIndex((b) => b.id === block.id);
+      if (index >= 0) {
+        this._blocks[index] = block;
+      } else {
+        this._blocks.push(block);
+      }
     } else {
-      this._blocks.push(block);
+      // Subagent conversation - find or create the subagent
+      let subagent = this._subagents.find((s) => s.id === conversationId);
+      if (!subagent) {
+        // Subagent not yet discovered, create it
+        subagent = { id: conversationId, blocks: [] };
+        this._subagents.push(subagent);
+      }
+      const index = subagent.blocks.findIndex((b) => b.id === block.id);
+      if (index >= 0) {
+        subagent.blocks[index] = block;
+      } else {
+        subagent.blocks.push(block);
+      }
     }
   }
 
   /**
-   * Update a block partially
+   * Update a block partially in the correct conversation
    */
-  private updateBlock(blockId: string, updates: Partial<ConversationBlock>): void {
-    const index = this._blocks.findIndex((b) => b.id === blockId);
-    if (index >= 0) {
-      // Type assertion is safe since we're spreading a complete block with partial updates
-      this._blocks[index] = { ...this._blocks[index], ...updates } as ConversationBlock;
+  private updateBlock(blockId: string, updates: Partial<ConversationBlock>, conversationId: string): void {
+    if (conversationId === 'main') {
+      // Main conversation
+      const index = this._blocks.findIndex((b) => b.id === blockId);
+      if (index >= 0) {
+        this._blocks[index] = { ...this._blocks[index], ...updates } as ConversationBlock;
+      }
+    } else {
+      // Subagent conversation
+      const subagent = this._subagents.find((s) => s.id === conversationId);
+      if (subagent) {
+        const index = subagent.blocks.findIndex((b) => b.id === blockId);
+        if (index >= 0) {
+          subagent.blocks[index] = { ...subagent.blocks[index], ...updates } as ConversationBlock;
+        }
+      }
     }
   }
 

@@ -140,6 +140,7 @@ export async function* executeClaudeQuery(
     includePartialMessages: true,
     maxBudgetUsd: 5.0,
     permissionMode: 'acceptEdits',
+    model: "claude-haiku-4-5",
     allowedTools: allowedTools,
     mcpServers: mcpServers as Options['mcpServers'],
     systemPrompt: 'You are a helpful assistant that can use the following tools to help the user: ' + allowedTools.join(', '),

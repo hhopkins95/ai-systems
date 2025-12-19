@@ -17,7 +17,7 @@ const TEST_PROJECT_DIR = path.join(TEST_WORKSPACE_ROOT, 'workspace');
 // Configuration - Edit these as needed
 // ============================================================================
 
-const PROMPT = 'What skills do you have?';
+const PROMPT = 'You MUST use the Task tool right now. Spawn a subagent with prompt "Write hello to test.txt". Do not respond with text first - immediately call the Task tool.';
 
 // ============================================================================
 // Test
@@ -48,13 +48,11 @@ async function main() {
   console.log('Streaming events:\n');
 
   let eventCount = 0;
-  const startTime = Date.now();
-
     for await (const event of executeClaudeQuery(input)) {
       eventCount++;
 
       // Pretty print the event
-      console.log(JSON.stringify(event, null, 2));
+      // console.log(JSON.stringify(event, null, 2));
     }
 }
 
