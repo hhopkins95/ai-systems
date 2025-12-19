@@ -283,6 +283,34 @@ export function parseStreamEvent(
     ];
   }
 
+  // EARLY INTERCEPT: Task tool completion
+  // When Task tool_result arrives, emit subagent:completed instead of creating SubagentBlock
+  // The reducer will update the existing SubagentBlock created on subagent:spawned
+  if (event.type === 'user') {
+    const toolUseResult = (event as any).tool_use_result;
+    if (toolUseResult?.agentId) {
+      // This is a Task completion - emit subagent:completed
+      const content = (event as any).message?.content;
+      const toolResultBlock = Array.isArray(content)
+        ? content.find((b: any) => b.type === 'tool_result')
+        : null;
+
+      return [
+        createSessionEvent(
+          'subagent:completed',
+          {
+            toolUseId: toolResultBlock?.tool_use_id,
+            agentId: toolUseResult.agentId,
+            status: toolUseResult.status === 'completed' ? 'completed' : 'failed',
+            output: extractTextFromToolResultContent(toolUseResult.content),
+            durationMs: toolUseResult.totalDurationMs,
+          },
+          { conversationId: 'main', source: 'runner' }
+        ),
+      ];
+    }
+  }
+
   // For other message types (user, assistant, etc.)
   // Convert to blocks and emit block_complete events
   const blocks = sdkMessageToBlocks(event, options);
@@ -559,16 +587,17 @@ function parseRawStreamEvent(rawEvent: any, conversationId: 'main' | string): An
       } else if (block.type === 'tool_use') {
         const events: AnySessionEvent[] = [];
 
-        // If this is a Task tool, emit subagent:discovered first
-        // This ensures the subagent entry exists before its blocks arrive
+        // If this is a Task tool, emit subagent:spawned first
+        // This creates the SubagentBlock and subagent entry before its blocks arrive
         if (block.name === 'Task') {
+          const prompt = block.input?.prompt;
           events.push(createSessionEvent(
-            'subagent:discovered',
+            'subagent:spawned',
             {
-              subagent: {
-                id: block.id, // Use toolUseId as subagent ID
-                blocks: [],
-              },
+              toolUseId: block.id,
+              prompt: typeof prompt === 'string' ? prompt : '',
+              subagentType: block.input?.subagent_type as string | undefined,
+              description: block.input?.description as string | undefined,
             },
             { conversationId: 'main', source: 'runner' }
           ));
@@ -576,7 +605,6 @@ function parseRawStreamEvent(rawEvent: any, conversationId: 'main' | string): An
           // Register the Task prompt for filtering
           // The prompt will be sent as a user message to the subagent,
           // and we need to filter it out from the main conversation
-          const prompt = block.input?.prompt;
           if (typeof prompt === 'string') {
             registerTaskPrompt(block.id, prompt);
           }

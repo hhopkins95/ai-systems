@@ -344,7 +344,8 @@ export function parseOpenCodeTranscriptFile(
 
             // Store subagent blocks
             if (extracted.subagentBlocks.length > 0) {
-              subagentsMap.set(extracted.subagentBlock.subagentId, extracted.subagentBlocks);
+              const subagentKey = extracted.subagentBlock.subagentId ?? extracted.subagentBlock.toolUseId ?? extracted.subagentBlock.id;
+              subagentsMap.set(subagentKey, extracted.subagentBlocks);
             }
           } else {
             // If not a proper subagent, convert as regular tool

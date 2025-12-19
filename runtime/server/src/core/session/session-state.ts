@@ -21,6 +21,7 @@
 import type {
   AgentArchitecture,
   AgentArchitectureSessionOptions,
+  AnySessionEvent,
   ConversationBlock,
   ExecutionEnvironmentError,
   ExecutionEnvironmentStatus,
@@ -29,7 +30,13 @@ import type {
   SessionRuntimeState,
   WorkspaceFile,
 } from '@ai-systems/shared-types';
-import { parseTranscript } from '@hhopkins/agent-converters';
+import {
+  parseTranscript,
+  reduceSessionEvent,
+  createInitialState,
+  isConversationEvent,
+  type SessionConversationState,
+} from '@hhopkins/agent-converters';
 import type { SessionEventBus } from './session-event-bus.js';
 
 // ============================================================================
@@ -93,8 +100,8 @@ export class SessionState {
   // -------------------------------------------------------------------------
   // Session data
   // -------------------------------------------------------------------------
-  private _blocks: ConversationBlock[] = [];
-  private _subagents: { id: string; blocks: ConversationBlock[] }[] = [];
+  /** Conversation state managed by shared reducer */
+  private _conversationState: SessionConversationState = createInitialState();
   private _workspaceFiles: WorkspaceFile[] = [];
   private _rawTranscript?: string;
   private _sessionOptions?: AgentArchitectureSessionOptions;
@@ -162,14 +169,18 @@ export class SessionState {
     // Parse transcript to derive blocks and subagents
     if (init.rawTranscript) {
       const parsed = parseTranscript(init.architecture, init.rawTranscript);
-      this._blocks = parsed.blocks;
-      this._subagents = parsed.subagents.map((sub) => ({
-        id: sub.id,
-        blocks: sub.blocks,
-      }));
+      this._conversationState = {
+        blocks: parsed.blocks,
+        subagents: parsed.subagents.map((sub) => ({
+          id: sub.id,
+          toolUseId: sub.id, // Use same ID for toolUseId
+          blocks: sub.blocks,
+          status: 'success' as const, // Transcripts are completed sessions
+        })),
+        streaming: { byConversation: new Map() },
+      };
     } else {
-      this._blocks = [];
-      this._subagents = [];
+      this._conversationState = createInitialState();
     }
 
     // Store event bus and subscribe to events
@@ -187,33 +198,21 @@ export class SessionState {
    * Subscribe to event bus for state updates
    */
   private subscribeToEvents(eventBus: SessionEventBus): void {
-    // Subagent discovery - initialize subagent before blocks arrive
-    eventBus.on('subagent:discovered', (event) => {
-      const subagentId = event.payload.subagent.id;
-      // Only add if not already present
-      if (!this._subagents.find((s) => s.id === subagentId)) {
-        this._subagents.push({
-          id: subagentId,
-          blocks: event.payload.subagent.blocks ?? [],
-        });
-      }
-    });
+    // Use shared reducer for conversation events (blocks, subagents)
+    const conversationEventTypes = [
+      'block:start',
+      'block:complete',
+      'block:update',
+      'block:delta',
+      'subagent:spawned',
+      'subagent:completed',
+    ] as const;
 
-    // Block events - route to correct conversation based on context
-    eventBus.on('block:start', (event) => {
-      const conversationId = event.context?.conversationId ?? 'main';
-      this.upsertBlock(event.payload.block, conversationId);
-    });
-
-    eventBus.on('block:complete', (event) => {
-      const conversationId = event.context?.conversationId ?? 'main';
-      this.upsertBlock(event.payload.block, conversationId);
-    });
-
-    eventBus.on('block:update', (event) => {
-      const conversationId = event.context?.conversationId ?? 'main';
-      this.updateBlock(event.payload.blockId, event.payload.updates, conversationId);
-    });
+    for (const eventType of conversationEventTypes) {
+      eventBus.on(eventType, (event: AnySessionEvent) => {
+        this._conversationState = reduceSessionEvent(this._conversationState, event);
+      });
+    }
 
     // File events
     eventBus.on('file:created', (event) => {
@@ -320,11 +319,11 @@ export class SessionState {
   }
 
   get blocks(): ConversationBlock[] {
-    return this._blocks;
+    return this._conversationState.blocks;
   }
 
   get subagents(): { id: string; blocks: ConversationBlock[] }[] {
-    return this._subagents;
+    return this._conversationState.subagents;
   }
 
   get workspaceFiles(): WorkspaceFile[] {
@@ -377,14 +376,6 @@ export class SessionState {
 
   private setLastActivity(value: number): void {
     this._lastActivity = value;
-  }
-
-  private setBlocks(blocks: ConversationBlock[]): void {
-    this._blocks = blocks;
-  }
-
-  private setSubagents(subagents: { id: string; blocks: ConversationBlock[] }[]): void {
-    this._subagents = subagents;
   }
 
   private setWorkspaceFiles(files: WorkspaceFile[]): void {
@@ -454,57 +445,6 @@ export class SessionState {
     this._workspaceFiles = this._workspaceFiles.filter((f) => f.path !== path);
   }
 
-  /**
-   * Add or update a block in the correct conversation
-   */
-  private upsertBlock(block: ConversationBlock, conversationId: string): void {
-    if (conversationId === 'main') {
-      // Main conversation
-      const index = this._blocks.findIndex((b) => b.id === block.id);
-      if (index >= 0) {
-        this._blocks[index] = block;
-      } else {
-        this._blocks.push(block);
-      }
-    } else {
-      // Subagent conversation - find or create the subagent
-      let subagent = this._subagents.find((s) => s.id === conversationId);
-      if (!subagent) {
-        // Subagent not yet discovered, create it
-        subagent = { id: conversationId, blocks: [] };
-        this._subagents.push(subagent);
-      }
-      const index = subagent.blocks.findIndex((b) => b.id === block.id);
-      if (index >= 0) {
-        subagent.blocks[index] = block;
-      } else {
-        subagent.blocks.push(block);
-      }
-    }
-  }
-
-  /**
-   * Update a block partially in the correct conversation
-   */
-  private updateBlock(blockId: string, updates: Partial<ConversationBlock>, conversationId: string): void {
-    if (conversationId === 'main') {
-      // Main conversation
-      const index = this._blocks.findIndex((b) => b.id === blockId);
-      if (index >= 0) {
-        this._blocks[index] = { ...this._blocks[index], ...updates } as ConversationBlock;
-      }
-    } else {
-      // Subagent conversation
-      const subagent = this._subagents.find((s) => s.id === conversationId);
-      if (subagent) {
-        const index = subagent.blocks.findIndex((b) => b.id === blockId);
-        if (index >= 0) {
-          subagent.blocks[index] = { ...subagent.blocks[index], ...updates } as ConversationBlock;
-        }
-      }
-    }
-  }
-
   // =========================================================================
   // Public Query Methods
   // =========================================================================
@@ -537,8 +477,8 @@ export class SessionState {
       agentProfileId: this._agentProfileId,
       createdAt: this._createdAt,
       lastActivity: this._lastActivity,
-      blocks: [...this._blocks],
-      subagents: this._subagents.map((s) => ({
+      blocks: [...this._conversationState.blocks],
+      subagents: this._conversationState.subagents.map((s) => ({
         id: s.id,
         blocks: [...s.blocks],
       })),
@@ -622,9 +562,9 @@ export class SessionState {
       lastActivity: this._lastActivity,
       sessionOptions: this._sessionOptions,
       runtime: this.getRuntimeState(),
-      blocks: this._blocks,
+      blocks: this._conversationState.blocks,
       workspaceFiles: this._workspaceFiles,
-      subagents: this._subagents.map((s) => ({
+      subagents: this._conversationState.subagents.map((s) => ({
         id: s.id,
         blocks: s.blocks,
       })),

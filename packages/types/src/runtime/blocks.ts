@@ -241,19 +241,33 @@ export type SubagentStatus =
  * Represents a subagent invocation in the main conversation.
  * Acts as a reference/link to the subagent's own conversation thread.
  *
- * Only applicable for Claude SDK (Gemini doesn't have subagents)
+ * Identification Strategy:
+ * - During streaming: toolUseId is available first (from Task tool_use)
+ * - On completion: subagentId (agent-{agentId}) is set from SDK response
+ * - From transcript: subagentId is available from transcript filename
+ * - At least one of subagentId or toolUseId should be set
+ *
+ * Only applicable for Claude SDK 
  */
 export interface SubagentBlock extends BaseBlock {
   type: 'subagent';
 
   /**
-   * Unique identifier for this subagent
-   * Used to reference the subagent's conversation thread
+   * SDK agent ID for this subagent (e.g., "agent-abc123")
+   * Available after Task completes or when loaded from transcript.
+   * Optional during streaming - use toolUseId for early identification.
    */
-  subagentId: string;
+  subagentId?: string;
 
   /**
-   * Name/type of the subagent (e.g., "code-reviewer", "test-runner")
+   * The tool_use_id of the Task tool that spawned this subagent
+   * Available immediately when Task tool starts streaming.
+   * Used as primary key during streaming, before agentId is known.
+   */
+  toolUseId?: string;
+
+  /**
+   * Name/type of the subagent (e.g., "Explore", "Plan", "code-reviewer")
    */
   name?: string;
 
@@ -276,12 +290,6 @@ export interface SubagentBlock extends BaseBlock {
    * How long the subagent took to complete (milliseconds)
    */
   durationMs?: number;
-
-  /**
-   * The tool_use_id of the Task tool that spawned this subagent
-   * Useful for linking back to the original tool use in Claude SDK
-   */
-  toolUseId?: string;
 }
 
 /**

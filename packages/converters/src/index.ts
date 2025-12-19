@@ -72,6 +72,9 @@ export {
 // Internal converter types
 export * from './types.js';
 
+// Session state reducer (shared between server and client)
+export * from './session-state/index.js';
+
 // =============================================================================
 // Unified Transcript Parsing
 // =============================================================================

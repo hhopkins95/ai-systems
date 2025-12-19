@@ -220,21 +220,35 @@ export interface SessionEventPayloads {
   // ---------------------------------------------------------------------------
 
   /**
-   * New subagent discovered
+   * Subagent spawned - emitted when Task tool_use starts
+   * Creates SubagentBlock in main conversation and initializes subagent state.
    */
-  'subagent:discovered': {
-    subagent: {
-      id: string;
-      blocks: ConversationBlock[];
-    };
+  'subagent:spawned': {
+    /** The tool_use_id of the Task tool - primary key during streaming */
+    toolUseId: string;
+    /** The prompt/task given to the subagent */
+    prompt: string;
+    /** Type of subagent (e.g., "Explore", "Plan", "code-reviewer") */
+    subagentType?: string;
+    /** Short description of what the subagent will do */
+    description?: string;
   };
 
   /**
-   * Subagent completed
+   * Subagent completed - emitted when Task tool_result arrives
+   * Updates SubagentBlock with final status, output, and agentId.
    */
   'subagent:completed': {
-    subagentId: string;
+    /** The tool_use_id - matches the spawned event */
+    toolUseId: string;
+    /** SDK's agent ID (e.g., "abc123") - used for transcript file linking */
+    agentId?: string;
+    /** Final execution status */
     status: 'completed' | 'failed';
+    /** Final output text from the subagent */
+    output?: string;
+    /** How long the subagent took (milliseconds) */
+    durationMs?: number;
   };
 
   // ---------------------------------------------------------------------------
@@ -528,7 +542,7 @@ export const FILE_EVENT_TYPES = [
  * Subagent event types
  */
 export const SUBAGENT_EVENT_TYPES = [
-  'subagent:discovered',
+  'subagent:spawned',
   'subagent:completed',
 ] as const satisfies readonly SessionEventType[];
 
@@ -563,7 +577,7 @@ export const CLIENT_BROADCAST_EVENT_TYPES = [
   'file:created',
   'file:modified',
   'file:deleted',
-  'subagent:discovered',
+  'subagent:spawned',
   'subagent:completed',
   'log',
   'error',
