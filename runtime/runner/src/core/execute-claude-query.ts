@@ -140,7 +140,7 @@ export async function* executeClaudeQuery(
     includePartialMessages: true,
     maxBudgetUsd: 5.0,
     permissionMode: 'acceptEdits',
-    model: "claude-haiku-4-5",
+    // model: "claude-haiku-4-5",
     allowedTools: allowedTools,
     mcpServers: mcpServers as Options['mcpServers'],
     systemPrompt: 'You are a helpful assistant that can use the following tools to help the user: ' + allowedTools.join(', '),
@@ -176,6 +176,16 @@ export async function* executeClaudeQuery(
 
   try {
     for await (const sdkMessage of generator) {
+
+      yield {type : "log", payload : { 
+        message : "RAW SDK MESSAGE",
+        data : sdkMessage,
+      }, context : {
+        timestamp : new Date().toISOString(),
+        sessionId : input.sessionId,
+        source : "runner",
+      }}
+
       // Convert SDK message to SessionEvents using converter
       const sessionEvents = parseStreamEvent(sdkMessage);
       for (const sessionEvent of sessionEvents) {
