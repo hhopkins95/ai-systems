@@ -12,12 +12,12 @@ import { fileURLToPath } from 'node:url';
 import type { SDKMessage } from '@anthropic-ai/claude-agent-sdk';
 import type { SessionConversationState, AnySessionEvent } from '@ai-systems/shared-types';
 import { createInitialConversationState } from '@ai-systems/shared-types';
-import { sdkMessageToEvents } from './block-converter.js';
-import { reduceSessionEvent } from '../session-state/reducer.js';
-import { parseCombinedClaudeTranscript } from './transcript-parser.js';
+import { sdkMessageToEvents } from '../../claude-sdk/block-converter.js';
+import { reduceSessionEvent } from '../../session-state/reducer.js';
+import { parseCombinedClaudeTranscript } from '../../claude-sdk/transcript-parser.js';
 
 const __dirname = dirname(fileURLToPath(import.meta.url));
-const TEST_DATA_DIR = join(__dirname, '../test/claude');
+const TEST_DATA_DIR = __dirname;
 const OUTPUT_DIR = join(TEST_DATA_DIR, 'output');
 
 // Subagent info from test data
