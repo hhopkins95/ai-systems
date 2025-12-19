@@ -11,11 +11,112 @@ import type {
   SubagentBlock,
   ToolResultBlock,
   ToolUseBlock,
+  SkillLoadBlock,
   AnySessionEvent,
 } from '@ai-systems/shared-types';
 import { createSessionEvent } from '@ai-systems/shared-types';
 import { generateId, noopLogger } from '../utils.js';
 import type { ConvertOptions } from '../types.js';
+
+// ============================================================================
+// Subagent Prompt Tracking
+// ============================================================================
+
+/**
+ * Track active Task tool prompts to filter out subagent prompt messages.
+ * When a Task tool is used, the prompt is sent to the subagent as a user message.
+ * We need to filter these out from the main conversation.
+ *
+ * Key: Task tool's toolUseId
+ * Value: The prompt string
+ */
+const activeTaskPrompts = new Map<string, string>();
+
+/**
+ * Maximum number of prompts to track to prevent memory leaks.
+ * Old entries are removed when this limit is exceeded.
+ */
+const MAX_TASK_PROMPTS = 100;
+
+/**
+ * Register a Task tool's prompt for filtering.
+ * Called when we detect a Task tool_use block.
+ */
+function registerTaskPrompt(toolUseId: string, prompt: string): void {
+  // Clean up old entries if we have too many
+  if (activeTaskPrompts.size >= MAX_TASK_PROMPTS) {
+    // Remove the oldest entry (first key)
+    const firstKey = activeTaskPrompts.keys().next().value;
+    if (firstKey) {
+      activeTaskPrompts.delete(firstKey);
+    }
+  }
+  activeTaskPrompts.set(toolUseId, prompt);
+}
+
+/**
+ * Check if a user message content is a subagent prompt that should be filtered.
+ */
+function isSubagentPrompt(content: string): boolean {
+  // Check if this content matches any registered Task prompts
+  for (const prompt of activeTaskPrompts.values()) {
+    if (content === prompt || content.trim() === prompt.trim()) {
+      return true;
+    }
+  }
+  return false;
+}
+
+// ============================================================================
+// Skill Detection Helpers
+// ============================================================================
+
+/**
+ * Detect if a user message content is a skill injection.
+ * Skills are loaded via "silent prompts" and have specific patterns in their content.
+ */
+function isSkillInjectionContent(content: string): boolean {
+  // Check for patterns that indicate skill injection content
+  return (
+    content.startsWith('Base directory for this skill:') ||
+    content.includes('\n# ') && content.includes('Skill') ||
+    content.includes('Use `read_skill_file` with skill=')
+  );
+}
+
+/**
+ * Extract the skill name from skill injection content.
+ * @param content - The full skill injection content
+ * @returns The extracted skill name, or 'unknown' if not found
+ */
+function extractSkillName(content: string): string {
+  // Try to extract from "Base directory for this skill: .../skills/{skillName}"
+  const dirMatch = content.match(/skills\/([^\s\/\n]+)/);
+  if (dirMatch?.[1]) {
+    return dirMatch[1];
+  }
+
+  // Try to extract from "# {SkillName} Skill" header
+  const headerMatch = content.match(/^#\s+(.+?)\s+Skill\b/m);
+  if (headerMatch?.[1]) {
+    return headerMatch[1].toLowerCase().replace(/\s+/g, '-');
+  }
+
+  return 'unknown';
+}
+
+/**
+ * Create a SkillLoadBlock from skill injection content.
+ */
+function createSkillLoadBlock(content: string): SkillLoadBlock {
+  return {
+    type: 'skill_load',
+    id: generateId(),
+    timestamp: new Date().toISOString(),
+    skillName: extractSkillName(content),
+    content,
+  };
+}
 
 /**
  * Convert multiple SDK messages to ConversationBlocks
@@ -68,15 +169,15 @@ export function parseStreamEvent(
   }
 
   // Determine which conversation this belongs to
+  // Check parent_tool_use_id on all event types, not just stream_event
   const conversationId: 'main' | string =
-    event.type === 'stream_event' && event.parent_tool_use_id
-      ? event.parent_tool_use_id
+    (event as any).parent_tool_use_id
+      ? (event as any).parent_tool_use_id
       : 'main';
 
   // Handle streaming events (SDKPartialAssistantMessage)
   if (event.type === 'stream_event') {
-    const streamEvent = parseRawStreamEvent(event.event, conversationId);
-    return streamEvent ? [streamEvent] : [];
+    return parseRawStreamEvent(event.event, conversationId);
   }
 
   // Handle result messages (final metadata + log)
@@ -317,11 +418,23 @@ function convertUserMessage(msg: Extract<SDKMessage, { type: 'user' }>): Convers
   }
 
   // Real user message (content is string)
+  const messageContent = extractUserMessageContent(msg.message);
+
+  // Check if this is a subagent prompt that should be filtered
+  if (isSubagentPrompt(messageContent)) {
+    return []; // Filter out subagent prompts from main conversation
+  }
+
+  // Check if this is a skill injection message
+  if (isSkillInjectionContent(messageContent)) {
+    return [createSkillLoadBlock(messageContent)];
+  }
+
   return [{
     type: 'user_message',
     id: msg.uuid || generateId(),
     timestamp: new Date().toISOString(),
-    content: extractUserMessageContent(msg.message),
+    content: messageContent,
   }];
 }
 
@@ -381,6 +494,14 @@ function convertAssistantMessage(msg: Extract<SDKMessage, { type: 'assistant' }>
         break;
 
       case 'tool_use':
+        // Register Task prompts for filtering
+        if (contentBlock.name === 'Task') {
+          const prompt = (contentBlock.input as Record<string, unknown>)?.prompt;
+          if (typeof prompt === 'string') {
+            registerTaskPrompt(contentBlock.id, prompt);
+          }
+        }
+
         blocks.push({
           type: 'tool_use',
           id: contentBlock.id,
@@ -411,16 +532,17 @@ function convertAssistantMessage(msg: Extract<SDKMessage, { type: 'assistant' }>
 }
 
 /**
- * Parse Anthropic SDK RawMessageStreamEvent to SessionEvent
+ * Parse Anthropic SDK RawMessageStreamEvent to SessionEvent(s)
+ * Returns an array because some events (like Task tool start) generate multiple session events.
  */
-function parseRawStreamEvent(rawEvent: any, conversationId: 'main' | string): AnySessionEvent | null {
+function parseRawStreamEvent(rawEvent: any, conversationId: 'main' | string): AnySessionEvent[] {
   switch (rawEvent.type) {
     case 'content_block_start': {
       const block = rawEvent.content_block;
 
       // Create appropriate block based on content type
       if (block.type === 'text') {
-        return createSessionEvent(
+        return [createSessionEvent(
           'block:start',
           {
             block: {
@@ -431,9 +553,35 @@ function parseRawStreamEvent(rawEvent: any, conversationId: 'main' | string): An
             },
           },
           { conversationId, source: 'runner' }
-        );
+        )];
       } else if (block.type === 'tool_use') {
-        return createSessionEvent(
+        const events: AnySessionEvent[] = [];
+
+        // If this is a Task tool, emit subagent:discovered first
+        // This ensures the subagent entry exists before its blocks arrive
+        if (block.name === 'Task') {
+          events.push(createSessionEvent(
+            'subagent:discovered',
+            {
+              subagent: {
+                id: block.id, // Use toolUseId as subagent ID
+                blocks: [],
+              },
+            },
+            { conversationId: 'main', source: 'runner' }
+          ));
+
+          // Register the Task prompt for filtering
+          // The prompt will be sent as a user message to the subagent,
+          // and we need to filter it out from the main conversation
+          const prompt = block.input?.prompt;
+          if (typeof prompt === 'string') {
+            registerTaskPrompt(block.id, prompt);
+          }
+        }
+
+        // Emit the tool_use block:start event
+        events.push(createSessionEvent(
           'block:start',
           {
             block: {
@@ -447,9 +595,11 @@ function parseRawStreamEvent(rawEvent: any, conversationId: 'main' | string): An
             },
           },
           { conversationId, source: 'runner' }
-        );
+        ));
+
+        return events;
       } else if (block.type === 'thinking') {
-        return createSessionEvent(
+        return [createSessionEvent(
           'block:start',
           {
             block: {
@@ -460,56 +610,56 @@ function parseRawStreamEvent(rawEvent: any, conversationId: 'main' | string): An
             },
           },
           { conversationId, source: 'runner' }
-        );
+        )];
       }
-      return null;
+      return [];
     }
 
     case 'content_block_delta': {
       const delta = rawEvent.delta;
 
       if (delta.type === 'text_delta') {
-        return createSessionEvent(
+        return [createSessionEvent(
           'block:delta',
           {
             blockId: '', // Will be set by the caller based on index
             delta: delta.text,
           },
           { conversationId, source: 'runner' }
-        );
+        )];
       } else if (delta.type === 'input_json_delta') {
         // Tool input is being streamed
         // We don't emit deltas for tool input, just wait for complete
-        return null;
+        return [];
       } else if (delta.type === 'thinking_delta') {
-        return createSessionEvent(
+        return [createSessionEvent(
           'block:delta',
           {
             blockId: '', // Will be set by the caller based on index
             delta: (delta as any).thinking || '',
           },
           { conversationId, source: 'runner' }
-        );
+        )];
       }
-      return null;
+      return [];
     }
 
     case 'content_block_stop': {
       // Block is complete - but we need the full block data
       // This is handled by tracking blocks in the session
-      return null; // Will emit block_complete when we have full data
+      return []; // Will emit block_complete when we have full data
     }
 
     case 'message_start': {
       // Message starting - no action needed
-      return null;
+      return [];
     }
 
     case 'message_delta': {
       // Message metadata update (usage, stop_reason, etc.)
       const usage = rawEvent.usage;
       if (usage) {
-        return createSessionEvent(
+        return [createSessionEvent(
           'metadata:update',
           {
             metadata: {
@@ -521,18 +671,18 @@ function parseRawStreamEvent(rawEvent: any, conversationId: 'main' | string): An
             },
           },
           { conversationId, source: 'runner' }
-        );
+        )];
       }
-      return null;
+      return [];
     }
 
     case 'message_stop': {
       // Message complete - final event
-      return null;
+      return [];
     }
 
     default:
-      return null;
+      return [];
   }
 }
 

@@ -458,20 +458,31 @@ export function agentServiceReducer(
         });
       } else {
         // Append to subagent
+        const newSubagents = new Map(session.subagents);
         const subagent = session.subagents.get(conversationId);
+
         if (subagent) {
-          const newSubagents = new Map(session.subagents);
+          // Subagent exists, append the block
           newSubagents.set(conversationId, {
             ...subagent,
             blocks: [...subagent.blocks, action.block],
           });
-
-          sessions.set(action.sessionId, {
-            ...session,
-            subagents: newSubagents,
-            streaming,
+        } else {
+          // Subagent doesn't exist yet - create it as a fallback
+          // This can happen if subagent:discovered arrives late or is missed
+          newSubagents.set(conversationId, {
+            id: conversationId,
+            blocks: [action.block],
+            metadata: {},
+            status: 'running',
           });
         }
+
+        sessions.set(action.sessionId, {
+          ...session,
+          subagents: newSubagents,
+          streaming,
+        });
       }
 
       return { ...state, sessions };
@@ -494,19 +505,31 @@ export function agentServiceReducer(
           blocks: updateBlocks(session.blocks),
         });
       } else {
+        const newSubagents = new Map(session.subagents);
         const subagent = session.subagents.get(action.conversationId);
+
         if (subagent) {
-          const newSubagents = new Map(session.subagents);
+          // Subagent exists, update its blocks
           newSubagents.set(action.conversationId, {
             ...subagent,
             blocks: updateBlocks(subagent.blocks),
           });
-
-          sessions.set(action.sessionId, {
-            ...session,
-            subagents: newSubagents,
+        } else {
+          // Subagent doesn't exist - create it as a fallback
+          // Note: The update won't find any blocks to update, but this ensures
+          // the subagent entry exists for subsequent block additions
+          newSubagents.set(action.conversationId, {
+            id: action.conversationId,
+            blocks: [],
+            metadata: {},
+            status: 'running',
           });
         }
+
+        sessions.set(action.sessionId, {
+          ...session,
+          subagents: newSubagents,
+        });
       }
 
       return { ...state, sessions };
@@ -524,19 +547,29 @@ export function agentServiceReducer(
           metadata: { ...session.metadata, ...action.metadata },
         });
       } else {
+        const newSubagents = new Map(session.subagents);
         const subagent = session.subagents.get(action.conversationId);
+
         if (subagent) {
-          const newSubagents = new Map(session.subagents);
+          // Subagent exists, update its metadata
           newSubagents.set(action.conversationId, {
             ...subagent,
             metadata: { ...subagent.metadata, ...action.metadata },
           });
-
-          sessions.set(action.sessionId, {
-            ...session,
-            subagents: newSubagents,
+        } else {
+          // Subagent doesn't exist - create it as a fallback
+          newSubagents.set(action.conversationId, {
+            id: action.conversationId,
+            blocks: [],
+            metadata: action.metadata,
+            status: 'running',
           });
         }
+
+        sessions.set(action.sessionId, {
+          ...session,
+          subagents: newSubagents,
+        });
       }
 
       return { ...state, sessions };

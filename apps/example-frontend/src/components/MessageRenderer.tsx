@@ -119,6 +119,41 @@ function ToolBlockRenderer({
 }
 
 type ThinkingBlock = Extract<ConversationBlock, { type: "thinking" }>;
+type SkillLoadBlock = Extract<ConversationBlock, { type: "skill_load" }>;
+
+/**
+ * Skill load block renderer
+ * Shows when a skill was loaded into the conversation
+ */
+function SkillLoadBlockRenderer({ block }: { block: SkillLoadBlock }) {
+  const [isExpanded, setIsExpanded] = useState(false);
+
+  return (
+    <div className="flex justify-center mb-4">
+      <div className="bg-cyan-50 border border-cyan-300 rounded-lg px-4 py-2 max-w-[80%]">
+        {/* Header with toggle */}
+        <button
+          onClick={() => setIsExpanded(!isExpanded)}
+          className="w-full text-left flex items-center gap-2"
+        >
+          <span className="text-cyan-600 flex-shrink-0">
+            {isExpanded ? "▼" : "▶"}
+          </span>
+          <span className="text-sm font-semibold text-cyan-700">
+            Skill Loaded: {block.skillName}
+          </span>
+        </button>
+
+        {/* Content (expandable) */}
+        {isExpanded && (
+          <pre className="text-xs text-gray-700 whitespace-pre-wrap mt-2 pl-5 bg-cyan-100 p-2 rounded max-h-64 overflow-y-auto">
+            {block.content}
+          </pre>
+        )}
+      </div>
+    </div>
+  );
+}
 
 /**
  * Collapsible thinking block renderer
@@ -292,6 +327,9 @@ export function MessageRenderer({ block }: { block: PairedBlock }) {
           </div>
         </div>
       );
+
+    case "skill_load":
+      return <SkillLoadBlockRenderer block={block} />;
 
     default:
       return null;

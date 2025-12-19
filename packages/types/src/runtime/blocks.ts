@@ -303,6 +303,25 @@ export interface ErrorBlock extends BaseBlock {
   code?: string;
 }
 
+/**
+ * Skill load block
+ * Represents a skill that was loaded into the conversation.
+ * Skills are injected as "silent prompts" to give the agent specialized knowledge.
+ */
+export interface SkillLoadBlock extends BaseBlock {
+  type: 'skill_load';
+
+  /**
+   * Name of the skill that was loaded (e.g., "echo-info", "pdf")
+   */
+  skillName: string;
+
+  /**
+   * Full skill content (for expandable view in UI)
+   */
+  content: string;
+}
+
 // ============================================================================
 // Union Type
 // ============================================================================
@@ -318,7 +337,8 @@ export type ConversationBlock =
   | ThinkingBlock
   | SystemBlock
   | SubagentBlock
-  | ErrorBlock;
+  | ErrorBlock
+  | SkillLoadBlock;
 
 // ============================================================================
 // Type Guards
@@ -354,4 +374,8 @@ export function isSubagentBlock(block: ConversationBlock): block is SubagentBloc
 
 export function isErrorBlock(block: ConversationBlock): block is ErrorBlock {
   return block.type === 'error';
+}
+
+export function isSkillLoadBlock(block: ConversationBlock): block is SkillLoadBlock {
+  return block.type === 'skill_load';
 }

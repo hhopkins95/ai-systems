@@ -10,6 +10,8 @@ type ToolResultBlock = Extract<ConversationBlock, { type: "tool_result" }>;
  * Pairs tool_use blocks with their corresponding tool_result blocks.
  * Returns a new array where tool_result blocks are filtered out and
  * tool_use blocks have an optional _pairedResult property attached.
+ *
+ * Also filters out Task tool_use blocks since they are represented by SubagentBlock.
  */
 function pairToolBlocks(blocks: ConversationBlock[]): (ConversationBlock & { _pairedResult?: ToolResultBlock })[] {
   // Build map: toolUseId -> ToolResultBlock
@@ -20,9 +22,15 @@ function pairToolBlocks(blocks: ConversationBlock[]): (ConversationBlock & { _pa
     }
   }
 
-  // Return blocks with results attached, filtering out standalone tool_result
+  // Return blocks with results attached, filtering out:
+  // - standalone tool_result (paired with tool_use)
+  // - Task tool_use blocks (represented by SubagentBlock instead)
   return blocks
-    .filter((b) => b.type !== "tool_result")
+    .filter((b) => {
+      if (b.type === "tool_result") return false;
+      if (b.type === "tool_use" && b.toolName === "Task") return false;
+      return true;
+    })
     .map((block) => {
       if (block.type === "tool_use") {
         return { ...block, _pairedResult: resultMap.get(block.toolUseId) };
