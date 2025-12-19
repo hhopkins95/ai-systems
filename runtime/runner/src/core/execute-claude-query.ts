@@ -4,7 +4,7 @@
  * Pure async generator that yields SessionEvents from Claude SDK responses.
  */
 
-import { query, Options } from '@anthropic-ai/claude-agent-sdk';
+import { query, Options, HookCallback, PreToolUseHookInput } from '@anthropic-ai/claude-agent-sdk';
 import { parseStreamEvent } from '@hhopkins/agent-converters/claude-sdk';
 import type { AnySessionEvent, UserMessageBlock, McpServerConfig } from '@ai-systems/shared-types';
 import { ClaudeEntityManager } from '@hhopkins/claude-entity-manager';
@@ -18,6 +18,7 @@ import {
 import type { ExecuteQueryArgs } from '../types.js';
 import { getWorkspacePaths } from '../helpers/get-workspace-paths.js';
 import fs from 'fs';
+import path from 'path';
 
 /**
  * Check if a Claude SDK session transcript exists.
@@ -86,7 +87,38 @@ export async function* executeClaudeQuery(
   yield createLogSessionEvent('Loaded MCP servers', 'debug', {
     count: mcpServersArray.length,
     names: Object.keys(mcpServers),
+    tools: input.tools,
   });
+
+  const allowedTools = ['Read', 'Write', 'Edit', 'Glob', 'Grep', 'Skill', 'Task', 'WebFetch'];
+
+  // Hook to block file access outside workspace directory
+  const blockParentDirectoryAccess: HookCallback = async (hookInput) => {
+    if (hookInput.hook_event_name !== 'PreToolUse') return {};
+
+    const preInput = hookInput as PreToolUseHookInput;
+    const toolInput = preInput.tool_input as Record<string, unknown> | undefined;
+
+    // Extract file path from input (different tools use different field names)
+    const filePath = (toolInput?.file_path || toolInput?.notebook_path || toolInput?.path) as string | undefined;
+
+    if (filePath) {
+      const absolutePath = path.resolve(paths.workspaceDir, filePath);
+      const workspaceAbsolute = path.resolve(paths.workspaceDir);
+
+      if (!absolutePath.startsWith(workspaceAbsolute)) {
+        return {
+          hookSpecificOutput: {
+            hookEventName: 'PreToolUse',
+            permissionDecision: 'deny',
+            permissionDecisionReason: `Access outside workspace directory is not allowed: ${filePath}`,
+          },
+        };
+      }
+    }
+
+    return {};
+  };
 
   const options: Options = {
     pathToClaudeCodeExecutable: claudeCodePath,
@@ -94,12 +126,18 @@ export async function* executeClaudeQuery(
     settingSources: ['project', 'user'],
     includePartialMessages: true,
     maxBudgetUsd: 5.0,
-    permissionMode: 'bypassPermissions',
-    allowDangerouslySkipPermissions: true,
-    allowedTools: input.tools
-      ? [...input.tools, 'Skill']
-      : ['Skill'],
+    permissionMode: 'acceptEdits',
+    allowedTools: allowedTools,
     mcpServers: mcpServers as Options['mcpServers'],
+    // Restrict file access to workspace directory only
+    hooks: {
+      PreToolUse: [
+        {
+          matcher: 'Read|Write|Edit|Glob|Grep|NotebookEdit',
+          hooks: [blockParentDirectoryAccess],
+        },
+      ],
+    },
   };
 
   const needsCreation = !(await claudeSessionExists(input.sessionId));
