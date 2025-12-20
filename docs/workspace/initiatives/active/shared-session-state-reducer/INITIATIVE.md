@@ -116,7 +116,7 @@ Blocks routed by `event.context.conversationId`:
 
 ## Current Status
 
-**OpenCode restructured, parity issues identified in both SDK paths** (2025-12-19)
+**OpenCode parity fixes implemented, awaiting verification** (2025-12-19)
 
 ### Completed:
 - [x] Types updated with flexible SubagentBlock and new subagent events
@@ -137,7 +137,15 @@ Blocks routed by `event.context.conversationId`:
 - [x] **Created OpenCode parity tests** - `src/test/opencode/transcript-parser.test.ts`
 - [x] All packages build successfully
 
-### Parity Issues Identified:
+### OpenCode Parity Fixes (Implemented, NOT YET TESTED):
+
+Fixes implemented in `packages/converters/src/opencode/block-converter.ts`:
+- **Empty content**: Track completed blocks, use part.text instead of delta accumulation
+- **Missing user_message**: Track message roles, create user_message for user text parts
+- **Duplicate subagents**: Map session IDs to toolUseIds via session.created events
+- **Thinking filtering**: Skip empty blocks when completing (match transcript behavior)
+
+### Remaining Parity Issues:
 
 **Claude SDK** (in `src/test/claude/`):
 | Issue | Streaming | Transcript |
@@ -147,18 +155,8 @@ Blocks routed by `event.context.conversationId`:
 | Block ordering | `tool_result, skill_load` | `skill_load, tool_result` |
 | Subagent blocks | Missing `assistant_text` blocks | Has all blocks |
 
-**OpenCode** (in `src/test/opencode/`):
-| Issue | Streaming | Transcript |
-|-------|-----------|------------|
-| Block count | 23 blocks | 13 blocks |
-| user_message | Missing (0) | Present (1) |
-| thinking blocks | 6 (not filtered) | 0 (filtered) |
-| Subagent count | 4 entries | 2 entries |
-
-Root causes: user message handling missing in streaming, empty block filtering inconsistent, subagent routing differs.
-
 ### Next Steps:
-1. [ ] Fix OpenCode parity issues (user messages, empty block filtering, subagent routing)
+1. [ ] Run OpenCode parity tests to verify fixes
 2. [ ] Fix Claude SDK parity issues
 3. [ ] End-to-end streaming test
 
@@ -167,6 +165,7 @@ Root causes: user message handling missing in streaming, empty block filtering i
 - [2025-12-19-type-reorganization.md](sessions/2025-12-19-type-reorganization.md) - Type cleanup & converter simplification
 - [2025-12-19-parity-tests.md](sessions/2025-12-19-parity-tests.md) - Test setup & parity analysis
 - [2025-12-19-opencode-restructure.md](sessions/2025-12-19-opencode-restructure.md) - OpenCode refactor to use reducer
+- [2025-12-19-opencode-parity-fixes.md](sessions/2025-12-19-opencode-parity-fixes.md) - Fixed all 4 OpenCode parity issues
 
 ## Quick Links
 

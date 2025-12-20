@@ -3,7 +3,7 @@
     {
       "type": "assistant_text",
       "id": "prt_b38d16ed7002QbauvMxnhGxj22",
-      "timestamp": "2025-12-20T01:23:00.933Z",
+      "timestamp": "2025-12-20T04:17:27.356Z",
       "content": ""
     },
     {
@@ -21,17 +21,56 @@
     {
       "type": "tool_use",
       "id": "prt_b38d1849b001E0gRhyvlG4dVs9",
-      "timestamp": "2025-12-20T01:23:00.936Z",
+      "timestamp": "2025-12-19T22:53:33.726Z",
       "toolName": "task",
       "toolUseId": "call_499d379c3296400fbf595aaa",
-      "input": {},
-      "status": "running",
-      "displayName": "Load Test Skill"
+      "input": {
+        "description": "Load Test Skill",
+        "prompt": "skills_test",
+        "subagent_type": "general"
+      },
+      "status": "running"
     },
     {
       "id": "subagent-block-call_499d379c3296400fbf595aaa",
       "type": "subagent",
-      "timestamp": "2025-12-20T01:23:00.937Z",
+      "timestamp": "2025-12-20T04:17:27.360Z",
+      "toolUseId": "call_499d379c3296400fbf595aaa",
+      "name": "general",
+      "input": "skills_test",
+      "status": "running"
+    },
+    {
+      "id": "subagent-block-call_499d379c3296400fbf595aaa",
+      "type": "subagent",
+      "timestamp": "2025-12-20T04:17:27.360Z",
+      "toolUseId": "call_499d379c3296400fbf595aaa",
+      "name": "general",
+      "input": "skills_test",
+      "status": "running"
+    },
+    {
+      "id": "subagent-block-call_499d379c3296400fbf595aaa",
+      "type": "subagent",
+      "timestamp": "2025-12-20T04:17:27.361Z",
+      "toolUseId": "call_499d379c3296400fbf595aaa",
+      "name": "general",
+      "input": "skills_test",
+      "status": "running"
+    },
+    {
+      "id": "subagent-block-call_499d379c3296400fbf595aaa",
+      "type": "subagent",
+      "timestamp": "2025-12-20T04:17:27.361Z",
+      "toolUseId": "call_499d379c3296400fbf595aaa",
+      "name": "general",
+      "input": "skills_test",
+      "status": "running"
+    },
+    {
+      "id": "subagent-block-call_499d379c3296400fbf595aaa",
+      "type": "subagent",
+      "timestamp": "2025-12-20T04:17:27.361Z",
       "toolUseId": "call_499d379c3296400fbf595aaa",
       "name": "general",
       "input": "skills_test",
@@ -52,17 +91,110 @@
     {
       "type": "tool_use",
       "id": "prt_b38d1c9f7001PzQjrVPHTb6B1y",
-      "timestamp": "2025-12-20T01:23:00.937Z",
+      "timestamp": "2025-12-19T22:53:51.484Z",
       "toolName": "task",
       "toolUseId": "call_89ae295e49a949b8b67a3637",
-      "input": {},
-      "status": "running",
-      "displayName": "Write subagent test file"
+      "input": {
+        "description": "Write subagent test file",
+        "prompt": "Write a file to the workspace called 'subagent-test.txt' with the content 'Hello world from the subagent!'",
+        "subagent_type": "general"
+      },
+      "status": "running"
     },
     {
       "id": "subagent-block-call_89ae295e49a949b8b67a3637",
       "type": "subagent",
-      "timestamp": "2025-12-20T01:23:00.938Z",
+      "timestamp": "2025-12-20T04:17:27.362Z",
+      "toolUseId": "call_89ae295e49a949b8b67a3637",
+      "name": "general",
+      "input": "Write a file to the workspace called 'subagent-test.txt' with the content 'Hello world from the subagent!'",
+      "status": "running"
+    },
+    {
+      "id": "subagent-block-call_89ae295e49a949b8b67a3637",
+      "type": "subagent",
+      "timestamp": "2025-12-20T04:17:27.362Z",
+      "toolUseId": "call_89ae295e49a949b8b67a3637",
+      "name": "general",
+      "input": "Write a file to the workspace called 'subagent-test.txt' with the content 'Hello world from the subagent!'",
+      "status": "running"
+    },
+    {
+      "id": "subagent-block-call_89ae295e49a949b8b67a3637",
+      "type": "subagent",
+      "timestamp": "2025-12-20T04:17:27.362Z",
+      "toolUseId": "call_89ae295e49a949b8b67a3637",
+      "name": "general",
+      "input": "Write a file to the workspace called 'subagent-test.txt' with the content 'Hello world from the subagent!'",
+      "status": "running"
+    },
+    {
+      "id": "subagent-block-call_89ae295e49a949b8b67a3637",
+      "type": "subagent",
+      "timestamp": "2025-12-20T04:17:27.362Z",
+      "toolUseId": "call_89ae295e49a949b8b67a3637",
+      "name": "general",
+      "input": "Write a file to the workspace called 'subagent-test.txt' with the content 'Hello world from the subagent!'",
+      "status": "running"
+    },
+    {
+      "id": "subagent-block-call_89ae295e49a949b8b67a3637",
+      "type": "subagent",
+      "timestamp": "2025-12-20T04:17:27.362Z",
+      "toolUseId": "call_89ae295e49a949b8b67a3637",
+      "name": "general",
+      "input": "Write a file to the workspace called 'subagent-test.txt' with the content 'Hello world from the subagent!'",
+      "status": "running"
+    },
+    {
+      "id": "subagent-block-call_89ae295e49a949b8b67a3637",
+      "type": "subagent",
+      "timestamp": "2025-12-20T04:17:27.362Z",
+      "toolUseId": "call_89ae295e49a949b8b67a3637",
+      "name": "general",
+      "input": "Write a file to the workspace called 'subagent-test.txt' with the content 'Hello world from the subagent!'",
+      "status": "running"
+    },
+    {
+      "id": "subagent-block-call_89ae295e49a949b8b67a3637",
+      "type": "subagent",
+      "timestamp": "2025-12-20T04:17:27.362Z",
+      "toolUseId": "call_89ae295e49a949b8b67a3637",
+      "name": "general",
+      "input": "Write a file to the workspace called 'subagent-test.txt' with the content 'Hello world from the subagent!'",
+      "status": "running"
+    },
+    {
+      "id": "subagent-block-call_89ae295e49a949b8b67a3637",
+      "type": "subagent",
+      "timestamp": "2025-12-20T04:17:27.362Z",
+      "toolUseId": "call_89ae295e49a949b8b67a3637",
+      "name": "general",
+      "input": "Write a file to the workspace called 'subagent-test.txt' with the content 'Hello world from the subagent!'",
+      "status": "running"
+    },
+    {
+      "id": "subagent-block-call_89ae295e49a949b8b67a3637",
+      "type": "subagent",
+      "timestamp": "2025-12-20T04:17:27.362Z",
+      "toolUseId": "call_89ae295e49a949b8b67a3637",
+      "name": "general",
+      "input": "Write a file to the workspace called 'subagent-test.txt' with the content 'Hello world from the subagent!'",
+      "status": "running"
+    },
+    {
+      "id": "subagent-block-call_89ae295e49a949b8b67a3637",
+      "type": "subagent",
+      "timestamp": "2025-12-20T04:17:27.362Z",
+      "toolUseId": "call_89ae295e49a949b8b67a3637",
+      "name": "general",
+      "input": "Write a file to the workspace called 'subagent-test.txt' with the content 'Hello world from the subagent!'",
+      "status": "running"
+    },
+    {
+      "id": "subagent-block-call_89ae295e49a949b8b67a3637",
+      "type": "subagent",
+      "timestamp": "2025-12-20T04:17:27.362Z",
       "toolUseId": "call_89ae295e49a949b8b67a3637",
       "name": "general",
       "input": "Write a file to the workspace called 'subagent-test.txt' with the content 'Hello world from the subagent!'",
@@ -94,7 +226,7 @@
     },
     {
       "type": "tool_result",
-      "id": "block_1766193780938_w5q5i1h",
+      "id": "block_1766204247363_lluww38",
       "timestamp": "2025-12-19T22:54:11.001Z",
       "toolUseId": "call_2263fee915bc4f119851436f",
       "output": "Error: You must read the file /Users/hunterhopkins/dev/projects/ai-systems/runtime/runner/test/test-workspace/workspace/test.txt before overwriting it. Use the Read tool first",
@@ -127,7 +259,7 @@
     },
     {
       "type": "tool_result",
-      "id": "block_1766193780938_cx2oqkk",
+      "id": "block_1766204247363_yayqm0o",
       "timestamp": "2025-12-19T22:54:14.199Z",
       "toolUseId": "call_15225e83abc84342995c7c32",
       "output": "<file>\n00001| Hello world from the main agent!\n\n(End of file - total 1 lines)\n</file>",
@@ -161,7 +293,7 @@
     },
     {
       "type": "tool_result",
-      "id": "block_1766193780938_ef3xd7c",
+      "id": "block_1766204247363_fae7bz9",
       "timestamp": "2025-12-19T22:54:38.946Z",
       "toolUseId": "call_b4d7efcdf12c4c8199fe1f5d",
       "output": "",
@@ -183,13 +315,20 @@
   ],
   "subagents": [
     {
+      "id": "call_499d379c3296400fbf595aaa",
+      "toolUseId": "call_499d379c3296400fbf595aaa",
+      "blocks": [],
+      "status": "running",
+      "prompt": "skills_test"
+    },
+    {
       "id": "ses_4c72e7b62ffeN60u5X8Jv0Rck7",
       "toolUseId": "ses_4c72e7b62ffeN60u5X8Jv0Rck7",
       "blocks": [
         {
           "type": "assistant_text",
           "id": "prt_b38d184a0001ARJB7fHrLMlmU2",
-          "timestamp": "2025-12-20T01:23:00.936Z",
+          "timestamp": "2025-12-20T04:17:27.360Z",
           "content": ""
         },
         {
@@ -216,7 +355,7 @@
         },
         {
           "type": "tool_result",
-          "id": "block_1766193780936_9ykztdt",
+          "id": "block_1766204247361_m1yz6gg",
           "timestamp": "2025-12-19T22:53:36.767Z",
           "toolUseId": "call_8773143893ab49ed962bae96",
           "output": "Pickles from /Users/hunterhopkins/dev/projects/ai-systems/.opencode/plugin",
@@ -246,13 +385,41 @@
       "prompt": "skills_test"
     },
     {
+      "id": "call_499d379c3296400fbf595aaa",
+      "toolUseId": "call_499d379c3296400fbf595aaa",
+      "blocks": [],
+      "status": "running",
+      "prompt": "skills_test"
+    },
+    {
+      "id": "call_499d379c3296400fbf595aaa",
+      "toolUseId": "call_499d379c3296400fbf595aaa",
+      "blocks": [],
+      "status": "running",
+      "prompt": "skills_test"
+    },
+    {
+      "id": "call_499d379c3296400fbf595aaa",
+      "toolUseId": "call_499d379c3296400fbf595aaa",
+      "blocks": [],
+      "status": "running",
+      "prompt": "skills_test"
+    },
+    {
+      "id": "call_89ae295e49a949b8b67a3637",
+      "toolUseId": "call_89ae295e49a949b8b67a3637",
+      "blocks": [],
+      "status": "running",
+      "prompt": "Write a file to the workspace called 'subagent-test.txt' with the content 'Hello world from the subagent!'"
+    },
+    {
       "id": "ses_4c72e3604ffefkLKmFGZXMq2KD",
       "toolUseId": "ses_4c72e3604ffefkLKmFGZXMq2KD",
       "blocks": [
         {
           "type": "assistant_text",
           "id": "prt_b38d1ca03001nyYuruzrfSL0MB",
-          "timestamp": "2025-12-20T01:23:00.937Z",
+          "timestamp": "2025-12-20T04:17:27.362Z",
           "content": ""
         },
         {
@@ -281,7 +448,7 @@
         },
         {
           "type": "tool_result",
-          "id": "block_1766193780937_4cvpidj",
+          "id": "block_1766204247362_rdwous3",
           "timestamp": "2025-12-19T22:53:59.025Z",
           "toolUseId": "call_dbe1873cd6d04f72b6c05b15",
           "output": "Error: You must read the file /Users/hunterhopkins/dev/projects/ai-systems/runtime/runner/test/test-workspace/workspace/subagent-test.txt before overwriting it. Use the Read tool first",
@@ -314,7 +481,7 @@
         },
         {
           "type": "tool_result",
-          "id": "block_1766193780937_vzhlb5u",
+          "id": "block_1766204247362_jgtrdtj",
           "timestamp": "2025-12-19T22:54:02.730Z",
           "toolUseId": "call_d119a495f071422f8746bd08",
           "output": "<file>\n00001| Hello world from the subagent!\n\n(End of file - total 1 lines)\n</file>",
@@ -348,7 +515,7 @@
         },
         {
           "type": "tool_result",
-          "id": "block_1766193780937_4ds6m25",
+          "id": "block_1766204247362_b1bxzva",
           "timestamp": "2025-12-19T22:54:05.108Z",
           "toolUseId": "call_cd39f804715a437089d94c39",
           "output": "",
@@ -376,9 +543,91 @@
       "blocks": [],
       "status": "running",
       "prompt": "Write a file to the workspace called 'subagent-test.txt' with the content 'Hello world from the subagent!'"
+    },
+    {
+      "id": "call_89ae295e49a949b8b67a3637",
+      "toolUseId": "call_89ae295e49a949b8b67a3637",
+      "blocks": [],
+      "status": "running",
+      "prompt": "Write a file to the workspace called 'subagent-test.txt' with the content 'Hello world from the subagent!'"
+    },
+    {
+      "id": "call_89ae295e49a949b8b67a3637",
+      "toolUseId": "call_89ae295e49a949b8b67a3637",
+      "blocks": [],
+      "status": "running",
+      "prompt": "Write a file to the workspace called 'subagent-test.txt' with the content 'Hello world from the subagent!'"
+    },
+    {
+      "id": "call_89ae295e49a949b8b67a3637",
+      "toolUseId": "call_89ae295e49a949b8b67a3637",
+      "blocks": [],
+      "status": "running",
+      "prompt": "Write a file to the workspace called 'subagent-test.txt' with the content 'Hello world from the subagent!'"
+    },
+    {
+      "id": "call_89ae295e49a949b8b67a3637",
+      "toolUseId": "call_89ae295e49a949b8b67a3637",
+      "blocks": [],
+      "status": "running",
+      "prompt": "Write a file to the workspace called 'subagent-test.txt' with the content 'Hello world from the subagent!'"
+    },
+    {
+      "id": "call_89ae295e49a949b8b67a3637",
+      "toolUseId": "call_89ae295e49a949b8b67a3637",
+      "blocks": [],
+      "status": "running",
+      "prompt": "Write a file to the workspace called 'subagent-test.txt' with the content 'Hello world from the subagent!'"
+    },
+    {
+      "id": "call_89ae295e49a949b8b67a3637",
+      "toolUseId": "call_89ae295e49a949b8b67a3637",
+      "blocks": [],
+      "status": "running",
+      "prompt": "Write a file to the workspace called 'subagent-test.txt' with the content 'Hello world from the subagent!'"
+    },
+    {
+      "id": "call_89ae295e49a949b8b67a3637",
+      "toolUseId": "call_89ae295e49a949b8b67a3637",
+      "blocks": [],
+      "status": "running",
+      "prompt": "Write a file to the workspace called 'subagent-test.txt' with the content 'Hello world from the subagent!'"
+    },
+    {
+      "id": "call_89ae295e49a949b8b67a3637",
+      "toolUseId": "call_89ae295e49a949b8b67a3637",
+      "blocks": [],
+      "status": "running",
+      "prompt": "Write a file to the workspace called 'subagent-test.txt' with the content 'Hello world from the subagent!'"
+    },
+    {
+      "id": "call_89ae295e49a949b8b67a3637",
+      "toolUseId": "call_89ae295e49a949b8b67a3637",
+      "blocks": [],
+      "status": "running",
+      "prompt": "Write a file to the workspace called 'subagent-test.txt' with the content 'Hello world from the subagent!'"
     }
   ],
   "streaming": {
-    "byConversation": {}
+    "byConversation": {
+      "ses_4c72e7b62ffeN60u5X8Jv0Rck7": {
+        "conversationId": "ses_4c72e7b62ffeN60u5X8Jv0Rck7",
+        "blockId": "prt_b38d19b2a001Lc4HubtwoI9o1c",
+        "content": "",
+        "startedAt": 1766204247361
+      },
+      "ses_4c72e3604ffefkLKmFGZXMq2KD": {
+        "conversationId": "ses_4c72e3604ffefkLKmFGZXMq2KD",
+        "blockId": "prt_b38d208b7001ao8S2A79r548uv",
+        "content": "",
+        "startedAt": 1766204247362
+      },
+      "main": {
+        "conversationId": "main",
+        "blockId": "prt_b38d2ad92001OIhp4u7kubJNzz",
+        "content": "",
+        "startedAt": 1766204247364
+      }
+    }
   }
 }

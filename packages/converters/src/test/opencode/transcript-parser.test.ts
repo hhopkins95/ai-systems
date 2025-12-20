@@ -12,7 +12,7 @@ import { fileURLToPath } from 'node:url';
 import type { Event } from '@opencode-ai/sdk/v2';
 import type { SessionConversationState, ConversationBlock } from '@ai-systems/shared-types';
 import { createInitialConversationState } from '@ai-systems/shared-types';
-import { createStreamEventParser } from '../../opencode/block-converter.js';
+import { opencodeEventToSessionEvents } from '../../opencode/block-converter.js';
 import { reduceSessionEvent } from '../../session-state/reducer.js';
 import { parseOpenCodeTranscriptFile } from '../../opencode/transcript-parser.js';
 
@@ -32,11 +32,10 @@ function buildStateFromStreaming(): SessionConversationState {
   const lines = content.trim().split('\n').filter((line) => line.trim());
 
   let state = createInitialConversationState();
-  const parser = createStreamEventParser(MAIN_SESSION_ID);
 
   for (const line of lines) {
     const event = JSON.parse(line) as Event;
-    const sessionEvents = parser.parseEvent(event);
+    const sessionEvents = opencodeEventToSessionEvents(event, MAIN_SESSION_ID);
 
     for (const sessionEvent of sessionEvents) {
       state = reduceSessionEvent(state, sessionEvent);

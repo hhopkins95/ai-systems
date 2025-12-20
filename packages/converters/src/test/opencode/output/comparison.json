@@ -1,11 +1,11 @@
 {
   "streaming": {
-    "mainBlockCount": 23,
+    "mainBlockCount": 37,
     "mainBlockTypes": {
       "assistant_text": 7,
       "thinking": 6,
       "tool_use": 5,
-      "subagent": 2,
+      "subagent": 16,
       "tool_result": 3
     },
     "mainBlockList": [
@@ -30,6 +30,22 @@
         "type": "subagent"
       },
       {
+        "id": "subagent-block-call_499d379c3296400fbf595aaa",
+        "type": "subagent"
+      },
+      {
+        "id": "subagent-block-call_499d379c3296400fbf595aaa",
+        "type": "subagent"
+      },
+      {
+        "id": "subagent-block-call_499d379c3296400fbf595aaa",
+        "type": "subagent"
+      },
+      {
+        "id": "subagent-block-call_499d379c3296400fbf595aaa",
+        "type": "subagent"
+      },
+      {
         "id": "prt_b38d1a8b9001wUAH7iKVxaMu22",
         "type": "thinking"
       },
@@ -40,6 +56,46 @@
       {
         "id": "prt_b38d1c9f7001PzQjrVPHTb6B1y",
         "type": "tool_use"
+      },
+      {
+        "id": "subagent-block-call_89ae295e49a949b8b67a3637",
+        "type": "subagent"
+      },
+      {
+        "id": "subagent-block-call_89ae295e49a949b8b67a3637",
+        "type": "subagent"
+      },
+      {
+        "id": "subagent-block-call_89ae295e49a949b8b67a3637",
+        "type": "subagent"
+      },
+      {
+        "id": "subagent-block-call_89ae295e49a949b8b67a3637",
+        "type": "subagent"
+      },
+      {
+        "id": "subagent-block-call_89ae295e49a949b8b67a3637",
+        "type": "subagent"
+      },
+      {
+        "id": "subagent-block-call_89ae295e49a949b8b67a3637",
+        "type": "subagent"
+      },
+      {
+        "id": "subagent-block-call_89ae295e49a949b8b67a3637",
+        "type": "subagent"
+      },
+      {
+        "id": "subagent-block-call_89ae295e49a949b8b67a3637",
+        "type": "subagent"
+      },
+      {
+        "id": "subagent-block-call_89ae295e49a949b8b67a3637",
+        "type": "subagent"
+      },
+      {
+        "id": "subagent-block-call_89ae295e49a949b8b67a3637",
+        "type": "subagent"
       },
       {
         "id": "subagent-block-call_89ae295e49a949b8b67a3637",
@@ -58,7 +114,7 @@
         "type": "tool_use"
       },
       {
-        "id": "block_1766193780938_w5q5i1h",
+        "id": "block_1766204247363_lluww38",
         "type": "tool_result"
       },
       {
@@ -74,7 +130,7 @@
         "type": "tool_use"
       },
       {
-        "id": "block_1766193780938_cx2oqkk",
+        "id": "block_1766204247363_yayqm0o",
         "type": "tool_result"
       },
       {
@@ -90,7 +146,7 @@
         "type": "tool_use"
       },
       {
-        "id": "block_1766193780938_ef3xd7c",
+        "id": "block_1766204247363_fae7bz9",
         "type": "tool_result"
       },
       {
@@ -102,8 +158,13 @@
         "type": "assistant_text"
       }
     ],
-    "subagentCount": 4,
+    "subagentCount": 18,
     "subagents": [
+      {
+        "id": "call_499d379c3296400fbf595aaa",
+        "blockCount": 0,
+        "blockTypes": {}
+      },
       {
         "id": "ses_4c72e7b62ffeN60u5X8Jv0Rck7",
         "blockCount": 7,
@@ -120,6 +181,26 @@
         "blockTypes": {}
       },
       {
+        "id": "call_499d379c3296400fbf595aaa",
+        "blockCount": 0,
+        "blockTypes": {}
+      },
+      {
+        "id": "call_499d379c3296400fbf595aaa",
+        "blockCount": 0,
+        "blockTypes": {}
+      },
+      {
+        "id": "call_499d379c3296400fbf595aaa",
+        "blockCount": 0,
+        "blockTypes": {}
+      },
+      {
+        "id": "call_89ae295e49a949b8b67a3637",
+        "blockCount": 0,
+        "blockTypes": {}
+      },
+      {
         "id": "ses_4c72e3604ffefkLKmFGZXMq2KD",
         "blockCount": 15,
         "blockTypes": {
@@ -128,6 +209,51 @@
           "tool_use": 3,
           "tool_result": 3
         }
+      },
+      {
+        "id": "call_89ae295e49a949b8b67a3637",
+        "blockCount": 0,
+        "blockTypes": {}
+      },
+      {
+        "id": "call_89ae295e49a949b8b67a3637",
+        "blockCount": 0,
+        "blockTypes": {}
+      },
+      {
+        "id": "call_89ae295e49a949b8b67a3637",
+        "blockCount": 0,
+        "blockTypes": {}
+      },
+      {
+        "id": "call_89ae295e49a949b8b67a3637",
+        "blockCount": 0,
+        "blockTypes": {}
+      },
+      {
+        "id": "call_89ae295e49a949b8b67a3637",
+        "blockCount": 0,
+        "blockTypes": {}
+      },
+      {
+        "id": "call_89ae295e49a949b8b67a3637",
+        "blockCount": 0,
+        "blockTypes": {}
+      },
+      {
+        "id": "call_89ae295e49a949b8b67a3637",
+        "blockCount": 0,
+        "blockTypes": {}
+      },
+      {
+        "id": "call_89ae295e49a949b8b67a3637",
+        "blockCount": 0,
+        "blockTypes": {}
+      },
+      {
+        "id": "call_89ae295e49a949b8b67a3637",
+        "blockCount": 0,
+        "blockTypes": {}
       },
       {
         "id": "call_89ae295e49a949b8b67a3637",
@@ -175,7 +301,7 @@
         "type": "tool_use"
       },
       {
-        "id": "block_1766193780939_79apcv2",
+        "id": "block_1766204247364_i6cdp2p",
         "type": "tool_result"
       },
       {
@@ -183,7 +309,7 @@
         "type": "tool_use"
       },
       {
-        "id": "block_1766193780939_cprkqp6",
+        "id": "block_1766204247364_yafuftz",
         "type": "tool_result"
       },
       {
@@ -191,7 +317,7 @@
         "type": "tool_use"
       },
       {
-        "id": "block_1766193780939_a04ln8q",
+        "id": "block_1766204247364_eui2pui",
         "type": "tool_result"
       },
       {
