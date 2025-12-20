@@ -378,24 +378,3 @@ export function opencodeEventToSessionEvents(
   }
 }
 
-// ============================================================================
-// Deprecated Exports (for backward compatibility)
-// ============================================================================
-
-/**
- * @deprecated Use opencodeEventToSessionEvents directly.
- * This function is now an alias.
- */
-export const parseOpencodeStreamEvent = opencodeEventToSessionEvents;
-
-/**
- * @deprecated The stateful parser is no longer needed.
- * Use opencodeEventToSessionEvents directly - it's now stateless.
- * The reducer handles all state management.
- */
-export function createStreamEventParser(mainSessionId: string, options: ConvertOptions = {}) {
-  return {
-    parseEvent: (event: Event) => opencodeEventToSessionEvents(event, mainSessionId, options),
-    reset: () => { /* no-op, stateless */ },
-  };
-}
