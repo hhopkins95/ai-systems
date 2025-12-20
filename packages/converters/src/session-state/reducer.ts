@@ -18,6 +18,7 @@ import {
   handleBlockComplete,
   handleBlockUpdate,
   handleBlockDelta,
+  handleSessionIdle,
 } from './handlers/block-handlers.js';
 import {
   handleSubagentSpawned,
@@ -69,6 +70,13 @@ export function reduceSessionEvent(
     case 'subagent:completed':
       return handleSubagentCompleted(state, event);
 
+    // Session lifecycle events
+    case 'session:idle': {
+      // Finalize streaming blocks for this conversation
+      const conversationId = event.context.conversationId ?? 'main';
+      return handleSessionIdle(state, conversationId);
+    }
+
     // All other events don't affect conversation state
     default:
       return state;
@@ -86,5 +94,6 @@ export function isConversationEvent(event: AnySessionEvent): boolean {
     'block:delta',
     'subagent:spawned',
     'subagent:completed',
+    'session:idle',
   ].includes(event.type);
 }

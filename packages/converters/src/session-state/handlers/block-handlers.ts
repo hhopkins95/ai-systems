@@ -21,6 +21,7 @@ import { findSubagentIndex } from '../types.js';
  * Handle block:start event
  * - Initializes streaming entry for the conversation
  * - Routes the initial block to main or subagent conversation
+ * - For OpenCode: handles user message content correlation
  */
 export function handleBlockStart(
   state: SessionConversationState,
@@ -28,6 +29,31 @@ export function handleBlockStart(
 ): SessionConversationState {
   const conversationId = event.context.conversationId ?? 'main';
   const block = event.payload.block;
+  const messageId = (event.payload as any).messageId;
+
+  // OpenCode: Check if this text block belongs to an existing user_message
+  // If so, update the user_message content instead of creating a new block
+  if (block.type === 'assistant_text' && messageId && conversationId === 'main') {
+    const userMessageIndex = state.blocks.findIndex(
+      (b) => b.type === 'user_message' && b.id === messageId
+    );
+    if (userMessageIndex >= 0) {
+      // This is content for the user message - update it
+      const userMessage = state.blocks[userMessageIndex];
+      const textContent = (block as any).content || '';
+
+      // Only update if there's actual content
+      if (textContent) {
+        const newBlocks = [...state.blocks];
+        newBlocks[userMessageIndex] = {
+          ...userMessage,
+          content: textContent,
+        } as ConversationBlock;
+        return { ...state, blocks: newBlocks };
+      }
+      return state; // No content yet, nothing to do
+    }
+  }
 
   // Initialize streaming entry for this conversation
   const newStreaming = new Map(state.streaming.byConversation);
@@ -145,6 +171,75 @@ export function handleBlockDelta(
   });
 
   return { ...state, streaming: { byConversation: newStreaming } };
+}
+
+// ============================================================================
+// Session Idle Handler
+// ============================================================================
+
+/**
+ * Handle session:idle event
+ * - Finalizes streaming blocks for the given conversation
+ * - Updates block content with accumulated streaming content
+ * - Clears streaming state
+ *
+ * @param state - Current conversation state
+ * @param conversationId - The conversation that became idle ('main' or subagent ID)
+ */
+export function handleSessionIdle(
+  state: SessionConversationState,
+  conversationId: string
+): SessionConversationState {
+  const streaming = state.streaming.byConversation.get(conversationId);
+
+  if (!streaming) {
+    // No streaming for this conversation
+    return state;
+  }
+
+  // Finalize the streaming block with accumulated content
+  let newState = state;
+  const { blockId, content } = streaming;
+
+  // Only finalize if there's content to add
+  if (content.trim()) {
+    if (conversationId === 'main') {
+      const blockIndex = state.blocks.findIndex((b) => b.id === blockId);
+      if (blockIndex >= 0) {
+        const block = state.blocks[blockIndex];
+        const newBlocks = [...state.blocks];
+        newBlocks[blockIndex] = {
+          ...block,
+          content: content,
+        } as ConversationBlock;
+        newState = { ...newState, blocks: newBlocks };
+      }
+    } else {
+      const subagentIndex = findSubagentIndex(state, conversationId);
+      if (subagentIndex >= 0) {
+        const subagent = state.subagents[subagentIndex];
+        const blockIndex = subagent.blocks.findIndex((b) => b.id === blockId);
+        if (blockIndex >= 0) {
+          const block = subagent.blocks[blockIndex];
+          const newBlocks = [...subagent.blocks];
+          newBlocks[blockIndex] = {
+            ...block,
+            content: content,
+          } as ConversationBlock;
+
+          const newSubagents = [...state.subagents];
+          newSubagents[subagentIndex] = { ...subagent, blocks: newBlocks };
+          newState = { ...newState, subagents: newSubagents };
+        }
+      }
+    }
+  }
+
+  // Clear streaming for this conversation
+  const newStreaming = new Map(newState.streaming.byConversation);
+  newStreaming.delete(conversationId);
+
+  return { ...newState, streaming: { byConversation: newStreaming } };
 }
 
 // ============================================================================

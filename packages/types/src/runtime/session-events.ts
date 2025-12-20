@@ -126,6 +126,8 @@ export interface SessionEventPayloads {
    */
   'block:start': {
     block: ConversationBlock;
+    /** OpenCode: message ID for role lookup (user vs assistant) */
+    messageId?: string;
   };
 
   /**
@@ -296,6 +298,14 @@ export interface SessionEventPayloads {
     hasTranscript: boolean;
     workspaceFileCount: number;
     blockCount: number;
+  };
+
+  /**
+   * Session became idle (OpenCode: all streaming complete, ready for next query)
+   * Used to finalize streaming blocks.
+   */
+  'session:idle': {
+    sessionId: string;
   };
 
   // ---------------------------------------------------------------------------
