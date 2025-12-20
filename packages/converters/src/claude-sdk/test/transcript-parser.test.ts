@@ -12,9 +12,9 @@ import { fileURLToPath } from 'node:url';
 import type { SDKMessage } from '@anthropic-ai/claude-agent-sdk';
 import type { SessionConversationState, AnySessionEvent } from '@ai-systems/shared-types';
 import { createInitialConversationState } from '@ai-systems/shared-types';
-import { sdkMessageToEvents } from '../../claude-sdk/block-converter.js';
+import { sdkMessageToEvents } from '../block-converter.js';
 import { reduceSessionEvent } from '../../session-state/reducer.js';
-import { parseCombinedClaudeTranscript } from '../../claude-sdk/transcript-parser.js';
+import { parseCombinedClaudeTranscript } from '../transcript-parser.js';
 
 const __dirname = dirname(fileURLToPath(import.meta.url));
 const TEST_DATA_DIR = __dirname;
@@ -23,10 +23,6 @@ const OUTPUT_DIR = join(TEST_DATA_DIR, 'output');
 // Subagent info from test data
 const SUBAGENT_TOOL_USE_ID = 'toolu_01H79rxPSUkpfuuZFosbzSsv';
 const SUBAGENT_AGENT_ID = 'a9b844f';
-
-interface RawSDKMessage extends SDKMessage {
-  parent_tool_use_id?: string | null;
-}
 
 /**
  * Build state by processing raw SDK messages through events + reducer.
@@ -39,7 +35,7 @@ function buildStateFromStreaming(): SessionConversationState {
   let state = createInitialConversationState();
 
   for (const line of lines) {
-    const msg = JSON.parse(line) as RawSDKMessage;
+    const msg = JSON.parse(line) as SDKMessage;
 
     // Convert SDK message to events
     const events = sdkMessageToEvents(msg);

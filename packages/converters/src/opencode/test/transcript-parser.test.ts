@@ -12,9 +12,9 @@ import { fileURLToPath } from 'node:url';
 import type { Event } from '@opencode-ai/sdk/v2';
 import type { SessionConversationState, ConversationBlock } from '@ai-systems/shared-types';
 import { createInitialConversationState } from '@ai-systems/shared-types';
-import { opencodeEventToSessionEvents } from '../../opencode/block-converter.js';
+import { opencodeEventToSessionEvents } from '../block-converter.js';
 import { reduceSessionEvent } from '../../session-state/reducer.js';
-import { parseOpenCodeTranscriptFile } from '../../opencode/transcript-parser.js';
+import { parseOpenCodeTranscriptFile } from '../transcript-parser.js';
 
 const __dirname = dirname(fileURLToPath(import.meta.url));
 const TEST_DATA_DIR = __dirname;
