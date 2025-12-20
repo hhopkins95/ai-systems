@@ -116,7 +116,7 @@ Blocks routed by `event.context.conversationId`:
 
 ## Current Status
 
-**OpenCode parity fixes implemented, awaiting verification** (2025-12-19)
+**Stateless converter refactor in progress** (2025-12-20)
 
 ### Completed:
 - [x] Types updated with flexible SubagentBlock and new subagent events
@@ -136,29 +136,32 @@ Blocks routed by `event.context.conversationId`:
   - Block converter simplified (removed pending block logic)
 - [x] **Created OpenCode parity tests** - `src/test/opencode/transcript-parser.test.ts`
 - [x] All packages build successfully
+- [x] **Stateless converter refactor** (2025-12-20):
+  - Rewrote `block-converter.ts` as fully stateless (~400 lines vs ~700)
+  - Added `session:idle` event type
+  - Added `messageId` to `block:start` for role correlation
+  - Updated reducer with user message detection & session:idle handling
 
-### OpenCode Parity Fixes (Implemented, NOT YET TESTED):
+### Tests Still Failing (2025-12-20):
 
-Fixes implemented in `packages/converters/src/opencode/block-converter.ts`:
-- **Empty content**: Track completed blocks, use part.text instead of delta accumulation
-- **Missing user_message**: Track message roles, create user_message for user text parts
-- **Duplicate subagents**: Map session IDs to toolUseIds via session.created events
-- **Thinking filtering**: Skip empty blocks when completing (match transcript behavior)
+Despite the refactor, parity tests still fail:
+- Streaming: 37 blocks, Transcript: 13 blocks
+- 18 subagent entries vs 2 expected
+- 6 thinking blocks still present (should be filtered)
 
-### Remaining Parity Issues:
+### Remaining Issues to Fix:
 
-**Claude SDK** (in `src/test/claude/`):
-| Issue | Streaming | Transcript |
-|-------|-----------|------------|
-| Extra text block | Has duplicate `assistant_text` | - |
-| Subagent block | Creates `subagent` block on spawn | Missing |
-| Block ordering | `tool_result, skill_load` | `skill_load, tool_result` |
-| Subagent blocks | Missing `assistant_text` blocks | Has all blocks |
+1. **Subagent deduplication** - `subagent:spawned` emitted for each Task tool part update
+   - Need reducer to ignore duplicate spawned events for same toolUseId
+2. **Thinking block filtering** - Transcript parser filters them, streaming doesn't
+   - Need to add filtering (either converter or reducer)
 
 ### Next Steps:
-1. [ ] Run OpenCode parity tests to verify fixes
-2. [ ] Fix Claude SDK parity issues
-3. [ ] End-to-end streaming test
+1. [ ] Fix subagent deduplication in reducer
+2. [ ] Add thinking block filtering
+3. [ ] Re-run parity tests
+4. [ ] Fix Claude SDK parity issues
+5. [ ] End-to-end streaming test
 
 ### Session Notes:
 - [2025-12-19-implementation.md](sessions/2025-12-19-implementation.md) - Initial implementation
@@ -166,6 +169,7 @@ Fixes implemented in `packages/converters/src/opencode/block-converter.ts`:
 - [2025-12-19-parity-tests.md](sessions/2025-12-19-parity-tests.md) - Test setup & parity analysis
 - [2025-12-19-opencode-restructure.md](sessions/2025-12-19-opencode-restructure.md) - OpenCode refactor to use reducer
 - [2025-12-19-opencode-parity-fixes.md](sessions/2025-12-19-opencode-parity-fixes.md) - Fixed all 4 OpenCode parity issues
+- [2025-12-20-stateless-converter-refactor.md](sessions/2025-12-20-stateless-converter-refactor.md) - Stateless converter rewrite
 
 ## Quick Links
 
