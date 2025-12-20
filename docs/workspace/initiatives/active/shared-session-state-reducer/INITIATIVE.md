@@ -116,7 +116,7 @@ Blocks routed by `event.context.conversationId`:
 
 ## Current Status
 
-**Claude SDK tests set up, parity issues identified** (2025-12-19)
+**OpenCode restructured, parity issues identified in both SDK paths** (2025-12-19)
 
 ### Completed:
 - [x] Types updated with flexible SubagentBlock and new subagent events
@@ -128,14 +128,18 @@ Blocks routed by `event.context.conversationId`:
 - [x] **RuntimeSessionData restructure** - now uses `conversationState` field
 - [x] **Converter simplification** - single code path via `sdkMessageToEvents()`
 - [x] **Removed `ParsedTranscript`** - all parsers return `SessionConversationState`
-- [x] **Cleaned up transcript-parser** - removed unused `extractSubagentId`, `detectSubagentStatus`
 - [x] **Set up Vitest** - added test infrastructure to converters package
-- [x] **Created parity tests** - `src/test/claude/transcript-parser.test.ts`
+- [x] **Created Claude SDK parity tests** - `src/test/claude/transcript-parser.test.ts`
+- [x] **OpenCode restructured** - both paths now use shared reducer
+  - Created `shared-helpers.ts` with common conversion logic
+  - Transcript parser now emits events → reducer (not direct state)
+  - Block converter simplified (removed pending block logic)
+- [x] **Created OpenCode parity tests** - `src/test/opencode/transcript-parser.test.ts`
 - [x] All packages build successfully
 
-### Parity Issues Identified (Claude SDK):
-Tests in `packages/converters/src/test/claude/` compare streaming vs transcript loading:
+### Parity Issues Identified:
 
+**Claude SDK** (in `src/test/claude/`):
 | Issue | Streaming | Transcript |
 |-------|-----------|------------|
 | Extra text block | Has duplicate `assistant_text` | - |
@@ -143,17 +147,26 @@ Tests in `packages/converters/src/test/claude/` compare streaming vs transcript 
 | Block ordering | `tool_result, skill_load` | `skill_load, tool_result` |
 | Subagent blocks | Missing `assistant_text` blocks | Has all blocks |
 
-Output files written to `src/test/claude/output/` for inspection.
+**OpenCode** (in `src/test/opencode/`):
+| Issue | Streaming | Transcript |
+|-------|-----------|------------|
+| Block count | 23 blocks | 13 blocks |
+| user_message | Missing (0) | Present (1) |
+| thinking blocks | 6 (not filtered) | 0 (filtered) |
+| Subagent count | 4 entries | 2 entries |
+
+Root causes: user message handling missing in streaming, empty block filtering inconsistent, subagent routing differs.
 
 ### Next Steps:
-1. [ ] Analyze OpenCode implementation with same parity testing approach
-2. [ ] Fix identified parity issues in Claude SDK converter
+1. [ ] Fix OpenCode parity issues (user messages, empty block filtering, subagent routing)
+2. [ ] Fix Claude SDK parity issues
 3. [ ] End-to-end streaming test
 
 ### Session Notes:
 - [2025-12-19-implementation.md](sessions/2025-12-19-implementation.md) - Initial implementation
 - [2025-12-19-type-reorganization.md](sessions/2025-12-19-type-reorganization.md) - Type cleanup & converter simplification
 - [2025-12-19-parity-tests.md](sessions/2025-12-19-parity-tests.md) - Test setup & parity analysis
+- [2025-12-19-opencode-restructure.md](sessions/2025-12-19-opencode-restructure.md) - OpenCode refactor to use reducer
 
 ## Quick Links
 
