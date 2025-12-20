@@ -31,7 +31,8 @@ export interface Logger {
  * Default no-op logger
  */
 export const noopLogger: Logger = {
-  debug: () => {},
+  // @ts-ignore
+  debug: (value) => console.log(JSON.stringify(value, null, 2)),
   info: () => {},
   warn: () => {},
   error: () => {},

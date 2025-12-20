@@ -10,10 +10,11 @@
  */
 
 import { randomUUID } from 'crypto';
-import { executeOpencodeQuery } from '../src/core/index.js';
+import { executeOpencodeQuery, loadSessionTranscript, readSessionTranscript } from '../src/core/index.js';
 import { setupTestWorkspace, TEST_WORKSPACE_ROOT } from './test-setup.js';
 import path from 'path';
 import { ExecuteQueryArgs } from '../src/types.js';
+import fs from 'fs';
 /**
  * Generate a session ID in the appropriate format for the architecture
  */
@@ -28,7 +29,16 @@ function generateSessionId(): string {
 // Configuration - Edit these as needed
 // ============================================================================
 
-const PROMPT = 'What is your cwd? What files do you see there? What skills do you have? Do you have anything that says "test skill" in it? Do you see a particular set of skills instructions in your context? And lastly, what is the test key? I put a test key in your context. Please just tell me what it says';
+const PROMPT = `Do the following in order : 
+
+1. Load a skill.Any Skill will do.
+
+2. Launch a subagent to write a file to the workspace called 'subagent-test.txt' with the content 'Hello world from the subagent!'.Use the Task tool to do this.
+
+3. Write a file to the workspace called 'test.txt' with the content 'Hello world from the main agent!'.
+
+
+Do not ask any questions first, please just immediately do the steps above.Use thinking tokens to begin.`;
 const MODEL = 'big-pickle';
 
 // ============================================================================
@@ -70,13 +80,31 @@ async function main() {
   let eventCount = 0;
   const startTime = Date.now();
 
-  
-    for await (const event of executeOpencodeQuery(input)) {
+  let rawSDKMessages: any[] = [];
+  for await (const event of executeOpencodeQuery(input)) {
       eventCount++;
+
+      if (event.type === 'log' && event.payload.message === 'RAW SDK MESSAGE') {
+        rawSDKMessages.push(event.payload.data);
+      }
 
       console.log(JSON.stringify(event, null, 2));
 
   }
+
+  // write the raw sdk messages to a jsonl file 
+  fs.writeFileSync(path.join(TEST_WORKSPACE_ROOT, 'raw-opencode-messages.jsonl'), rawSDKMessages.map(message => JSON.stringify(message)).join('\n'));
+
+
+  const loadedTranscript = await readSessionTranscript({
+    baseWorkspacePath: TEST_WORKSPACE_ROOT,
+    sessionId,
+    architecture: 'opencode',
+  });
+
+  // write the loaded transcript to a json file 
+  fs.writeFileSync(path.join(TEST_WORKSPACE_ROOT, 'main-opencode-transcript.json'), loadedTranscript.transcript || '');
+
 
   const duration = Date.now() - startTime;
   console.log('\n');

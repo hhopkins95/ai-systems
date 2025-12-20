@@ -38,6 +38,11 @@ export type {
   SessionEventType,
   SessionEventPayloads,
   SessionEventContext,
+  // Conversation state types
+  SessionConversationState,
+  SubagentState,
+  StreamingState,
+  StreamingContent,
 } from '@ai-systems/shared-types';
 
 // Re-export type guards and helpers from shared-types
@@ -58,6 +63,11 @@ export {
   isBlockEvent,
   isFileEvent,
   isSubagentEvent,
+  // Conversation state helpers
+  createInitialConversationState,
+  createSubagentState,
+  findSubagent,
+  findSubagentIndex,
 } from '@ai-systems/shared-types';
 
 // Utilities
@@ -72,11 +82,15 @@ export {
 // Internal converter types
 export * from './types.js';
 
+// Session state reducer (shared between server and client)
+export * from './session-state/index.js';
+
 // =============================================================================
 // Unified Transcript Parsing
 // =============================================================================
 
-import type { AgentArchitecture, ParsedTranscript } from '@ai-systems/shared-types';
+import type { AgentArchitecture, SessionConversationState } from '@ai-systems/shared-types';
+import { createInitialConversationState } from '@ai-systems/shared-types';
 import { parseCombinedClaudeTranscript } from './claude-sdk/index.js';
 import { parseOpenCodeTranscriptFile } from './opencode/index.js';
 
@@ -88,14 +102,14 @@ import { parseOpenCodeTranscriptFile } from './opencode/index.js';
  *
  * @param architecture - The agent architecture type
  * @param rawTranscript - The raw transcript string
- * @returns Parsed blocks and subagent conversations
+ * @returns SessionConversationState with blocks, subagents, and streaming state
  */
 export function parseTranscript(
   architecture: AgentArchitecture,
   rawTranscript: string
-): ParsedTranscript {
+): SessionConversationState {
   if (!rawTranscript) {
-    return { blocks: [], subagents: [] };
+    return createInitialConversationState();
   }
 
   switch (architecture) {
@@ -104,6 +118,6 @@ export function parseTranscript(
     case 'opencode':
       return parseOpenCodeTranscriptFile(rawTranscript);
     default:
-      return { blocks: [], subagents: [] };
+      return createInitialConversationState();
   }
 }

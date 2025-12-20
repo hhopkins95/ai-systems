@@ -21,6 +21,7 @@
 import type {
   AgentArchitecture,
   AgentArchitectureSessionOptions,
+  AnySessionEvent,
   ConversationBlock,
   ExecutionEnvironmentError,
   ExecutionEnvironmentStatus,
@@ -29,7 +30,13 @@ import type {
   SessionRuntimeState,
   WorkspaceFile,
 } from '@ai-systems/shared-types';
-import { parseTranscript } from '@hhopkins/agent-converters';
+import {
+  parseTranscript,
+  reduceSessionEvent,
+  createInitialState,
+  isConversationEvent,
+  type SessionConversationState,
+} from '@hhopkins/agent-converters';
 import type { SessionEventBus } from './session-event-bus.js';
 
 // ============================================================================
@@ -93,8 +100,8 @@ export class SessionState {
   // -------------------------------------------------------------------------
   // Session data
   // -------------------------------------------------------------------------
-  private _blocks: ConversationBlock[] = [];
-  private _subagents: { id: string; blocks: ConversationBlock[] }[] = [];
+  /** Conversation state managed by shared reducer */
+  private _conversationState: SessionConversationState = createInitialState();
   private _workspaceFiles: WorkspaceFile[] = [];
   private _rawTranscript?: string;
   private _sessionOptions?: AgentArchitectureSessionOptions;
@@ -162,14 +169,18 @@ export class SessionState {
     // Parse transcript to derive blocks and subagents
     if (init.rawTranscript) {
       const parsed = parseTranscript(init.architecture, init.rawTranscript);
-      this._blocks = parsed.blocks;
-      this._subagents = parsed.subagents.map((sub) => ({
-        id: sub.id,
-        blocks: sub.blocks,
-      }));
+      this._conversationState = {
+        blocks: parsed.blocks,
+        subagents: parsed.subagents.map((sub) => ({
+          id: sub.id,
+          toolUseId: sub.id, // Use same ID for toolUseId
+          blocks: sub.blocks,
+          status: 'success' as const, // Transcripts are completed sessions
+        })),
+        streaming: { byConversation: new Map() },
+      };
     } else {
-      this._blocks = [];
-      this._subagents = [];
+      this._conversationState = createInitialState();
     }
 
     // Store event bus and subscribe to events
@@ -187,18 +198,25 @@ export class SessionState {
    * Subscribe to event bus for state updates
    */
   private subscribeToEvents(eventBus: SessionEventBus): void {
-    // Block events
-    eventBus.on('block:start', (event) => {
-      this.upsertBlock(event.payload.block);
-    });
+    // Use shared reducer for conversation events (blocks, subagents)
+    const conversationEventTypes = [
+      'block:start',
+      'block:complete',
+      'block:update',
+      'block:delta',
+      'subagent:spawned',
+      'subagent:completed',
+    ] as const;
 
-    eventBus.on('block:complete', (event) => {
-      this.upsertBlock(event.payload.block);
-    });
-
-    eventBus.on('block:update', (event) => {
-      this.updateBlock(event.payload.blockId, event.payload.updates);
-    });
+    for (const eventType of conversationEventTypes) {
+      // Type assertion needed because TypeScript can't narrow the union type in a loop
+      (eventBus as { on: (type: string, cb: (e: AnySessionEvent) => void) => void }).on(
+        eventType,
+        (event: AnySessionEvent) => {
+          this._conversationState = reduceSessionEvent(this._conversationState, event);
+        }
+      );
+    }
 
     // File events
     eventBus.on('file:created', (event) => {
@@ -305,11 +323,11 @@ export class SessionState {
   }
 
   get blocks(): ConversationBlock[] {
-    return this._blocks;
+    return this._conversationState.blocks;
   }
 
   get subagents(): { id: string; blocks: ConversationBlock[] }[] {
-    return this._subagents;
+    return this._conversationState.subagents;
   }
 
   get workspaceFiles(): WorkspaceFile[] {
@@ -362,14 +380,6 @@ export class SessionState {
 
   private setLastActivity(value: number): void {
     this._lastActivity = value;
-  }
-
-  private setBlocks(blocks: ConversationBlock[]): void {
-    this._blocks = blocks;
-  }
-
-  private setSubagents(subagents: { id: string; blocks: ConversationBlock[] }[]): void {
-    this._subagents = subagents;
   }
 
   private setWorkspaceFiles(files: WorkspaceFile[]): void {
@@ -439,29 +449,6 @@ export class SessionState {
     this._workspaceFiles = this._workspaceFiles.filter((f) => f.path !== path);
   }
 
-  /**
-   * Add or update a block
-   */
-  private upsertBlock(block: ConversationBlock): void {
-    const index = this._blocks.findIndex((b) => b.id === block.id);
-    if (index >= 0) {
-      this._blocks[index] = block;
-    } else {
-      this._blocks.push(block);
-    }
-  }
-
-  /**
-   * Update a block partially
-   */
-  private updateBlock(blockId: string, updates: Partial<ConversationBlock>): void {
-    const index = this._blocks.findIndex((b) => b.id === blockId);
-    if (index >= 0) {
-      // Type assertion is safe since we're spreading a complete block with partial updates
-      this._blocks[index] = { ...this._blocks[index], ...updates } as ConversationBlock;
-    }
-  }
-
   // =========================================================================
   // Public Query Methods
   // =========================================================================
@@ -494,8 +481,8 @@ export class SessionState {
       agentProfileId: this._agentProfileId,
       createdAt: this._createdAt,
       lastActivity: this._lastActivity,
-      blocks: [...this._blocks],
-      subagents: this._subagents.map((s) => ({
+      blocks: [...this._conversationState.blocks],
+      subagents: this._conversationState.subagents.map((s) => ({
         id: s.id,
         blocks: [...s.blocks],
       })),
@@ -579,12 +566,8 @@ export class SessionState {
       lastActivity: this._lastActivity,
       sessionOptions: this._sessionOptions,
       runtime: this.getRuntimeState(),
-      blocks: this._blocks,
+      conversationState: this._conversationState,
       workspaceFiles: this._workspaceFiles,
-      subagents: this._subagents.map((s) => ({
-        id: s.id,
-        blocks: s.blocks,
-      })),
     };
   }
 

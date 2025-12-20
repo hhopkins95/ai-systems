@@ -205,11 +205,14 @@ export function AgentServiceProvider({
           break;
 
         // Subagent Events
-        case 'subagent:discovered':
+        case 'subagent:spawned':
           dispatch({
-            type: 'SUBAGENT_DISCOVERED',
+            type: 'SUBAGENT_SPAWNED',
             sessionId,
-            subagent: payload.subagent,
+            toolUseId: payload.toolUseId,
+            prompt: payload.prompt,
+            subagentType: payload.subagentType,
+            description: payload.description,
           });
           break;
 
@@ -217,8 +220,11 @@ export function AgentServiceProvider({
           dispatch({
             type: 'SUBAGENT_COMPLETED',
             sessionId,
-            subagentId: payload.subagentId,
+            toolUseId: payload.toolUseId,
+            agentId: payload.agentId,
             status: payload.status,
+            output: payload.output,
+            durationMs: payload.durationMs,
           });
           break;
 

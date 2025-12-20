@@ -12,10 +12,16 @@
  */
 
 import type { SDKMessage } from '@anthropic-ai/claude-agent-sdk';
-import type { CombinedClaudeTranscript, ParsedTranscript } from '@ai-systems/shared-types';
+import type {
+  CombinedClaudeTranscript,
+  SessionConversationState,
+  AnySessionEvent,
+} from '@ai-systems/shared-types';
+import { createInitialConversationState } from '@ai-systems/shared-types';
 import { noopLogger } from '../utils.js';
 import type { ParseTranscriptOptions } from '../types.js';
-import { convertMessagesToBlocks } from './block-converter.js';
+import { sdkMessageToEvents } from './block-converter.js';
+import { reduceSessionEvent } from '../session-state/reducer.js';
 
 /**
  * Parse JSONL transcript file content into array of SDK messages
@@ -51,114 +57,97 @@ export function parseClaudeTranscriptFile(
   return messages;
 }
 
-/**
- * Extract subagent ID from filename
- *
- * Examples:
- * - "agent-abc123.jsonl" → "agent-abc123"
- * - "abc123.jsonl" → null (main transcript)
- *
- * @param filename - Transcript filename
- * @returns Subagent ID or null if main transcript
- */
-export function extractSubagentId(filename: string): string | null {
-  const basename = filename.replace('.jsonl', '');
-
-  // Check if it starts with agent-
-  if (basename.startsWith('agent-')) {
-    return basename;
-  }
-
-  return null;
-}
-
-/**
- * Detect subagent status from transcript messages
- *
- * A subagent is considered:
- * - active: Has messages but no final result
- * - completed: Has a result message
- * - failed: Currently not detected from transcript (errors are handled separately)
- *
- * @param messages - Subagent transcript messages
- * @returns Subagent status
- */
-export function detectSubagentStatus(
-  messages: SDKMessage[]
-): 'active' | 'completed' | 'failed' {
-  if (messages.length === 0) {
-    return 'active';
-  }
-
-  // Check last few messages for result
-  const lastMessages = messages.slice(-5);
-
-  for (const msg of lastMessages.reverse()) {
-    if (msg.type === 'result') {
-      return 'completed';
-    }
-  }
-
-  return 'active';
-}
-
 // =============================================================================
 // Combined Transcript Format
 // =============================================================================
 
 /**
- * Alias for backward compatibility
- * @deprecated Use ParsedTranscript from @ai-systems/shared-types
+ * Convert SDK messages to session events with the given conversation ID
  */
-export type ParsedCombinedTranscript = ParsedTranscript;
+function messagesToEvents(
+  messages: SDKMessage[],
+  conversationId: string,
+  options: ParseTranscriptOptions = {}
+): AnySessionEvent[] {
+  const events: AnySessionEvent[] = [];
+
+  for (const msg of messages) {
+    const msgEvents = sdkMessageToEvents(msg, options);
+    // Set the conversationId on each event's context
+    for (const event of msgEvents) {
+      if (event.context) {
+        event.context.conversationId = conversationId;
+      }
+      events.push(event);
+    }
+  }
+
+  return events;
+}
 
 /**
- * Parse a combined Claude transcript (JSON wrapper format) into conversation blocks.
+ * Parse a combined Claude transcript (JSON wrapper format) into SessionConversationState.
  *
  * The combined format bundles the main transcript and all subagent transcripts
  * into a single JSON object for easier storage and transport.
  *
+ * Uses the shared reducer to build state from events, ensuring consistency
+ * with streaming state updates.
+ *
  * @param combinedTranscript - JSON string of the combined transcript
  * @param options - Optional configuration including logger
- * @returns Parsed blocks and subagent conversations
+ * @returns SessionConversationState with blocks, subagents, and streaming state
  */
 export function parseCombinedClaudeTranscript(
   combinedTranscript: string,
   options: ParseTranscriptOptions = {}
-): ParsedCombinedTranscript {
+): SessionConversationState {
   const logger = options.logger ?? noopLogger;
 
   if (!combinedTranscript) {
-    return { blocks: [], subagents: [] };
+    return createInitialConversationState();
   }
 
   try {
     const combined: CombinedClaudeTranscript = JSON.parse(combinedTranscript);
 
-    const mainBlocks = convertMessagesToBlocks(
-      parseClaudeTranscriptFile(combined.main, options)
-    );
+    // Start with initial state
+    let state = createInitialConversationState();
 
-    const subagentBlocks = combined.subagents
-      .map((raw) => ({
-        id: raw.id,
-        blocks: convertMessagesToBlocks(
-          parseClaudeTranscriptFile(raw.transcript, options)
-        ),
-      }))
-      // Filter out default random subagents that Claude creates on startup
-      .filter((subagent) => subagent.blocks.length > 1);
+    // Convert main transcript messages to events and reduce
+    const mainMessages = parseClaudeTranscriptFile(combined.main, options);
+    const mainEvents = messagesToEvents(mainMessages, 'main', options);
 
-    return {
-      blocks: mainBlocks,
-      subagents: subagentBlocks,
-    };
+    for (const event of mainEvents) {
+      state = reduceSessionEvent(state, event);
+    }
+
+    // Process each subagent transcript
+    // Subagent entries are created by subagent:spawned events from the main transcript
+    for (const rawSubagent of combined.subagents) {
+      const subagentMessages = parseClaudeTranscriptFile(rawSubagent.transcript, options);
+
+      // Skip empty subagents (Claude creates some on startup)
+      if (subagentMessages.length <= 1) {
+        continue;
+      }
+
+      // Convert subagent messages to events and reduce
+      // Events are routed to the correct subagent by conversationId
+      const subagentEvents = messagesToEvents(subagentMessages, rawSubagent.id, options);
+
+      for (const event of subagentEvents) {
+        state = reduceSessionEvent(state, event);
+      }
+    }
+
+    return state;
   } catch (error) {
-    // If parsing fails, log and return empty
+    // If parsing fails, log and return empty state
     logger.warn(
       { error },
       'Failed to parse as CombinedClaudeTranscript'
     );
-    return { blocks: [], subagents: [] };
+    return createInitialConversationState();
   }
 }

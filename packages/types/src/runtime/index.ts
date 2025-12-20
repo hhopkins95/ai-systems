@@ -17,3 +17,6 @@ export * from './session-events.js';
 
 // Session types
 export * from './session.js';
+
+// Conversation state (for shared reducer)
+export * from './conversation-state.js';

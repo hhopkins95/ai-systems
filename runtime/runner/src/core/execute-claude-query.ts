@@ -4,8 +4,8 @@
  * Pure async generator that yields SessionEvents from Claude SDK responses.
  */
 
-import { query, Options } from '@anthropic-ai/claude-agent-sdk';
-import { parseStreamEvent } from '@hhopkins/agent-converters/claude-sdk';
+import { query, Options, HookCallback, PreToolUseHookInput } from '@anthropic-ai/claude-agent-sdk';
+import { sdkMessageToEvents } from '@hhopkins/agent-converters/claude-sdk';
 import type { AnySessionEvent, UserMessageBlock, McpServerConfig } from '@ai-systems/shared-types';
 import { ClaudeEntityManager } from '@hhopkins/claude-entity-manager';
 import { findClaudeExecutable } from '../clients/claude.js';
@@ -18,6 +18,7 @@ import {
 import type { ExecuteQueryArgs } from '../types.js';
 import { getWorkspacePaths } from '../helpers/get-workspace-paths.js';
 import fs from 'fs';
+import path from 'path';
 
 /**
  * Check if a Claude SDK session transcript exists.
@@ -88,18 +89,75 @@ export async function* executeClaudeQuery(
     names: Object.keys(mcpServers),
   });
 
+  const allowedTools = ['Read', 'Write', 'Edit', 'Glob', 'Grep', 'Skill', 'Task', 'WebFetch'];
+
+  // Hook to block file access outside workspace directory
+  const blockParentDirectoryAccess: HookCallback = async (hookInput) => {
+    if (hookInput.hook_event_name !== 'PreToolUse') return {};
+
+    const preInput = hookInput as PreToolUseHookInput;
+    const toolInput = preInput.tool_input as Record<string, unknown> | undefined;
+
+    // Extract file path from input (different tools use different field names)
+    const filePath = (toolInput?.file_path || toolInput?.notebook_path || toolInput?.path) as string | undefined;
+
+    if (filePath) {
+      const absolutePath = path.resolve(paths.workspaceDir, filePath);
+      const workspaceAbsolute = path.resolve(paths.workspaceDir);
+
+      if (!absolutePath.startsWith(workspaceAbsolute)) {
+        return {
+          hookSpecificOutput: {
+            hookEventName: 'PreToolUse',
+            permissionDecision: 'deny',
+            permissionDecisionReason: `Access outside workspace directory is not allowed: ${filePath}`,
+          },
+        };
+      }
+    }
+
+    return {};
+  };
+
+  // Hook to auto-approve all MCP server tools
+  const autoApproveMcpTools: HookCallback = async (hookInput) => {
+    if (hookInput.hook_event_name !== 'PreToolUse') return {};
+
+    return {
+      hookSpecificOutput: {
+        hookEventName: 'PreToolUse',
+        permissionDecision: 'allow',
+        permissionDecisionReason: 'MCP tool auto-approved',
+      },
+    };
+  };
+
+
   const options: Options = {
     pathToClaudeCodeExecutable: claudeCodePath,
     cwd: paths.workspaceDir,
     settingSources: ['project', 'user'],
     includePartialMessages: true,
     maxBudgetUsd: 5.0,
-    permissionMode: 'bypassPermissions',
-    allowDangerouslySkipPermissions: true,
-    allowedTools: input.tools
-      ? [...input.tools, 'Skill']
-      : ['Skill'],
+    permissionMode: 'acceptEdits',
+    // model: "claude-haiku-4-5",
+    allowedTools: allowedTools,
     mcpServers: mcpServers as Options['mcpServers'],
+    systemPrompt: 'You are a helpful assistant that can use the following tools to help the user: ' + allowedTools.join(', '),
+    hooks: {
+      PreToolUse: [
+        // Restrict file access to workspace directory only
+        {
+          matcher: 'Read|Write|Edit|Glob|Grep|NotebookEdit',
+          hooks: [blockParentDirectoryAccess],
+        },
+        // Auto-approve all MCP server tools
+        {
+          matcher: '^mcp__',
+          hooks: [autoApproveMcpTools],
+        },
+      ],
+    },
   };
 
   const needsCreation = !(await claudeSessionExists(input.sessionId));
@@ -118,8 +176,18 @@ export async function* executeClaudeQuery(
 
   try {
     for await (const sdkMessage of generator) {
+
+      yield {type : "log", payload : { 
+        message : "RAW SDK MESSAGE",
+        data : sdkMessage,
+      }, context : {
+        timestamp : new Date().toISOString(),
+        sessionId : input.sessionId,
+        source : "runner",
+      }}
+
       // Convert SDK message to SessionEvents using converter
-      const sessionEvents = parseStreamEvent(sdkMessage);
+      const sessionEvents = sdkMessageToEvents(sdkMessage);
       for (const sessionEvent of sessionEvents) {
         yield sessionEvent;
       }

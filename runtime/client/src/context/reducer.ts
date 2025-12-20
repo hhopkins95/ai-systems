@@ -177,15 +177,21 @@ export type AgentServiceAction =
 
   // Subagent Events
   | {
-      type: 'SUBAGENT_DISCOVERED';
+      type: 'SUBAGENT_SPAWNED';
       sessionId: string;
-      subagent: { id: string; blocks: ConversationBlock[] };
+      toolUseId: string;
+      prompt: string;
+      subagentType?: string;
+      description?: string;
     }
   | {
       type: 'SUBAGENT_COMPLETED';
       sessionId: string;
-      subagentId: string;
+      toolUseId: string;
+      agentId?: string;
       status: 'completed' | 'failed';
+      output?: string;
+      durationMs?: number;
     }
 
   // File Events
@@ -294,23 +300,25 @@ export function agentServiceReducer(
 
     case 'SESSION_LOADED': {
       const sessions = new Map(state.sessions);
+      const { conversationState } = action.data;
 
       // Convert subagents array to Map
+      // Map from shared SubagentState to client SubagentState (which has metadata)
       const subagentsMap = new Map<string, SubagentState>(
-        action.data.subagents.map((sub) => [
+        conversationState.subagents.map((sub) => [
           sub.id,
           {
             id: sub.id,
             blocks: sub.blocks,
+            status: sub.status === 'success' ? 'completed' : sub.status === 'error' ? 'failed' : 'running',
             metadata: {},
-            status: 'running' as const,
           },
         ])
       );
 
       sessions.set(action.sessionId, {
         info: action.data,
-        blocks: action.data.blocks,
+        blocks: conversationState.blocks,
         streaming: new Map(),
         metadata: {},
         files: action.data.workspaceFiles,
@@ -575,22 +583,35 @@ export function agentServiceReducer(
       return { ...state, sessions };
     }
 
-    case 'SUBAGENT_DISCOVERED': {
+    case 'SUBAGENT_SPAWNED': {
       const sessions = new Map(state.sessions);
       const session = sessions.get(action.sessionId);
 
       if (!session) return state;
 
+      // Create SubagentBlock in main conversation
+      const subagentBlock: ConversationBlock = {
+        id: `subagent-block-${action.toolUseId}`,
+        type: 'subagent',
+        timestamp: new Date().toISOString(),
+        toolUseId: action.toolUseId,
+        name: action.subagentType,
+        input: action.prompt,
+        status: 'running',
+      } as ConversationBlock;
+
+      // Create subagent entry
       const newSubagents = new Map(session.subagents);
-      newSubagents.set(action.subagent.id, {
-        id: action.subagent.id,
-        blocks: action.subagent.blocks,
+      newSubagents.set(action.toolUseId, {
+        id: action.toolUseId,
+        blocks: [],
         metadata: {},
         status: 'running',
       });
 
       sessions.set(action.sessionId, {
         ...session,
+        blocks: [...session.blocks, subagentBlock],
         subagents: newSubagents,
       });
 
@@ -603,19 +624,35 @@ export function agentServiceReducer(
 
       if (!session) return state;
 
-      const subagent = session.subagents.get(action.subagentId);
-      if (subagent) {
-        const newSubagents = new Map(session.subagents);
-        newSubagents.set(action.subagentId, {
-          ...subagent,
-          status: action.status,
-        });
+      // Update SubagentBlock in main conversation
+      const newBlocks = session.blocks.map((block) => {
+        if (block.type === 'subagent' && (block as any).toolUseId === action.toolUseId) {
+          return {
+            ...block,
+            subagentId: action.agentId ? `agent-${action.agentId}` : undefined,
+            status: action.status === 'completed' ? 'success' : 'error',
+            output: action.output,
+            durationMs: action.durationMs,
+          } as ConversationBlock;
+        }
+        return block;
+      });
 
-        sessions.set(action.sessionId, {
-          ...session,
-          subagents: newSubagents,
+      // Update subagent entry
+      const subagent = session.subagents.get(action.toolUseId);
+      const newSubagents = new Map(session.subagents);
+      if (subagent) {
+        newSubagents.set(action.toolUseId, {
+          ...subagent,
+          status: action.status === 'completed' ? 'completed' : 'failed',
         });
       }
+
+      sessions.set(action.sessionId, {
+        ...session,
+        blocks: newBlocks,
+        subagents: newSubagents,
+      });
 
       return { ...state, sessions };
     }

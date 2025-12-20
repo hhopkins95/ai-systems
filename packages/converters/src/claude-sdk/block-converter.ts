@@ -1,16 +1,15 @@
 /**
- * Block Converter - Convert Claude SDK messages to ConversationBlocks
+ * Claude SDK Event Converter
  *
- * Transforms SDK messages (from JSONL transcripts or streaming) into
- * architecture-agnostic ConversationBlock structures.
+ * Converts SDK messages (from streaming or transcripts) to SessionEvents.
+ * Events are then processed by the shared reducer to build conversation state.
+ *
+ * Main entry point: sdkMessageToEvents()
  */
 
 import type { SDKMessage } from '@anthropic-ai/claude-agent-sdk';
 import type {
   ConversationBlock,
-  SubagentBlock,
-  ToolResultBlock,
-  ToolUseBlock,
   SkillLoadBlock,
   AnySessionEvent,
 } from '@ai-systems/shared-types';
@@ -119,23 +118,6 @@ function createSkillLoadBlock(content: string): SkillLoadBlock {
 }
 
 /**
- * Convert multiple SDK messages to ConversationBlocks
- */
-export function convertMessagesToBlocks(
-  messages: SDKMessage[],
-  options: ConvertOptions = {}
-): ConversationBlock[] {
-  const blocks: ConversationBlock[] = [];
-
-  for (const msg of messages) {
-    const convertedBlocks = sdkMessageToBlocks(msg, options);
-    blocks.push(...convertedBlocks);
-  }
-
-  return blocks;
-}
-
-/**
  * Get a human-readable log message for a system message
  */
 function getSystemLogMessage(msg: Extract<SDKMessage, { type: 'system' }>): string {
@@ -154,12 +136,20 @@ function getSystemLogMessage(msg: Extract<SDKMessage, { type: 'system' }>): stri
 }
 
 /**
- * Parse a stream event from SDK and convert to SessionEvents
+ * Convert an SDK message to SessionEvents.
+ *
+ * This is the main entry point for converting Claude SDK messages to events.
+ * Works for both streaming events and finalized transcript messages.
+ *
+ * @param message - SDK message (from stream or transcript)
+ * @param options - Optional configuration including logger
+ * @returns Array of session events to be processed by the reducer
  */
-export function parseStreamEvent(
-  event: SDKMessage,
+export function sdkMessageToEvents(
+  message: SDKMessage,
   options: ConvertOptions = {}
 ): AnySessionEvent[] {
+  const event = message; // Alias for compatibility with existing code
   const logger = options.logger ?? noopLogger;
 
   // Handle system error messages from SDK executor
@@ -169,11 +159,12 @@ export function parseStreamEvent(
   }
 
   // Determine which conversation this belongs to
-  // Check parent_tool_use_id on all event types, not just stream_event
-  const conversationId: 'main' | string =
-    (event as any).parent_tool_use_id
-      ? (event as any).parent_tool_use_id
-      : 'main';
+  // Check parent_tool_use_id in multiple locations:
+  // 1. On the outer event wrapper (for result/system events)
+  // 2. On the inner event.event (for stream_event types from subagents)
+  const outerParentId = (event as any).parent_tool_use_id;
+  const innerParentId = event.type === 'stream_event' ? (event as any).event?.parent_tool_use_id : undefined;
+  const conversationId: 'main' | string = outerParentId || innerParentId || 'main';
 
   // Handle streaming events (SDKPartialAssistantMessage)
   if (event.type === 'stream_event') {
@@ -282,9 +273,37 @@ export function parseStreamEvent(
     ];
   }
 
+  // EARLY INTERCEPT: Task tool completion
+  // When Task tool_result arrives, emit subagent:completed instead of creating SubagentBlock
+  // The reducer will update the existing SubagentBlock created on subagent:spawned
+  if (event.type === 'user') {
+    const toolUseResult = (event as any).tool_use_result;
+    if (toolUseResult?.agentId) {
+      // This is a Task completion - emit subagent:completed
+      const content = (event as any).message?.content;
+      const toolResultBlock = Array.isArray(content)
+        ? content.find((b: any) => b.type === 'tool_result')
+        : null;
+
+      return [
+        createSessionEvent(
+          'subagent:completed',
+          {
+            toolUseId: toolResultBlock?.tool_use_id,
+            agentId: toolUseResult.agentId,
+            status: toolUseResult.status === 'completed' ? 'completed' : 'failed',
+            output: extractTextFromToolResultContent(toolUseResult.content),
+            durationMs: toolUseResult.totalDurationMs,
+          },
+          { conversationId: 'main', source: 'runner' }
+        ),
+      ];
+    }
+  }
+
   // For other message types (user, assistant, etc.)
   // Convert to blocks and emit block_complete events
-  const blocks = sdkMessageToBlocks(event, options);
+  const blocks = messageToBlocks(event, options);
   return blocks.map((block) =>
     createSessionEvent(
       'block:complete',
@@ -296,12 +315,13 @@ export function parseStreamEvent(
 
 /**
  * Convert an SDK message to ConversationBlocks
+ * @internal Used by sdkMessageToEvents for block:complete events
  *
  * @param msg - SDK message from transcript or stream
  * @param options - Optional configuration including logger
  * @returns Array of ConversationBlocks
  */
-export function sdkMessageToBlocks(
+function messageToBlocks(
   msg: SDKMessage,
   options: ConvertOptions = {}
 ): ConversationBlock[] {
@@ -317,12 +337,12 @@ export function sdkMessageToBlocks(
 
       case 'system':
         // System messages are operational logs, not conversation content
-        // During streaming: parseStreamEvent() converts them to LogEvent
+        // During streaming: sdkMessageToEvents() converts them to LogEvent
         // During transcript load: skip them (were already logged originally)
         return [];
 
       case 'result':
-        // Result messages are handled as LogEvent in parseStreamEvent
+        // Result messages are handled as LogEvent in sdkMessageToEvents
         // During transcript load: skip them
         return [];
 
@@ -331,12 +351,12 @@ export function sdkMessageToBlocks(
         return [];
 
       case 'auth_status':
-        // Auth status is handled as LogEvent in parseStreamEvent
+        // Auth status is handled as LogEvent in sdkMessageToEvents
         // During transcript load: skip them
         return [];
 
       case 'stream_event':
-        // Streaming events are handled by parseStreamEvent, not here
+        // Streaming events are handled by sdkMessageToEvents, not here
         // This is for parsing stored transcripts
         return [];
 
@@ -357,17 +377,6 @@ export function sdkMessageToBlocks(
 }
 
 /**
- * Convert multiple SDK messages to ConversationBlocks
- * Alias for convertMessagesToBlocks for backward compatibility
- */
-export function sdkMessagesToBlocks(
-  messages: SDKMessage[],
-  options: ConvertOptions = {}
-): ConversationBlock[] {
-  return convertMessagesToBlocks(messages, options);
-}
-
-/**
  * Convert SDK user message to blocks
  *
  * Handles two cases:
@@ -384,7 +393,8 @@ function convertUserMessage(msg: Extract<SDKMessage, { type: 'user' }>): Convers
     for (const block of content) {
       if ((block as any).type === 'tool_result') {
         const toolResultBlock = block as any;
-        const toolUseResult = (msg as any).toolUseResult;
+        // SDK uses snake_case: tool_use_result
+        const toolUseResult = (msg as any).tool_use_result;
 
         if (toolUseResult?.agentId) {
           // Task tool result → SubagentBlock
@@ -557,16 +567,17 @@ function parseRawStreamEvent(rawEvent: any, conversationId: 'main' | string): An
       } else if (block.type === 'tool_use') {
         const events: AnySessionEvent[] = [];
 
-        // If this is a Task tool, emit subagent:discovered first
-        // This ensures the subagent entry exists before its blocks arrive
+        // If this is a Task tool, emit subagent:spawned first
+        // This creates the SubagentBlock and subagent entry before its blocks arrive
         if (block.name === 'Task') {
+          const prompt = block.input?.prompt;
           events.push(createSessionEvent(
-            'subagent:discovered',
+            'subagent:spawned',
             {
-              subagent: {
-                id: block.id, // Use toolUseId as subagent ID
-                blocks: [],
-              },
+              toolUseId: block.id,
+              prompt: typeof prompt === 'string' ? prompt : '',
+              subagentType: block.input?.subagent_type as string | undefined,
+              description: block.input?.description as string | undefined,
             },
             { conversationId: 'main', source: 'runner' }
           ));
@@ -574,7 +585,6 @@ function parseRawStreamEvent(rawEvent: any, conversationId: 'main' | string): An
           // Register the Task prompt for filtering
           // The prompt will be sent as a user message to the subagent,
           // and we need to filter it out from the main conversation
-          const prompt = block.input?.prompt;
           if (typeof prompt === 'string') {
             registerTaskPrompt(block.id, prompt);
           }
@@ -686,60 +696,3 @@ function parseRawStreamEvent(rawEvent: any, conversationId: 'main' | string): An
   }
 }
 
-/**
- * Extract tool results from user messages
- *
- * In the SDK, tool results come back as synthetic user messages
- * with tool_result content blocks
- */
-export function extractToolResultBlocks(msg: Extract<SDKMessage, { type: 'user' }>): ToolResultBlock[] {
-  const blocks: ToolResultBlock[] = [];
-
-  // Check if this is a synthetic message (tool results)
-  if (!msg.isSynthetic) {
-    return blocks;
-  }
-
-  // APIUserMessage content can contain tool_result blocks
-  const content = msg.message.content;
-  if (!Array.isArray(content)) {
-    return blocks;
-  }
-
-  for (const block of content) {
-    if (block.type === 'tool_result') {
-      blocks.push({
-        type: 'tool_result',
-        id: generateId(),
-        timestamp: new Date().toISOString(),
-        toolUseId: block.tool_use_id,
-        output: block.content,
-        isError: block.is_error || false,
-      });
-    }
-  }
-
-  return blocks;
-}
-
-/**
- * Detect if a tool use spawned a subagent (Task tool)
- *
- * When the Task tool is used, it spawns a subagent. We need to create
- * a SubagentBlock to represent this in the main conversation.
- */
-export function createSubagentBlockFromToolUse(
-  toolUseBlock: ToolUseBlock,
-  subagentId: string
-): SubagentBlock {
-  return {
-    type: 'subagent',
-    id: generateId(),
-    timestamp: new Date().toISOString(),
-    subagentId,
-    name: toolUseBlock.input.subagent_type as string | undefined,
-    input: toolUseBlock.input.prompt as string,
-    status: 'pending',
-    toolUseId: toolUseBlock.toolUseId,
-  };
-}
