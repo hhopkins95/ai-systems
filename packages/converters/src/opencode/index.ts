@@ -15,8 +15,25 @@ export {
   type OpenCodeSessionTranscript,
 } from './transcript-parser.js';
 
-// Stream event conversion
+// Stream event conversion (primary API)
 export {
   createStreamEventParser,
+  opencodeEventToSessionEvents,
+} from './block-converter.js';
+
+// Deprecated exports for backward compatibility
+export {
   parseOpencodeStreamEvent,
 } from './block-converter.js';
+
+// Shared helpers (for advanced use cases)
+export {
+  mapToolStatus,
+  getPartTimestamp,
+  isTaskTool,
+  extractSubagentBlock,
+  extractSubagentFromTaskTool,
+  partToBlocks,
+  partToEvents,
+  taskToolToEvents,
+} from './shared-helpers.js';

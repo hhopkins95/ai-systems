@@ -1,0 +1,216 @@
+{
+  "streaming": {
+    "mainBlockCount": 23,
+    "mainBlockTypes": {
+      "assistant_text": 7,
+      "thinking": 6,
+      "tool_use": 5,
+      "subagent": 2,
+      "tool_result": 3
+    },
+    "mainBlockList": [
+      {
+        "id": "prt_b38d16ed7002QbauvMxnhGxj22",
+        "type": "assistant_text"
+      },
+      {
+        "id": "prt_b38d17f2a001PnH57w4Pb8OFhn",
+        "type": "thinking"
+      },
+      {
+        "id": "prt_b38d17f2b001cbAlnwoD0Ft0mP",
+        "type": "assistant_text"
+      },
+      {
+        "id": "prt_b38d1849b001E0gRhyvlG4dVs9",
+        "type": "tool_use"
+      },
+      {
+        "id": "subagent-block-call_499d379c3296400fbf595aaa",
+        "type": "subagent"
+      },
+      {
+        "id": "prt_b38d1a8b9001wUAH7iKVxaMu22",
+        "type": "thinking"
+      },
+      {
+        "id": "prt_b38d1ad4d0013bBXTp4H59oX4T",
+        "type": "assistant_text"
+      },
+      {
+        "id": "prt_b38d1c9f7001PzQjrVPHTb6B1y",
+        "type": "tool_use"
+      },
+      {
+        "id": "subagent-block-call_89ae295e49a949b8b67a3637",
+        "type": "subagent"
+      },
+      {
+        "id": "prt_b38d21332002NuJx7nZZwwyDcS",
+        "type": "thinking"
+      },
+      {
+        "id": "prt_b38d21363001xiWysPWgU4iyDL",
+        "type": "assistant_text"
+      },
+      {
+        "id": "prt_b38d21636001yCT0JLnrHAwzyO",
+        "type": "tool_use"
+      },
+      {
+        "id": "block_1766193780938_w5q5i1h",
+        "type": "tool_result"
+      },
+      {
+        "id": "prt_b38d22174001vq5Yq9QC6kfnJ6",
+        "type": "thinking"
+      },
+      {
+        "id": "prt_b38d22174002TH3A4SpWKVFLWe",
+        "type": "assistant_text"
+      },
+      {
+        "id": "prt_b38d222b1001Kts663XVMSRq40",
+        "type": "tool_use"
+      },
+      {
+        "id": "block_1766193780938_cx2oqkk",
+        "type": "tool_result"
+      },
+      {
+        "id": "prt_b38d28119001jYr11XsZHA43Ai",
+        "type": "thinking"
+      },
+      {
+        "id": "prt_b38d2812d001jvnS7aRdZYN1Hv",
+        "type": "assistant_text"
+      },
+      {
+        "id": "prt_b38d2835f001kP2BlyOwK9jw7h",
+        "type": "tool_use"
+      },
+      {
+        "id": "block_1766193780938_ef3xd7c",
+        "type": "tool_result"
+      },
+      {
+        "id": "prt_b38d291d5001O8Gq2gbUhQGrLi",
+        "type": "thinking"
+      },
+      {
+        "id": "prt_b38d2ad92001OIhp4u7kubJNzz",
+        "type": "assistant_text"
+      }
+    ],
+    "subagentCount": 4,
+    "subagents": [
+      {
+        "id": "ses_4c72e7b62ffeN60u5X8Jv0Rck7",
+        "blockCount": 7,
+        "blockTypes": {
+          "assistant_text": 3,
+          "thinking": 2,
+          "tool_use": 1,
+          "tool_result": 1
+        }
+      },
+      {
+        "id": "call_499d379c3296400fbf595aaa",
+        "blockCount": 0,
+        "blockTypes": {}
+      },
+      {
+        "id": "ses_4c72e3604ffefkLKmFGZXMq2KD",
+        "blockCount": 15,
+        "blockTypes": {
+          "assistant_text": 5,
+          "thinking": 4,
+          "tool_use": 3,
+          "tool_result": 3
+        }
+      },
+      {
+        "id": "call_89ae295e49a949b8b67a3637",
+        "blockCount": 0,
+        "blockTypes": {}
+      }
+    ]
+  },
+  "transcript": {
+    "mainBlockCount": 13,
+    "mainBlockTypes": {
+      "user_message": 1,
+      "assistant_text": 4,
+      "subagent": 2,
+      "tool_use": 3,
+      "tool_result": 3
+    },
+    "mainBlockList": [
+      {
+        "id": "msg_b38d16ed7001NqDKnVK90yFslb",
+        "type": "user_message"
+      },
+      {
+        "id": "prt_b38d17f2b001cbAlnwoD0Ft0mP",
+        "type": "assistant_text"
+      },
+      {
+        "id": "subagent-block-call_499d379c3296400fbf595aaa",
+        "type": "subagent"
+      },
+      {
+        "id": "prt_b38d1ad4d0013bBXTp4H59oX4T",
+        "type": "assistant_text"
+      },
+      {
+        "id": "subagent-block-call_89ae295e49a949b8b67a3637",
+        "type": "subagent"
+      },
+      {
+        "id": "prt_b38d21363001xiWysPWgU4iyDL",
+        "type": "assistant_text"
+      },
+      {
+        "id": "prt_b38d21636001yCT0JLnrHAwzyO",
+        "type": "tool_use"
+      },
+      {
+        "id": "block_1766193780939_79apcv2",
+        "type": "tool_result"
+      },
+      {
+        "id": "prt_b38d222b1001Kts663XVMSRq40",
+        "type": "tool_use"
+      },
+      {
+        "id": "block_1766193780939_cprkqp6",
+        "type": "tool_result"
+      },
+      {
+        "id": "prt_b38d2835f001kP2BlyOwK9jw7h",
+        "type": "tool_use"
+      },
+      {
+        "id": "block_1766193780939_a04ln8q",
+        "type": "tool_result"
+      },
+      {
+        "id": "prt_b38d2ad92001OIhp4u7kubJNzz",
+        "type": "assistant_text"
+      }
+    ],
+    "subagentCount": 2,
+    "subagents": [
+      {
+        "id": "call_499d379c3296400fbf595aaa",
+        "blockCount": 0,
+        "blockTypes": {}
+      },
+      {
+        "id": "call_89ae295e49a949b8b67a3637",
+        "blockCount": 0,
+        "blockTypes": {}
+      }
+    ]
+  }
+}
