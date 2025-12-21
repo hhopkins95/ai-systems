@@ -412,6 +412,75 @@ function handleSessionIdle(state, conversationId): State {
 | Completion before spawn | Defensive create subagent on completion |
 | Linear scan performance | Acceptable for typical conversation sizes; add indexing if needed |
 
+## Transcript Loading
+
+Conversation state can be built from two sources:
+
+### Streaming (Real-time)
+
+During active queries, events arrive incrementally:
+
+```
+block:upsert (status: pending) → block:delta × N → block:upsert (status: complete)
+```
+
+The reducer accumulates deltas and finalizes blocks as events arrive.
+
+### Transcript Loading (Persistence)
+
+When restoring saved sessions, transcripts are parsed into events:
+
+```
+┌─────────────────────────────────────────────────────────────────┐
+│                      TRANSCRIPT LOADING                         │
+│                                                                 │
+│   Disk (JSONL/JSON)                                             │
+│         │                                                       │
+│         ▼                                                       │
+│   parseTranscript(architecture, rawTranscript)                  │
+│         │                                                       │
+│         ├── Claude SDK: parseCombinedClaudeTranscript()         │
+│         │   • Parses JSONL lines into SDKMessage[]              │
+│         │   • Converts each message to SessionEvent[]           │
+│         │                                                       │
+│         └── OpenCode: parseOpenCodeTranscriptFile()             │
+│             • Parses JSON into OpenCodeSessionTranscript        │
+│             • Extracts messages and parts to SessionEvent[]     │
+│         │                                                       │
+│         ▼                                                       │
+│   SessionEvent[] (all block:upsert with status: complete)       │
+│         │                                                       │
+│         ▼                                                       │
+│   reduceSessionEvent() × N  (same reducer as streaming)         │
+│         │                                                       │
+│         ▼                                                       │
+│   SessionConversationState                                      │
+└─────────────────────────────────────────────────────────────────┘
+```
+
+**Key difference:** Transcript loading emits `block:upsert` events with `status: complete` directly — no deltas, no pending state. Blocks are already finalized in the transcript.
+
+### Parity Guarantee
+
+Both paths use the **same reducer**, ensuring:
+
+- Identical state structure from streaming or transcript
+- Consistent block ordering and subagent handling
+- Testable with event replay
+
+```typescript
+import { parseTranscript } from '@hhopkins/agent-converters';
+
+// Load from transcript
+const state = parseTranscript('claude-sdk', rawTranscriptString);
+
+// Equivalent to streaming all events through reducer
+let state = createInitialConversationState();
+for (const event of transcriptEvents) {
+  state = reduceSessionEvent(state, event);
+}
+```
+
 ## Usage
 
 ### Basic Usage
