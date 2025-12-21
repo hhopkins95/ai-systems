@@ -10,7 +10,7 @@ import type { Part } from "@opencode-ai/sdk";
 import type {
   ConversationBlock,
   SubagentBlock,
-  ToolExecutionStatus,
+  BlockLifecycleStatus,
   AnySessionEvent,
 } from '@ai-systems/shared-types';
 import { createSessionEvent } from '@ai-systems/shared-types';
@@ -21,18 +21,18 @@ import { generateId, toISOTimestamp, noopLogger, type Logger } from '../utils.js
 // ============================================================================
 
 /**
- * Map OpenCode tool status to ToolExecutionStatus
+ * Map OpenCode tool/part status to BlockLifecycleStatus.
+ * BlockLifecycleStatus tracks whether block data is finalized, not execution result.
+ * - pending/running → 'pending' (still being built)
+ * - completed/error → 'complete' (finalized, execution result in ToolResultBlock)
  */
-export function mapToolStatus(status: string): ToolExecutionStatus {
+export function mapToBlockStatus(status: string): BlockLifecycleStatus {
   switch (status) {
-    case 'pending':
-      return 'pending';
-    case 'running':
-      return 'running';
     case 'completed':
-      return 'success';
     case 'error':
-      return 'error';
+      return 'complete';
+    case 'pending':
+    case 'running':
     default:
       return 'pending';
   }
@@ -104,8 +104,9 @@ export function convertReasoningPart(part: Part & { type: 'reasoning' }): Conver
 export function convertToolPart(part: Part & { type: 'tool' }): ConversationBlock[] {
   const blocks: ConversationBlock[] = [];
   const state = part.state as any;
+  const isComplete = state.status === 'completed' || state.status === 'error';
 
-  // Create ToolUseBlock
+  // Create ToolUseBlock with lifecycle status
   blocks.push({
     type: 'tool_use',
     id: part.id,
@@ -113,12 +114,12 @@ export function convertToolPart(part: Part & { type: 'tool' }): ConversationBloc
     toolName: part.tool,
     toolUseId: part.callID,
     input: state.input || {},
-    status: mapToolStatus(state.status),
+    status: isComplete ? 'complete' : 'pending' as BlockLifecycleStatus,
     displayName: state.title,
   });
 
   // Create ToolResultBlock if completed or error
-  if (state.status === 'completed' || state.status === 'error') {
+  if (isComplete) {
     blocks.push({
       type: 'tool_result',
       id: generateId(),
@@ -126,6 +127,7 @@ export function convertToolPart(part: Part & { type: 'tool' }): ConversationBloc
       toolUseId: part.callID,
       output: state.status === 'error' ? state.error : state.output,
       isError: state.status === 'error',
+      status: 'complete' as BlockLifecycleStatus,
       durationMs: state.time?.end && state.time?.start
         ? state.time.end - state.time.start
         : undefined,
@@ -147,7 +149,7 @@ export function convertAgentPart(part: Part & { type: 'agent' }): ConversationBl
     subagentId: p.name || generateId(),
     name: p.name,
     input: p.source?.value || '',
-    status: 'success',
+    status: 'complete' as BlockLifecycleStatus,
   };
 }
 
@@ -163,7 +165,7 @@ export function convertSubtaskPart(part: Part & { type: 'subtask' }): Conversati
     subagentId: generateId(),
     name: p.agent,
     input: p.prompt,
-    status: 'pending',
+    status: 'pending' as BlockLifecycleStatus,
   };
 }
 
@@ -182,6 +184,8 @@ export function extractSubagentBlock(part: Part & { type: 'tool' }): SubagentBlo
     return null;
   }
 
+  const isComplete = state.status === 'completed' || state.status === 'error';
+
   return {
     type: 'subagent',
     id: part.id,
@@ -189,7 +193,7 @@ export function extractSubagentBlock(part: Part & { type: 'tool' }): SubagentBlo
     subagentId: state.metadata.sessionId,
     name: state.input?.subagent_type,
     input: state.input?.prompt || state.input?.description || '',
-    status: mapToolStatus(state.status) as any,
+    status: isComplete ? 'complete' : 'pending' as BlockLifecycleStatus,
     output: typeof state.output === 'string' ? state.output : undefined,
     durationMs: state.time?.end && state.time?.start
       ? state.time.end - state.time.start
@@ -216,6 +220,7 @@ export function extractSubagentFromTaskTool(
 
   const sessionId = state.metadata.sessionId;
   const subagentBlocks: ConversationBlock[] = [];
+  const isComplete = state.status === 'completed' || state.status === 'error';
 
   // Parse the summary parts if available (contains subagent's conversation)
   if (state.metadata.summary && Array.isArray(state.metadata.summary)) {
@@ -233,7 +238,7 @@ export function extractSubagentFromTaskTool(
     subagentId: sessionId,
     name: state.input?.subagent_type,
     input: state.input?.prompt || state.input?.description || '',
-    status: mapToolStatus(state.status) as any,
+    status: isComplete ? 'complete' : 'pending' as BlockLifecycleStatus,
     output: typeof state.output === 'string' ? state.output : undefined,
     durationMs: state.time?.end && state.time?.start
       ? state.time.end - state.time.start
@@ -307,7 +312,7 @@ export function partToBlocks(part: Part, model: string | undefined, logger: Logg
 
 /**
  * Convert a single part to SessionEvents for transcript loading.
- * Emits block:complete events for finalized content.
+ * Emits block:upsert events for finalized content (status: complete).
  */
 export function partToEvents(
   part: Part,
@@ -323,8 +328,8 @@ export function partToEvents(
         const block = convertTextPart(part as any, model);
         if (block) {
           events.push(createSessionEvent(
-            'block:complete',
-            { blockId: block.id, block },
+            'block:upsert',
+            { block: { ...block, status: 'complete' as BlockLifecycleStatus } },
             { conversationId, source: 'runner' }
           ));
         }
@@ -335,8 +340,8 @@ export function partToEvents(
         const block = convertReasoningPart(part as any);
         if (block) {
           events.push(createSessionEvent(
-            'block:complete',
-            { blockId: block.id, block },
+            'block:upsert',
+            { block: { ...block, status: 'complete' as BlockLifecycleStatus } },
             { conversationId, source: 'runner' }
           ));
         }
@@ -348,11 +353,12 @@ export function partToEvents(
         if (isTaskTool(part)) {
           break;
         }
+        // convertToolPart already sets status on blocks
         const blocks = convertToolPart(part as any);
         for (const block of blocks) {
           events.push(createSessionEvent(
-            'block:complete',
-            { blockId: block.id, block },
+            'block:upsert',
+            { block },
             { conversationId, source: 'runner' }
           ));
         }
@@ -360,20 +366,22 @@ export function partToEvents(
       }
 
       case 'agent': {
+        // convertAgentPart already sets status: 'complete'
         const block = convertAgentPart(part as any);
         events.push(createSessionEvent(
-          'block:complete',
-          { blockId: block.id, block },
+          'block:upsert',
+          { block },
           { conversationId, source: 'runner' }
         ));
         break;
       }
 
       case 'subtask': {
+        // convertSubtaskPart already sets status: 'pending'
         const block = convertSubtaskPart(part as any);
         events.push(createSessionEvent(
-          'block:complete',
-          { blockId: block.id, block },
+          'block:upsert',
+          { block },
           { conversationId, source: 'runner' }
         ));
         break;
@@ -403,7 +411,7 @@ export function partToEvents(
 
 /**
  * Convert task tool to subagent events for transcript loading.
- * Emits subagent:spawned, nested block:complete events, and subagent:completed.
+ * Emits subagent:spawned, nested block:upsert events, and subagent:completed.
  */
 export function taskToolToEvents(
   part: Part & { type: 'tool' },
@@ -415,11 +423,12 @@ export function taskToolToEvents(
 
   if (!extracted) {
     // Not a proper subagent, convert as regular tool
+    // convertToolPart already sets status on blocks
     const blocks = convertToolPart(part);
     for (const block of blocks) {
       events.push(createSessionEvent(
-        'block:complete',
-        { blockId: block.id, block },
+        'block:upsert',
+        { block },
         { conversationId: 'main', source: 'runner' }
       ));
     }
@@ -441,11 +450,12 @@ export function taskToolToEvents(
     { conversationId: 'main', source: 'runner' }
   ));
 
-  // 2. Emit block:complete for each nested block in subagent's conversation
+  // 2. Emit block:upsert for each nested block in subagent's conversation
   for (const block of extracted.subagentBlocks) {
+    // Blocks from partToBlocks already have status set
     events.push(createSessionEvent(
-      'block:complete',
-      { blockId: block.id, block },
+      'block:upsert',
+      { block },
       { conversationId: subagentId, source: 'runner' }
     ));
   }

@@ -22,6 +22,7 @@ import { findSubagentIndex } from '../types.js';
  * Handle subagent:spawned event
  * - Creates SubagentBlock in parent conversation (status: pending)
  * - Creates SubagentState entry for the subagent's conversation
+ * - Idempotent: skips if subagent with this toolUseId already exists
  */
 export function handleSubagentSpawned(
   state: SessionConversationState,
@@ -30,6 +31,12 @@ export function handleSubagentSpawned(
   const { toolUseId, prompt, subagentType, description } = event.payload;
   const conversationId = event.context.conversationId ?? 'main';
   const timestamp = event.context.timestamp ?? new Date().toISOString();
+
+  // Idempotency check: skip if subagent already exists
+  const existingIndex = findSubagentIndex(state, toolUseId);
+  if (existingIndex >= 0) {
+    return state;
+  }
 
   // Create SubagentBlock in parent conversation
   const subagentBlock: SubagentBlock = {

@@ -6,21 +6,23 @@
  * The reducer handles all state management (deduplication, role tracking, etc.)
  *
  * Event mapping:
- * - message.updated (role=user) → block:start for user_message
- * - message.part.updated → block:start + block:delta (reducer dedupes)
- * - session.idle → session:idle (finalizes streaming blocks)
+ * - message.updated (role=user) → block:upsert for user_message (status: complete)
+ * - message.part.updated → block:upsert (status: pending) + block:delta
+ * - message.part.updated (tool completed) → block:upsert (status: complete) + tool_result
+ * - session.idle → session:idle (finalizes any pending blocks)
  */
 
 import type { Event, Part } from "@opencode-ai/sdk/v2";
 import type {
   ConversationBlock,
   AnySessionEvent,
+  BlockLifecycleStatus,
 } from '@ai-systems/shared-types';
 import { createSessionEvent } from '@ai-systems/shared-types';
 import { toISOTimestamp, noopLogger } from '../utils.js';
 import type { ConvertOptions } from '../types.js';
 import {
-  mapToolStatus,
+  mapToBlockStatus,
   getPartTimestamp,
   isTaskTool,
   extractSubagentBlock,
@@ -33,6 +35,7 @@ import {
 /**
  * Convert a Part to a ConversationBlock
  * Returns null for parts that don't map to blocks
+ * Blocks include BlockLifecycleStatus (pending for streaming, complete for finalized)
  */
 function partToBlock(part: Part, model?: string): ConversationBlock | null {
   try {
@@ -43,6 +46,7 @@ function partToBlock(part: Part, model?: string): ConversationBlock | null {
           id: part.id,
           timestamp: getPartTimestamp(part),
           content: (part as any).text || '',
+          status: 'pending' as BlockLifecycleStatus, // Streaming, will be finalized on session:idle
           model,
         };
 
@@ -52,6 +56,7 @@ function partToBlock(part: Part, model?: string): ConversationBlock | null {
           id: part.id,
           timestamp: getPartTimestamp(part),
           content: (part as any).text || '',
+          status: 'pending' as BlockLifecycleStatus, // Streaming, will be finalized on session:idle
         };
 
       case 'tool': {
@@ -61,7 +66,7 @@ function partToBlock(part: Part, model?: string): ConversationBlock | null {
         if (isTaskTool(part)) {
           const subagentBlock = extractSubagentBlock(part as any);
           if (subagentBlock) {
-            return subagentBlock;
+            return subagentBlock; // extractSubagentBlock already sets status
           }
         }
 
@@ -72,7 +77,7 @@ function partToBlock(part: Part, model?: string): ConversationBlock | null {
           toolName: part.tool,
           toolUseId: part.callID,
           input: state.input || {},
-          status: mapToolStatus(state.status),
+          status: mapToBlockStatus(state.status), // pending/running → pending, completed/error → complete
           displayName: state.title,
         };
       }
@@ -133,19 +138,20 @@ export function opencodeEventToSessionEvents(
         const { info } = event.properties as any;
         const conversationId = info.sessionID === mainSessionId ? 'main' : info.sessionID;
 
-        // User message → create user_message block immediately
+        // User message → create user_message block immediately (already complete)
         if (info.role === 'user') {
           const userBlock: ConversationBlock = {
             type: 'user_message',
             id: info.id,
             timestamp: info.time?.created ? toISOTimestamp(info.time.created) : new Date().toISOString(),
             content: '', // Content comes from message.part.updated
+            status: 'complete' as BlockLifecycleStatus, // User message is always complete
           };
 
           return [
             createSessionEvent(
-              'block:start',
-              { block: userBlock, messageId: info.id },
+              'block:upsert',
+              { block: userBlock },
               { conversationId, source: 'runner' }
             ),
           ];
@@ -211,38 +217,50 @@ export function opencodeEventToSessionEvents(
         // Handle subagent (Task tool) specially
         if (block.type === 'subagent') {
           const toolUseId = part.callID;
+          const state = part.state as any;
 
-          // Emit subagent:spawned for the subagent
+          // Emit subagent:spawned (reducer is idempotent - ignores if already exists)
+          // Use correct conversationId for nested subagents
           events.push(
             createSessionEvent(
               'subagent:spawned',
               {
                 toolUseId,
-                prompt: part.state?.input?.prompt || part.state?.input?.description || '',
-                subagentType: part.state?.input?.subagent_type,
-                description: part.state?.input?.description,
+                prompt: state?.input?.prompt || state?.input?.description || '',
+                subagentType: state?.input?.subagent_type,
+                description: state?.input?.description,
               },
-              { conversationId: 'main', source: 'runner' }
+              { conversationId, source: 'runner' }
             )
           );
 
-          // Also emit block:start for the subagent block in main conversation
-          events.push(
-            createSessionEvent(
-              'block:start',
-              { block, messageId: part.messageID },
-              { conversationId: 'main', source: 'runner' }
-            )
-          );
+          // Check if subagent completed - emit subagent:completed
+          if (state.status === 'completed' || state.status === 'error') {
+            events.push(
+              createSessionEvent(
+                'subagent:completed',
+                {
+                  toolUseId,
+                  agentId: state.metadata?.sessionId,
+                  status: state.status === 'completed' ? 'completed' : 'failed',
+                  output: typeof state.output === 'string' ? state.output : undefined,
+                  durationMs: state.time?.end && state.time?.start
+                    ? state.time.end - state.time.start
+                    : undefined,
+                },
+                { conversationId, source: 'runner' }
+              )
+            );
+          }
 
           return events;
         }
 
-        // Emit block:start (reducer deduplicates via upsertBlock)
+        // Emit block:upsert (reducer deduplicates via upsertBlock)
         events.push(
           createSessionEvent(
-            'block:start',
-            { block, messageId: part.messageID },
+            'block:upsert',
+            { block },
             { conversationId, source: 'runner' }
           )
         );
@@ -258,51 +276,32 @@ export function opencodeEventToSessionEvents(
           );
         }
 
-        // Handle tool completion
+        // Handle tool completion - emit tool_result block
         if (part.type === 'tool') {
           const state = part.state as any;
 
           if (state.status === 'completed' || state.status === 'error') {
-            // Check if this is a Task tool (subagent) completion
-            if (isTaskTool(part) && state.metadata?.sessionId) {
-              events.push(
-                createSessionEvent(
-                  'subagent:completed',
-                  {
-                    toolUseId: part.callID,
-                    agentId: state.metadata.sessionId,
-                    status: state.status === 'completed' ? 'completed' : 'failed',
-                    output: typeof state.output === 'string' ? state.output : undefined,
-                    durationMs: state.time?.end && state.time?.start
-                      ? state.time.end - state.time.start
-                      : undefined,
-                  },
-                  { conversationId: 'main', source: 'runner' }
-                )
-              );
-            } else {
-              // Regular tool - emit tool_result
-              events.push(
-                createSessionEvent(
-                  'block:complete',
-                  {
-                    blockId: `result-${part.id}`,
-                    block: {
-                      type: 'tool_result',
-                      id: `result-${part.id}`,
-                      timestamp: state.time?.end ? toISOTimestamp(state.time.end) : new Date().toISOString(),
-                      toolUseId: part.callID,
-                      output: state.status === 'error' ? state.error : state.output,
-                      isError: state.status === 'error',
-                      durationMs: state.time?.end && state.time?.start
-                        ? state.time.end - state.time.start
-                        : undefined,
-                    },
-                  },
-                  { conversationId, source: 'runner' }
-                )
-              );
-            }
+            // Regular tool - emit tool_result as block:upsert
+            const toolResultBlock: ConversationBlock = {
+              type: 'tool_result',
+              id: `result-${part.id}`,
+              timestamp: state.time?.end ? toISOTimestamp(state.time.end) : new Date().toISOString(),
+              toolUseId: part.callID,
+              output: state.status === 'error' ? state.error : state.output,
+              isError: state.status === 'error',
+              status: 'complete' as BlockLifecycleStatus,
+              durationMs: state.time?.end && state.time?.start
+                ? state.time.end - state.time.start
+                : undefined,
+            };
+
+            events.push(
+              createSessionEvent(
+                'block:upsert',
+                { block: toolResultBlock },
+                { conversationId, source: 'runner' }
+              )
+            );
           }
         }
 

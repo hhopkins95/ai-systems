@@ -86,9 +86,9 @@ type ConversationEvent =
 
 ## Completion Criteria
 
-- [ ] Types updated in `packages/types/`
-- [ ] Reducer simplified in `packages/converters/`
-- [ ] OpenCode converter emits new events
+- [x] Types updated in `packages/types/`
+- [x] Reducer simplified in `packages/converters/`
+- [~] OpenCode converter emits new events (code done, build errors to fix)
 - [ ] Claude SDK converter emits new events
 - [ ] All existing tests pass or updated
 - [ ] Build succeeds
@@ -96,7 +96,9 @@ type ConversationEvent =
 
 ## Current Status
 
-Starting implementation - types first.
+**In Progress** - OpenCode converter updated, fixing build errors.
+
+See `sessions/2025-12-20-session.md` for detailed session notes.
 
 ## Quick Links
 
