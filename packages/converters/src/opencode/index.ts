@@ -17,18 +17,12 @@ export {
 
 // Stream event conversion (primary API)
 export {
-  createStreamEventParser,
   opencodeEventToSessionEvents,
-} from './block-converter.js';
-
-// Deprecated exports for backward compatibility
-export {
-  parseOpencodeStreamEvent,
 } from './block-converter.js';
 
 // Shared helpers (for advanced use cases)
 export {
-  mapToolStatus,
+  mapToBlockStatus,
   getPartTimestamp,
   isTaskTool,
   extractSubagentBlock,

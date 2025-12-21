@@ -219,13 +219,14 @@ export function opencodeEventToSessionEvents(
           const toolUseId = part.callID;
           const state = part.state as any;
 
-          // Emit subagent:spawned (reducer is idempotent - ignores if already exists)
+          // Emit subagent:spawned (reducer updates agentId if now available)
           // Use correct conversationId for nested subagents
           events.push(
             createSessionEvent(
               'subagent:spawned',
               {
                 toolUseId,
+                agentId: state.metadata?.sessionId,
                 prompt: state?.input?.prompt || state?.input?.description || '',
                 subagentType: state?.input?.subagent_type,
                 description: state?.input?.description,

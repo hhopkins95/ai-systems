@@ -251,6 +251,8 @@ export interface SessionEventPayloads {
   'subagent:spawned': {
     /** The tool_use_id of the Task tool - primary key during streaming */
     toolUseId: string;
+    /** The subagent's session ID - available once subagent starts running */
+    agentId?: string;
     /** The prompt/task given to the subagent */
     prompt: string;
     /** Type of subagent (e.g., "Explore", "Plan", "code-reviewer") */

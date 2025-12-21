@@ -22,7 +22,7 @@ import {
 } from './shared-helpers.js';
 
 // Re-export helpers for backward compatibility
-export { mapToolStatus, getPartTimestamp } from './shared-helpers.js';
+export { mapToBlockStatus, getPartTimestamp } from './shared-helpers.js';
 
 /**
  * Exported session type when running `opencode export <sessionId>`

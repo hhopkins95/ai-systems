@@ -22,19 +22,26 @@ import { findSubagentIndex } from '../types.js';
  * Handle subagent:spawned event
  * - Creates SubagentBlock in parent conversation (status: pending)
  * - Creates SubagentState entry for the subagent's conversation
- * - Idempotent: skips if subagent with this toolUseId already exists
+ * - Idempotent: if subagent exists, updates agentId if now available
  */
 export function handleSubagentSpawned(
   state: SessionConversationState,
   event: SessionEvent<'subagent:spawned'>
 ): SessionConversationState {
-  const { toolUseId, prompt, subagentType, description } = event.payload;
+  const { toolUseId, agentId, prompt, subagentType, description } = event.payload;
   const conversationId = event.context.conversationId ?? 'main';
   const timestamp = event.context.timestamp ?? new Date().toISOString();
 
-  // Idempotency check: skip if subagent already exists
+  // Check if subagent already exists
   const existingIndex = findSubagentIndex(state, toolUseId);
   if (existingIndex >= 0) {
+    // Subagent exists - update agentId if now available
+    const existing = state.subagents[existingIndex];
+    if (agentId && !existing.agentId) {
+      const newSubagents = [...state.subagents];
+      newSubagents[existingIndex] = { ...existing, agentId };
+      return { ...state, subagents: newSubagents };
+    }
     return state;
   }
 
@@ -52,6 +59,7 @@ export function handleSubagentSpawned(
   // Create subagent entry for routing blocks
   const subagentEntry: SubagentState = {
     toolUseId,
+    agentId,
     blocks: [],
     status: 'running',
     prompt,
