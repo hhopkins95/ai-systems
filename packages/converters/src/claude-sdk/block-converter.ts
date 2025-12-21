@@ -4,6 +4,18 @@
  * Converts SDK messages (from streaming or transcripts) to SessionEvents.
  * Events are then processed by the shared reducer to build conversation state.
  *
+ * Event mapping:
+ * - Streaming: content_block_start → block:upsert (status: pending)
+ * - Streaming: content_block_delta → block:delta (text accumulation)
+ * - Transcript: user/assistant messages → block:upsert (status: complete)
+ * - Task tool: subagent:spawned + subagent:completed
+ *
+ * Block lifecycle:
+ * - Streaming blocks start with status: 'pending'
+ * - Transcript blocks have status: 'complete'
+ * - Block status tracks data finalization, NOT execution result
+ * - Tool execution result is stored in ToolResultBlock.isError
+ *
  * Main entry point: sdkMessageToEvents()
  */
 
@@ -12,19 +24,37 @@ import type {
   ConversationBlock,
   SkillLoadBlock,
   AnySessionEvent,
+  BlockLifecycleStatus,
 } from '@ai-systems/shared-types';
 import { createSessionEvent } from '@ai-systems/shared-types';
 import { generateId, noopLogger } from '../utils.js';
 import type { ConvertOptions } from '../types.js';
 
 // ============================================================================
-// Subagent Prompt Tracking
+// Subagent Prompt Tracking (Claude SDK-specific workaround)
 // ============================================================================
 
 /**
  * Track active Task tool prompts to filter out subagent prompt messages.
- * When a Task tool is used, the prompt is sent to the subagent as a user message.
- * We need to filter these out from the main conversation.
+ *
+ * WHY THIS IS NEEDED:
+ * The Claude SDK has a quirk where subagent prompts appear as "user messages"
+ * in the main transcript. When a Task tool is invoked:
+ * 1. The assistant emits a tool_use block with the prompt
+ * 2. The SDK internally creates a "user message" containing the same prompt
+ *    to send to the subagent
+ * 3. This user message appears in the main transcript stream
+ *
+ * Without filtering, the subagent's prompt would appear as if the human user
+ * typed it, which is incorrect. We track Task prompts here so we can filter
+ * them out when they appear as user messages.
+ *
+ * NOTE: This is module-scoped state, not truly stateless. This is acceptable
+ * because:
+ * - It's contained within this module
+ * - It has proper cleanup (MAX_TASK_PROMPTS limit)
+ * - It's necessary for correct Claude SDK transcript parsing
+ * - The OpenCode SDK doesn't have this issue (different architecture)
  *
  * Key: Task tool's toolUseId
  * Value: The prompt string
@@ -33,7 +63,7 @@ const activeTaskPrompts = new Map<string, string>();
 
 /**
  * Maximum number of prompts to track to prevent memory leaks.
- * Old entries are removed when this limit is exceeded.
+ * Old entries are removed (LRU eviction) when this limit is exceeded.
  */
 const MAX_TASK_PROMPTS = 100;
 
@@ -114,6 +144,7 @@ function createSkillLoadBlock(content: string): SkillLoadBlock {
     timestamp: new Date().toISOString(),
     skillName: extractSkillName(content),
     content,
+    status: 'complete' as BlockLifecycleStatus, // Skill load is always finalized
   };
 }
 
@@ -217,13 +248,17 @@ export function sdkMessageToEvents(
   }
 
   // Handle tool progress messages
+  // Note: tool_progress indicates tool is running - we emit block:upsert with pending status
+  // The full block data isn't available here, so we rely on previous block:upsert having created it
+  // This is a limitation - ideally we'd have the full block. For now, emit a log event.
   if (event.type === 'tool_progress') {
     return [
       createSessionEvent(
-        'block:update',
+        'log',
         {
-          blockId: event.tool_use_id,
-          updates: { status: 'running' } as Partial<ConversationBlock>,
+          level: 'debug',
+          message: `Tool ${event.tool_use_id} is running`,
+          data: { toolUseId: event.tool_use_id, parentToolUseId: event.parent_tool_use_id },
         },
         { conversationId: event.parent_tool_use_id || 'main', source: 'runner' }
       ),
@@ -302,12 +337,12 @@ export function sdkMessageToEvents(
   }
 
   // For other message types (user, assistant, etc.)
-  // Convert to blocks and emit block_complete events
+  // Convert to blocks and emit block:upsert events with status: complete
   const blocks = messageToBlocks(event, options);
   return blocks.map((block) =>
     createSessionEvent(
-      'block:complete',
-      { blockId: block.id, block },
+      'block:upsert',
+      { block: { ...block, status: 'complete' as BlockLifecycleStatus } },
       { conversationId, source: 'runner' }
     )
   );
@@ -398,14 +433,16 @@ function convertUserMessage(msg: Extract<SDKMessage, { type: 'user' }>): Convers
 
         if (toolUseResult?.agentId) {
           // Task tool result → SubagentBlock
+          // Note: BlockLifecycleStatus ('complete') is separate from execution status
+          // The subagent's execution result is indicated by the output/error content
           blocks.push({
             type: 'subagent',
             id: generateId(),
             timestamp: new Date().toISOString(),
-            subagentId: `agent-${toolUseResult.agentId}`,
+            subagentId: toolUseResult.agentId, // SDK's agent ID (e.g., "abc123")
             name: toolUseResult.subagent_type,
             input: toolUseResult.prompt || '',
-            status: toolUseResult.status === 'completed' ? 'success' : 'error',
+            status: 'complete' as BlockLifecycleStatus, // Block is finalized
             output: extractTextFromToolResultContent(toolUseResult.content),
             durationMs: toolUseResult.totalDurationMs,
             toolUseId: toolResultBlock.tool_use_id,
@@ -419,6 +456,7 @@ function convertUserMessage(msg: Extract<SDKMessage, { type: 'user' }>): Convers
             toolUseId: toolResultBlock.tool_use_id,
             output: toolResultBlock.content,
             isError: toolResultBlock.is_error || false,
+            status: 'complete' as BlockLifecycleStatus, // Block is finalized
           });
         }
       }
@@ -445,6 +483,7 @@ function convertUserMessage(msg: Extract<SDKMessage, { type: 'user' }>): Convers
     id: msg.uuid || generateId(),
     timestamp: new Date().toISOString(),
     content: messageContent,
+    status: 'complete' as BlockLifecycleStatus, // User message is always finalized
   }];
 }
 
@@ -500,6 +539,7 @@ function convertAssistantMessage(msg: Extract<SDKMessage, { type: 'assistant' }>
           timestamp: new Date().toISOString(),
           content: contentBlock.text,
           model: apiMessage.model,
+          status: 'complete' as BlockLifecycleStatus, // In transcript, block is finalized
         });
         break;
 
@@ -512,6 +552,9 @@ function convertAssistantMessage(msg: Extract<SDKMessage, { type: 'assistant' }>
           }
         }
 
+        // In transcript, tool_use block is already finalized (status: complete)
+        // Note: BlockLifecycleStatus tracks data finalization, not execution result
+        // The actual tool execution result is in the corresponding ToolResultBlock
         blocks.push({
           type: 'tool_use',
           id: contentBlock.id,
@@ -519,7 +562,7 @@ function convertAssistantMessage(msg: Extract<SDKMessage, { type: 'assistant' }>
           toolName: contentBlock.name,
           toolUseId: contentBlock.id,
           input: contentBlock.input as Record<string, unknown>,
-          status: 'success', // In transcript, tool use is complete
+          status: 'complete' as BlockLifecycleStatus,
         });
         break;
 
@@ -529,6 +572,7 @@ function convertAssistantMessage(msg: Extract<SDKMessage, { type: 'assistant' }>
           id: contentBlock.id || generateId(),
           timestamp: new Date().toISOString(),
           content: (contentBlock as any).thinking || '',
+          status: 'complete' as BlockLifecycleStatus, // In transcript, block is finalized
         });
         break;
 
@@ -551,15 +595,17 @@ function parseRawStreamEvent(rawEvent: any, conversationId: 'main' | string): An
       const block = rawEvent.content_block;
 
       // Create appropriate block based on content type
+      // All streaming blocks start with status: 'pending' and will be finalized later
       if (block.type === 'text') {
         return [createSessionEvent(
-          'block:start',
+          'block:upsert',
           {
             block: {
               type: 'assistant_text',
               id: block.id,
               timestamp: new Date().toISOString(),
               content: block.text || '',
+              status: 'pending' as BlockLifecycleStatus,
             },
           },
           { conversationId, source: 'runner' }
@@ -579,7 +625,7 @@ function parseRawStreamEvent(rawEvent: any, conversationId: 'main' | string): An
               subagentType: block.input?.subagent_type as string | undefined,
               description: block.input?.description as string | undefined,
             },
-            { conversationId: 'main', source: 'runner' }
+            { conversationId, source: 'runner' }
           ));
 
           // Register the Task prompt for filtering
@@ -590,9 +636,9 @@ function parseRawStreamEvent(rawEvent: any, conversationId: 'main' | string): An
           }
         }
 
-        // Emit the tool_use block:start event
+        // Emit the tool_use block:upsert event with pending status
         events.push(createSessionEvent(
-          'block:start',
+          'block:upsert',
           {
             block: {
               type: 'tool_use',
@@ -601,7 +647,7 @@ function parseRawStreamEvent(rawEvent: any, conversationId: 'main' | string): An
               toolName: block.name,
               toolUseId: block.id,
               input: block.input || {},
-              status: 'pending',
+              status: 'pending' as BlockLifecycleStatus,
             },
           },
           { conversationId, source: 'runner' }
@@ -610,13 +656,14 @@ function parseRawStreamEvent(rawEvent: any, conversationId: 'main' | string): An
         return events;
       } else if (block.type === 'thinking') {
         return [createSessionEvent(
-          'block:start',
+          'block:upsert',
           {
             block: {
               type: 'thinking',
               id: block.id,
               timestamp: new Date().toISOString(),
               content: '',
+              status: 'pending' as BlockLifecycleStatus,
             },
           },
           { conversationId, source: 'runner' }
