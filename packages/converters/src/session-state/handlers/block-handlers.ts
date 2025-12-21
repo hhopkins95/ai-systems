@@ -3,25 +3,147 @@
  *
  * Pure functions for handling block events in the session state reducer.
  * All handlers are immutable - they return new state objects.
+ *
+ * Key design:
+ * - No separate streaming state - content lives directly in blocks
+ * - block:upsert creates or replaces blocks (replaces block:start/complete)
+ * - block:delta appends to block.content directly
+ * - Block status tracks lifecycle: pending → complete
  */
 
-import type { ConversationBlock, SessionEvent } from '@ai-systems/shared-types';
-import type {
-  SessionConversationState,
-  StreamingContent,
-  SubagentState,
-} from '../types.js';
+import type { ConversationBlock, SessionEvent, BlockLifecycleStatus } from '@ai-systems/shared-types';
+import type { SessionConversationState, SubagentState } from '../types.js';
 import { findSubagentIndex } from '../types.js';
 
 // ============================================================================
-// Block Start Handler
+// Block Upsert Handler (Primary)
 // ============================================================================
 
 /**
- * Handle block:start event
- * - Initializes streaming entry for the conversation
- * - Routes the initial block to main or subagent conversation
- * - For OpenCode: handles user message content correlation
+ * Handle block:upsert event
+ * - Creates block if it doesn't exist
+ * - Replaces block entirely if it exists (replace semantics, not merge)
+ * - Routes to main or subagent conversation based on conversationId
+ */
+export function handleBlockUpsert(
+  state: SessionConversationState,
+  event: SessionEvent<'block:upsert'>
+): SessionConversationState {
+  const conversationId = event.context.conversationId ?? 'main';
+  const block = event.payload.block;
+
+  return upsertBlock(state, block, conversationId);
+}
+
+// ============================================================================
+// Block Delta Handler
+// ============================================================================
+
+/**
+ * Handle block:delta event
+ * - Appends delta text directly to block.content
+ * - Only applies to blocks that have a content field
+ */
+export function handleBlockDelta(
+  state: SessionConversationState,
+  event: SessionEvent<'block:delta'>
+): SessionConversationState {
+  const conversationId = event.context.conversationId ?? 'main';
+  const { blockId, delta } = event.payload;
+
+  if (!delta) return state; // Skip empty deltas
+
+  if (conversationId === 'main') {
+    const blockIndex = state.blocks.findIndex((b) => b.id === blockId);
+    if (blockIndex < 0) return state; // Block not found, ignore
+
+    const block = state.blocks[blockIndex];
+    if (!('content' in block)) return state; // Block doesn't have content
+
+    const newBlocks = [...state.blocks];
+    newBlocks[blockIndex] = {
+      ...block,
+      content: ((block as any).content ?? '') + delta,
+    } as ConversationBlock;
+
+    return { ...state, blocks: newBlocks };
+  } else {
+    // Subagent conversation
+    const subagentIndex = findSubagentIndex(state, conversationId);
+    if (subagentIndex < 0) return state;
+
+    const subagent = state.subagents[subagentIndex];
+    const blockIndex = subagent.blocks.findIndex((b) => b.id === blockId);
+    if (blockIndex < 0) return state;
+
+    const block = subagent.blocks[blockIndex];
+    if (!('content' in block)) return state;
+
+    const newBlocks = [...subagent.blocks];
+    newBlocks[blockIndex] = {
+      ...block,
+      content: ((block as any).content ?? '') + delta,
+    } as ConversationBlock;
+
+    const newSubagents = [...state.subagents];
+    newSubagents[subagentIndex] = { ...subagent, blocks: newBlocks };
+
+    return { ...state, subagents: newSubagents };
+  }
+}
+
+// ============================================================================
+// Session Idle Handler
+// ============================================================================
+
+/**
+ * Handle session:idle event
+ * - Finalizes any blocks still in 'pending' status
+ * - Sets their status to 'complete'
+ *
+ * @param state - Current conversation state
+ * @param conversationId - The conversation that became idle ('main' or subagent ID)
+ */
+export function handleSessionIdle(
+  state: SessionConversationState,
+  conversationId: string
+): SessionConversationState {
+  if (conversationId === 'main') {
+    // Finalize pending blocks in main conversation
+    const hasAnyPending = state.blocks.some((b) => b.status === 'pending');
+    if (!hasAnyPending) return state;
+
+    const newBlocks = state.blocks.map((b) =>
+      b.status === 'pending' ? { ...b, status: 'complete' as BlockLifecycleStatus } : b
+    );
+    return { ...state, blocks: newBlocks };
+  } else {
+    // Finalize pending blocks in subagent conversation
+    const subagentIndex = findSubagentIndex(state, conversationId);
+    if (subagentIndex < 0) return state;
+
+    const subagent = state.subagents[subagentIndex];
+    const hasAnyPending = subagent.blocks.some((b) => b.status === 'pending');
+    if (!hasAnyPending) return state;
+
+    const newBlocks = subagent.blocks.map((b) =>
+      b.status === 'pending' ? { ...b, status: 'complete' as BlockLifecycleStatus } : b
+    );
+
+    const newSubagents = [...state.subagents];
+    newSubagents[subagentIndex] = { ...subagent, blocks: newBlocks };
+
+    return { ...state, subagents: newSubagents };
+  }
+}
+
+// ============================================================================
+// Legacy Handlers (Deprecated - for backwards compatibility)
+// ============================================================================
+
+/**
+ * @deprecated Use handleBlockUpsert instead
+ * Handle block:start event - converts to upsert
  */
 export function handleBlockStart(
   state: SessionConversationState,
@@ -29,58 +151,15 @@ export function handleBlockStart(
 ): SessionConversationState {
   const conversationId = event.context.conversationId ?? 'main';
   const block = event.payload.block;
-  const messageId = (event.payload as any).messageId;
 
-  // OpenCode: Check if this text block belongs to an existing user_message
-  // If so, update the user_message content instead of creating a new block
-  if (block.type === 'assistant_text' && messageId && conversationId === 'main') {
-    const userMessageIndex = state.blocks.findIndex(
-      (b) => b.type === 'user_message' && b.id === messageId
-    );
-    if (userMessageIndex >= 0) {
-      // This is content for the user message - update it
-      const userMessage = state.blocks[userMessageIndex];
-      const textContent = (block as any).content || '';
-
-      // Only update if there's actual content
-      if (textContent) {
-        const newBlocks = [...state.blocks];
-        newBlocks[userMessageIndex] = {
-          ...userMessage,
-          content: textContent,
-        } as ConversationBlock;
-        return { ...state, blocks: newBlocks };
-      }
-      return state; // No content yet, nothing to do
-    }
-  }
-
-  // Initialize streaming entry for this conversation
-  const newStreaming = new Map(state.streaming.byConversation);
-  newStreaming.set(conversationId, {
-    conversationId,
-    blockId: block.id,
-    content: '',
-    startedAt: Date.now(),
-  });
-
-  // Route block to correct conversation with new streaming state
-  const stateWithStreaming: SessionConversationState = {
-    ...state,
-    streaming: { byConversation: newStreaming },
-  };
-
-  return upsertBlock(stateWithStreaming, block, conversationId);
+  // Ensure block has pending status
+  const blockWithStatus = { ...block, status: 'pending' as BlockLifecycleStatus };
+  return upsertBlock(state, blockWithStatus, conversationId);
 }
 
-// ============================================================================
-// Block Complete Handler
-// ============================================================================
-
 /**
- * Handle block:complete event
- * - Clears streaming entry for the conversation
- * - Upserts the finalized block
+ * @deprecated Use handleBlockUpsert instead
+ * Handle block:complete event - converts to upsert with complete status
  */
 export function handleBlockComplete(
   state: SessionConversationState,
@@ -89,25 +168,14 @@ export function handleBlockComplete(
   const conversationId = event.context.conversationId ?? 'main';
   const block = event.payload.block;
 
-  // Clear streaming for this conversation
-  const newStreaming = new Map(state.streaming.byConversation);
-  newStreaming.delete(conversationId);
-
-  const stateWithStreaming: SessionConversationState = {
-    ...state,
-    streaming: { byConversation: newStreaming },
-  };
-
-  return upsertBlock(stateWithStreaming, block, conversationId);
+  // Ensure block has complete status
+  const blockWithStatus = { ...block, status: 'complete' as BlockLifecycleStatus };
+  return upsertBlock(state, blockWithStatus, conversationId);
 }
 
-// ============================================================================
-// Block Update Handler
-// ============================================================================
-
 /**
- * Handle block:update event
- * - Updates metadata/status on an existing block
+ * @deprecated Use handleBlockUpsert instead
+ * Handle block:update event - merges updates into existing block
  */
 export function handleBlockUpdate(
   state: SessionConversationState,
@@ -117,7 +185,6 @@ export function handleBlockUpdate(
   const { blockId, updates } = event.payload;
 
   if (conversationId === 'main') {
-    // Update block in main conversation
     const blockIndex = state.blocks.findIndex((b) => b.id === blockId);
     if (blockIndex < 0) return state;
 
@@ -126,7 +193,6 @@ export function handleBlockUpdate(
 
     return { ...state, blocks: newBlocks };
   } else {
-    // Update block in subagent conversation
     const subagentIndex = findSubagentIndex(state, conversationId);
     if (subagentIndex < 0) return state;
 
@@ -145,110 +211,12 @@ export function handleBlockUpdate(
 }
 
 // ============================================================================
-// Block Delta Handler
-// ============================================================================
-
-/**
- * Handle block:delta event
- * - Appends text delta to streaming content
- */
-export function handleBlockDelta(
-  state: SessionConversationState,
-  event: SessionEvent<'block:delta'>
-): SessionConversationState {
-  const conversationId = event.context.conversationId ?? 'main';
-  const streaming = state.streaming.byConversation.get(conversationId);
-
-  if (!streaming) {
-    // No streaming entry - might have missed block:start, ignore delta
-    return state;
-  }
-
-  const newStreaming = new Map(state.streaming.byConversation);
-  newStreaming.set(conversationId, {
-    ...streaming,
-    content: streaming.content + event.payload.delta,
-  });
-
-  return { ...state, streaming: { byConversation: newStreaming } };
-}
-
-// ============================================================================
-// Session Idle Handler
-// ============================================================================
-
-/**
- * Handle session:idle event
- * - Finalizes streaming blocks for the given conversation
- * - Updates block content with accumulated streaming content
- * - Clears streaming state
- *
- * @param state - Current conversation state
- * @param conversationId - The conversation that became idle ('main' or subagent ID)
- */
-export function handleSessionIdle(
-  state: SessionConversationState,
-  conversationId: string
-): SessionConversationState {
-  const streaming = state.streaming.byConversation.get(conversationId);
-
-  if (!streaming) {
-    // No streaming for this conversation
-    return state;
-  }
-
-  // Finalize the streaming block with accumulated content
-  let newState = state;
-  const { blockId, content } = streaming;
-
-  // Only finalize if there's content to add
-  if (content.trim()) {
-    if (conversationId === 'main') {
-      const blockIndex = state.blocks.findIndex((b) => b.id === blockId);
-      if (blockIndex >= 0) {
-        const block = state.blocks[blockIndex];
-        const newBlocks = [...state.blocks];
-        newBlocks[blockIndex] = {
-          ...block,
-          content: content,
-        } as ConversationBlock;
-        newState = { ...newState, blocks: newBlocks };
-      }
-    } else {
-      const subagentIndex = findSubagentIndex(state, conversationId);
-      if (subagentIndex >= 0) {
-        const subagent = state.subagents[subagentIndex];
-        const blockIndex = subagent.blocks.findIndex((b) => b.id === blockId);
-        if (blockIndex >= 0) {
-          const block = subagent.blocks[blockIndex];
-          const newBlocks = [...subagent.blocks];
-          newBlocks[blockIndex] = {
-            ...block,
-            content: content,
-          } as ConversationBlock;
-
-          const newSubagents = [...state.subagents];
-          newSubagents[subagentIndex] = { ...subagent, blocks: newBlocks };
-          newState = { ...newState, subagents: newSubagents };
-        }
-      }
-    }
-  }
-
-  // Clear streaming for this conversation
-  const newStreaming = new Map(newState.streaming.byConversation);
-  newStreaming.delete(conversationId);
-
-  return { ...newState, streaming: { byConversation: newStreaming } };
-}
-
-// ============================================================================
 // Helper Functions
 // ============================================================================
 
 /**
  * Upsert a block into the correct conversation (main or subagent)
- * If block exists, updates it. If not, appends it.
+ * If block exists, replaces it. If not, appends it.
  */
 function upsertBlock(
   state: SessionConversationState,
@@ -272,7 +240,7 @@ function upsertMainBlock(
   const existingIndex = state.blocks.findIndex((b) => b.id === block.id);
 
   if (existingIndex >= 0) {
-    // Update existing block
+    // Replace existing block
     const newBlocks = [...state.blocks];
     newBlocks[existingIndex] = block;
     return { ...state, blocks: newBlocks };
@@ -296,7 +264,6 @@ function upsertSubagentBlock(
   if (subagentIndex < 0) {
     // Subagent doesn't exist - create it (defensive for out-of-order events)
     const newSubagent: SubagentState = {
-      id: conversationId,
       toolUseId: conversationId,
       blocks: [block],
       status: 'running',
@@ -310,7 +277,7 @@ function upsertSubagentBlock(
 
   let newBlocks: ConversationBlock[];
   if (blockIndex >= 0) {
-    // Update existing block
+    // Replace existing block
     newBlocks = [...subagent.blocks];
     newBlocks[blockIndex] = block;
   } else {

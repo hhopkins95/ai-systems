@@ -1,10 +1,10 @@
 {
   "streaming": {
-    "mainBlockCount": 37,
+    "mainBlockCount": 38,
     "mainBlockTypes": {
       "user_message": 1,
+      "assistant_text": 7,
       "thinking": 6,
-      "assistant_text": 6,
       "subagent": 18,
       "tool_use": 3,
       "tool_result": 3
@@ -13,6 +13,10 @@
       {
         "id": "msg_b38d16ed7001NqDKnVK90yFslb",
         "type": "user_message"
+      },
+      {
+        "id": "prt_b38d16ed7002QbauvMxnhGxj22",
+        "type": "assistant_text"
       },
       {
         "id": "prt_b38d17f2a001PnH57w4Pb8OFhn",
@@ -162,12 +166,10 @@
     "subagentCount": 18,
     "subagents": [
       {
-        "id": "call_499d379c3296400fbf595aaa",
         "blockCount": 0,
         "blockTypes": {}
       },
       {
-        "id": "ses_4c72e7b62ffeN60u5X8Jv0Rck7",
         "blockCount": 8,
         "blockTypes": {
           "user_message": 1,
@@ -178,32 +180,26 @@
         }
       },
       {
-        "id": "call_499d379c3296400fbf595aaa",
         "blockCount": 0,
         "blockTypes": {}
       },
       {
-        "id": "call_499d379c3296400fbf595aaa",
         "blockCount": 0,
         "blockTypes": {}
       },
       {
-        "id": "call_499d379c3296400fbf595aaa",
         "blockCount": 0,
         "blockTypes": {}
       },
       {
-        "id": "call_499d379c3296400fbf595aaa",
         "blockCount": 0,
         "blockTypes": {}
       },
       {
-        "id": "call_89ae295e49a949b8b67a3637",
         "blockCount": 0,
         "blockTypes": {}
       },
       {
-        "id": "ses_4c72e3604ffefkLKmFGZXMq2KD",
         "blockCount": 16,
         "blockTypes": {
           "user_message": 1,
@@ -214,52 +210,42 @@
         }
       },
       {
-        "id": "call_89ae295e49a949b8b67a3637",
         "blockCount": 0,
         "blockTypes": {}
       },
       {
-        "id": "call_89ae295e49a949b8b67a3637",
         "blockCount": 0,
         "blockTypes": {}
       },
       {
-        "id": "call_89ae295e49a949b8b67a3637",
         "blockCount": 0,
         "blockTypes": {}
       },
       {
-        "id": "call_89ae295e49a949b8b67a3637",
         "blockCount": 0,
         "blockTypes": {}
       },
       {
-        "id": "call_89ae295e49a949b8b67a3637",
         "blockCount": 0,
         "blockTypes": {}
       },
       {
-        "id": "call_89ae295e49a949b8b67a3637",
         "blockCount": 0,
         "blockTypes": {}
       },
       {
-        "id": "call_89ae295e49a949b8b67a3637",
         "blockCount": 0,
         "blockTypes": {}
       },
       {
-        "id": "call_89ae295e49a949b8b67a3637",
         "blockCount": 0,
         "blockTypes": {}
       },
       {
-        "id": "call_89ae295e49a949b8b67a3637",
         "blockCount": 0,
         "blockTypes": {}
       },
       {
-        "id": "call_89ae295e49a949b8b67a3637",
         "blockCount": 0,
         "blockTypes": {}
       }
@@ -304,7 +290,7 @@
         "type": "tool_use"
       },
       {
-        "id": "block_1766262472307_9j8fmz8",
+        "id": "block_1766277730495_qkx6oha",
         "type": "tool_result"
       },
       {
@@ -312,7 +298,7 @@
         "type": "tool_use"
       },
       {
-        "id": "block_1766262472307_z0zyjts",
+        "id": "block_1766277730495_fvxb8k7",
         "type": "tool_result"
       },
       {
@@ -320,7 +306,7 @@
         "type": "tool_use"
       },
       {
-        "id": "block_1766262472307_c7ekh39",
+        "id": "block_1766277730495_n996irg",
         "type": "tool_result"
       },
       {
@@ -331,12 +317,10 @@
     "subagentCount": 2,
     "subagents": [
       {
-        "id": "call_499d379c3296400fbf595aaa",
         "blockCount": 0,
         "blockTypes": {}
       },
       {
-        "id": "call_89ae295e49a949b8b67a3637",
         "blockCount": 0,
         "blockTypes": {}
       }

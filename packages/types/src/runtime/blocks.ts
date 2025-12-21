@@ -62,6 +62,23 @@ export interface ToolIO {
 }
 
 // ============================================================================
+// Block Lifecycle Status
+// ============================================================================
+
+/**
+ * Lifecycle status for block construction.
+ * Tracks whether a block is still being built or is finalized.
+ *
+ * Note: This is separate from execution status (ToolExecutionStatus, SubagentStatus)
+ * which track the progress of operations. BlockLifecycleStatus tracks whether
+ * the block data itself is complete.
+ */
+export type BlockLifecycleStatus =
+  | 'pending'   // Block is being built (receiving deltas)
+  | 'complete'  // Block is finalized
+  | 'error';    // Block construction failed
+
+// ============================================================================
 // Base Block Interface
 // ============================================================================
 
@@ -78,6 +95,16 @@ export interface BaseBlock {
    * ISO timestamp when this block was created
    */
   timestamp: string;
+
+  /**
+   * Block lifecycle status.
+   * - pending: Block is being built (receiving deltas)
+   * - complete: Block is finalized
+   * - error: Block construction failed
+   *
+   * Optional for backwards compatibility - defaults to 'complete' if not set.
+   */
+  status?: BlockLifecycleStatus;
 }
 
 // ============================================================================
@@ -130,10 +157,6 @@ export interface ToolUseBlock extends BaseBlock {
    */
   input: Record<string, unknown>;
 
-  /**
-   * Current execution status
-   */
-  status: ToolExecutionStatus;
 
   /**
    * Display name for the tool (if different from toolName)
@@ -276,10 +299,6 @@ export interface SubagentBlock extends BaseBlock {
    */
   input: string;
 
-  /**
-   * Current execution status
-   */
-  status: SubagentStatus;
 
   /**
    * Final output from the subagent (once completed)

@@ -25,6 +25,7 @@ export type {
   SubagentBlock,
   ErrorBlock,
   BaseBlock,
+  BlockLifecycleStatus,
   TextContent,
   ImageContent,
   ContentPart,
@@ -41,8 +42,6 @@ export type {
   // Conversation state types
   SessionConversationState,
   SubagentState,
-  StreamingState,
-  StreamingContent,
 } from '@ai-systems/shared-types';
 
 // Re-export type guards and helpers from shared-types
@@ -102,7 +101,7 @@ import { parseOpenCodeTranscriptFile } from './opencode/index.js';
  *
  * @param architecture - The agent architecture type
  * @param rawTranscript - The raw transcript string
- * @returns SessionConversationState with blocks, subagents, and streaming state
+ * @returns SessionConversationState with blocks and subagents
  */
 export function parseTranscript(
   architecture: AgentArchitecture,

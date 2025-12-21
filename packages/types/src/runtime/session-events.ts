@@ -122,6 +122,35 @@ export interface SessionEventPayloads {
   // ---------------------------------------------------------------------------
 
   /**
+   * Create or replace a block (upsert semantics).
+   *
+   * This is the primary block event - replaces block:start/block:complete.
+   * - If block doesn't exist: creates it
+   * - If block exists: replaces it entirely
+   *
+   * Block status indicates lifecycle:
+   * - status: 'pending' → block is being built (may receive deltas)
+   * - status: 'complete' → block is finalized
+   * - status: 'error' → block construction failed
+   */
+  'block:upsert': {
+    block: ConversationBlock;
+  };
+
+  /**
+   * Text content streaming for a block.
+   * Appends delta to block.content.
+   */
+  'block:delta': {
+    blockId: string;
+    delta: string;
+  };
+
+  // Legacy events - kept for backwards compatibility during migration
+  // TODO: Remove after all converters emit block:upsert
+
+  /**
+   * @deprecated Use block:upsert instead
    * New block started (may be incomplete, will receive deltas)
    */
   'block:start': {
@@ -131,14 +160,7 @@ export interface SessionEventPayloads {
   };
 
   /**
-   * Text content streaming for a block
-   */
-  'block:delta': {
-    blockId: string;
-    delta: string;
-  };
-
-  /**
+   * @deprecated Use block:upsert instead
    * Block metadata/status updated (not text content)
    */
   'block:update': {
@@ -147,6 +169,7 @@ export interface SessionEventPayloads {
   };
 
   /**
+   * @deprecated Use block:upsert instead
    * Block finalized - no more updates coming
    */
   'block:complete': {
@@ -533,8 +556,10 @@ export function isServerEvent(event: AnySessionEvent): boolean {
  * Block event types
  */
 export const BLOCK_EVENT_TYPES = [
-  'block:start',
+  'block:upsert',
   'block:delta',
+  // Legacy events (deprecated)
+  'block:start',
   'block:update',
   'block:complete',
 ] as const satisfies readonly SessionEventType[];
@@ -578,8 +603,10 @@ export const QUERY_LIFECYCLE_EVENT_TYPES = [
  * All event types that should be broadcast to clients
  */
 export const CLIENT_BROADCAST_EVENT_TYPES = [
-  'block:start',
+  'block:upsert',
   'block:delta',
+  // Legacy block events (deprecated)
+  'block:start',
   'block:update',
   'block:complete',
   'metadata:update',
