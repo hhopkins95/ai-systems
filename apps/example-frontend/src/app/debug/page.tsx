@@ -3,45 +3,38 @@
 import { useState, useEffect, useCallback } from "react";
 import Link from "next/link";
 import { BACKEND_URL } from "@/lib/constants";
+import { useEventStepper, type ConverterType } from "./hooks/useEventStepper";
+import { TimelineControls } from "./components/TimelineControls";
+import { EventTimeline } from "./components/EventTimeline";
+import { EventDetailPanel } from "./components/EventDetailPanel";
+import { StateViewer } from "./components/StateViewer";
 
 interface Fixture {
   name: string;
   size: number;
-  type: "json" | "jsonl";
+  fileType: "json" | "jsonl";
+  converter: ConverterType;
 }
-
-interface ConversionResult {
-  sessionEvents?: unknown[];
-  finalState: {
-    blocks: unknown[];
-    subagents: unknown[];
-  };
-  stats: {
-    rawEventCount?: number;
-    sessionEventCount?: number;
-    blockCount: number;
-    subagentCount: number;
-  };
-}
-
-type ConversionMode = "streaming" | "transcript";
 
 /**
  * Converter Debug Page
  *
- * Visualizes the conversion process from raw OpenCode events to SessionEvents and final state.
- * Helps debug issues with the block converter and reducer.
+ * Step through raw events one at a time and watch the state build incrementally.
+ * Supports both OpenCode and Claude SDK converters.
  */
 export default function DebugPage() {
   const [fixtures, setFixtures] = useState<Fixture[]>([]);
+  const [selectedConverter, setSelectedConverter] =
+    useState<ConverterType>("opencode");
   const [selectedFixture, setSelectedFixture] = useState<string>("");
-  const [mode, setMode] = useState<ConversionMode>("streaming");
-  const [rawContent, setRawContent] = useState<string>("");
-  const [result, setResult] = useState<ConversionResult | null>(null);
   const [isLoading, setIsLoading] = useState(false);
   const [error, setError] = useState<string | null>(null);
-  const [expandedSections, setExpandedSections] = useState<Set<string>>(
-    new Set(["stats", "blocks"])
+
+  const stepper = useEventStepper();
+
+  // Filter fixtures by selected converter
+  const filteredFixtures = fixtures.filter(
+    (f) => f.converter === selectedConverter
   );
 
   // Fetch fixtures list on mount
@@ -52,9 +45,6 @@ export default function DebugPage() {
         if (!response.ok) throw new Error("Failed to load fixtures");
         const data = await response.json();
         setFixtures(data.fixtures);
-        // Auto-select first jsonl file for streaming mode
-        const jsonlFile = data.fixtures.find((f: Fixture) => f.type === "jsonl");
-        if (jsonlFile) setSelectedFixture(jsonlFile.name);
       } catch (err) {
         setError(err instanceof Error ? err.message : "Unknown error");
       }
@@ -62,160 +52,128 @@ export default function DebugPage() {
     loadFixtures();
   }, []);
 
-  // Load fixture content when selection changes
+  // Auto-select first fixture when converter changes
+  useEffect(() => {
+    const firstFixture = filteredFixtures.find(
+      (f) => f.fileType === "jsonl"
+    );
+    if (firstFixture) {
+      setSelectedFixture(firstFixture.name);
+    } else if (filteredFixtures.length > 0) {
+      setSelectedFixture(filteredFixtures[0].name);
+    } else {
+      setSelectedFixture("");
+    }
+  }, [selectedConverter, fixtures]);
+
+  // Load and convert fixture
   const loadFixture = useCallback(async () => {
     if (!selectedFixture) return;
-
-    try {
-      const response = await fetch(
-        `${BACKEND_URL}/debug/fixtures/${encodeURIComponent(selectedFixture)}`
-      );
-      if (!response.ok) throw new Error("Failed to load fixture");
-      const content = await response.text();
-      setRawContent(content);
-      setResult(null); // Clear previous result
-    } catch (err) {
-      setError(err instanceof Error ? err.message : "Unknown error");
-    }
-  }, [selectedFixture]);
-
-  useEffect(() => {
-    loadFixture();
-  }, [loadFixture]);
-
-  // Run conversion
-  const runConversion = async () => {
-    if (!rawContent) return;
 
     setIsLoading(true);
     setError(null);
 
     try {
-      const response = await fetch(`${BACKEND_URL}/debug/convert`, {
+      // Fetch raw content
+      const contentResponse = await fetch(
+        `${BACKEND_URL}/debug/fixtures/${selectedConverter}/${encodeURIComponent(
+          selectedFixture
+        )}`
+      );
+      if (!contentResponse.ok) throw new Error("Failed to load fixture content");
+      const content = await contentResponse.text();
+
+      // Run conversion
+      const convertResponse = await fetch(`${BACKEND_URL}/debug/convert`, {
         method: "POST",
         headers: { "Content-Type": "application/json" },
         body: JSON.stringify({
-          mode,
-          content: rawContent,
+          mode: "streaming",
+          content,
+          converter: selectedConverter,
           mainSessionId: "debug-session",
         }),
       });
 
-      if (!response.ok) {
-        const errorData = await response.json();
+      if (!convertResponse.ok) {
+        const errorData = await convertResponse.json();
         throw new Error(errorData.error || "Conversion failed");
       }
 
-      const data = await response.json();
-      setResult(data);
+      const data = await convertResponse.json();
+      stepper.loadData({
+        rawEvents: data.rawEvents,
+        sessionEventsByStep: data.sessionEventsByStep,
+      });
     } catch (err) {
       setError(err instanceof Error ? err.message : "Unknown error");
     } finally {
       setIsLoading(false);
     }
-  };
-
-  const toggleSection = (section: string) => {
-    setExpandedSections((prev) => {
-      const next = new Set(prev);
-      if (next.has(section)) {
-        next.delete(section);
-      } else {
-        next.add(section);
-      }
-      return next;
-    });
-  };
-
-  const renderCollapsibleJson = (
-    title: string,
-    data: unknown,
-    key: string,
-    maxHeight = "max-h-96"
-  ) => {
-    const isExpanded = expandedSections.has(key);
-    const jsonString = JSON.stringify(data, null, 2);
-    const lineCount = jsonString.split("\n").length;
-
-    return (
-      <div key={key} className="border rounded mb-2">
-        <button
-          onClick={() => toggleSection(key)}
-          className="w-full px-3 py-2 text-left bg-gray-50 hover:bg-gray-100 flex items-center justify-between"
-        >
-          <span className="font-medium text-sm">{title}</span>
-          <span className="text-xs text-gray-500">
-            {lineCount} lines {isExpanded ? "[-]" : "[+]"}
-          </span>
-        </button>
-        {isExpanded && (
-          <pre
-            className={`p-3 text-xs overflow-x-auto bg-gray-900 text-green-400 ${maxHeight} overflow-y-auto`}
-          >
-            {jsonString}
-          </pre>
-        )}
-      </div>
-    );
-  };
-
-  // Parse raw content for display
-  const getRawEvents = (): unknown[] => {
-    if (!rawContent) return [];
-    try {
-      if (selectedFixture.endsWith(".jsonl")) {
-        return rawContent
-          .trim()
-          .split("\n")
-          .map((line) => JSON.parse(line));
-      }
-      return [JSON.parse(rawContent)];
-    } catch {
-      return [];
-    }
-  };
-
-  const rawEvents = getRawEvents();
+  }, [selectedFixture, selectedConverter, stepper]);
 
   return (
-    <div className="h-screen flex flex-col overflow-hidden bg-gray-50">
+    <div className="h-screen flex flex-col overflow-hidden bg-slate-950 text-slate-100">
       {/* Header */}
-      <header className="flex-shrink-0 bg-white border-b shadow-sm">
-        <div className="max-w-screen-2xl mx-auto px-6 py-4">
+      <header className="flex-shrink-0 bg-slate-900 border-b border-slate-800">
+        <div className="px-6 py-4">
           <div className="flex items-center justify-between">
             <div>
-              <h1 className="text-2xl font-bold text-gray-800">
-                Converter Debug
-              </h1>
-              <p className="text-sm text-gray-600 mt-1">
-                Visualize raw events → session events → final state
+              <h1 className="text-xl font-bold text-white">Converter Debug</h1>
+              <p className="text-sm text-slate-400 mt-0.5">
+                Step through events and watch state build incrementally
               </p>
             </div>
             <Link
               href="/"
-              className="px-4 py-2 bg-gray-200 text-gray-700 rounded hover:bg-gray-300"
+              className="px-4 py-2 bg-slate-800 text-slate-300 rounded hover:bg-slate-700 transition-colors"
             >
-              ← Back to Dashboard
+              ← Dashboard
             </Link>
           </div>
         </div>
       </header>
 
       {/* Controls */}
-      <div className="flex-shrink-0 bg-white border-b px-6 py-4">
-        <div className="max-w-screen-2xl mx-auto flex items-center gap-6">
+      <div className="flex-shrink-0 bg-slate-900 border-b border-slate-800 px-6 py-3">
+        <div className="flex items-center gap-6">
+          {/* Converter toggle */}
+          <div className="flex items-center gap-2">
+            <span className="text-sm text-slate-400">Converter:</span>
+            <div className="flex gap-1">
+              <button
+                onClick={() => setSelectedConverter("opencode")}
+                className={`px-3 py-1.5 text-sm rounded transition-colors ${
+                  selectedConverter === "opencode"
+                    ? "bg-emerald-600 text-white"
+                    : "bg-slate-800 text-slate-300 hover:bg-slate-700"
+                }`}
+              >
+                OpenCode
+              </button>
+              <button
+                onClick={() => setSelectedConverter("claude-sdk")}
+                className={`px-3 py-1.5 text-sm rounded transition-colors ${
+                  selectedConverter === "claude-sdk"
+                    ? "bg-emerald-600 text-white"
+                    : "bg-slate-800 text-slate-300 hover:bg-slate-700"
+                }`}
+              >
+                Claude SDK
+              </button>
+            </div>
+          </div>
+
           {/* Fixture selector */}
           <div className="flex items-center gap-2">
-            <label className="text-sm font-medium text-gray-700">
-              Fixture:
-            </label>
+            <span className="text-sm text-slate-400">Fixture:</span>
             <select
               value={selectedFixture}
               onChange={(e) => setSelectedFixture(e.target.value)}
-              className="border rounded px-3 py-1.5 text-sm bg-white"
+              className="bg-slate-800 text-white border border-slate-700 rounded px-3 py-1.5 text-sm focus:outline-none focus:ring-2 focus:ring-emerald-500"
             >
               <option value="">Select a fixture...</option>
-              {fixtures.map((f) => (
+              {filteredFixtures.map((f) => (
                 <option key={f.name} value={f.name}>
                   {f.name} ({(f.size / 1024).toFixed(1)} KB)
                 </option>
@@ -223,63 +181,37 @@ export default function DebugPage() {
             </select>
           </div>
 
-          {/* Mode selector */}
-          <div className="flex items-center gap-3">
-            <label className="text-sm font-medium text-gray-700">Mode:</label>
-            <label className="flex items-center gap-1.5 cursor-pointer">
-              <input
-                type="radio"
-                name="mode"
-                value="streaming"
-                checked={mode === "streaming"}
-                onChange={() => setMode("streaming")}
-                className="text-blue-500"
-              />
-              <span className="text-sm">Streaming</span>
-            </label>
-            <label className="flex items-center gap-1.5 cursor-pointer">
-              <input
-                type="radio"
-                name="mode"
-                value="transcript"
-                checked={mode === "transcript"}
-                onChange={() => setMode("transcript")}
-                className="text-blue-500"
-              />
-              <span className="text-sm">Transcript</span>
-            </label>
-          </div>
-
-          {/* Run button */}
+          {/* Load button */}
           <button
-            onClick={runConversion}
-            disabled={!rawContent || isLoading}
-            className="px-4 py-1.5 bg-blue-500 text-white rounded hover:bg-blue-600 disabled:bg-gray-300 disabled:cursor-not-allowed text-sm font-medium"
+            onClick={loadFixture}
+            disabled={!selectedFixture || isLoading}
+            className="px-4 py-1.5 bg-emerald-600 text-white rounded hover:bg-emerald-500 disabled:bg-slate-700 disabled:text-slate-500 disabled:cursor-not-allowed text-sm font-medium transition-colors"
           >
-            {isLoading ? "Converting..." : "Run Conversion"}
+            {isLoading ? "Loading..." : "Load & Convert"}
           </button>
 
-          {/* Stats summary */}
-          {result && (
-            <div className="flex items-center gap-4 text-sm text-gray-600 ml-auto">
-              {result.stats.rawEventCount !== undefined && (
-                <span>
-                  <strong>{result.stats.rawEventCount}</strong> raw events
-                </span>
-              )}
-              {result.stats.sessionEventCount !== undefined && (
-                <>
-                  <span>→</span>
-                  <span>
-                    <strong>{result.stats.sessionEventCount}</strong> session
-                    events
-                  </span>
-                </>
-              )}
+          {/* Stats */}
+          {stepper.isLoaded && (
+            <div className="ml-auto flex items-center gap-4 text-sm text-slate-400">
+              <span>
+                <strong className="text-white">
+                  {stepper.state.rawEvents.length}
+                </strong>{" "}
+                raw events
+              </span>
               <span>→</span>
               <span>
-                <strong>{result.stats.blockCount}</strong> blocks,{" "}
-                <strong>{result.stats.subagentCount}</strong> subagents
+                <strong className="text-white">
+                  {stepper.state.sessionEventsByStep.flat().length}
+                </strong>{" "}
+                session events
+              </span>
+              <span>→</span>
+              <span>
+                <strong className="text-white">
+                  {stepper.currentState.blocks.length}
+                </strong>{" "}
+                blocks
               </span>
             </div>
           )}
@@ -287,151 +219,78 @@ export default function DebugPage() {
 
         {/* Error display */}
         {error && (
-          <div className="max-w-screen-2xl mx-auto mt-3">
-            <div className="bg-red-50 border border-red-200 text-red-700 px-4 py-2 rounded text-sm">
-              {error}
-            </div>
+          <div className="mt-3 bg-red-900/50 border border-red-700 text-red-300 px-4 py-2 rounded text-sm">
+            {error}
           </div>
         )}
       </div>
 
-      {/* Main content - 3 columns */}
-      <main className="flex-1 min-h-0 overflow-hidden">
-        <div className="h-full grid grid-cols-3 gap-4 p-4">
-          {/* Column 1: Raw Events */}
-          <div className="flex flex-col bg-white rounded-lg shadow overflow-hidden">
-            <div className="flex-shrink-0 border-b px-4 py-3 bg-gray-50">
-              <h2 className="font-semibold text-gray-800">
-                Raw Events ({rawEvents.length})
-              </h2>
-              <p className="text-xs text-gray-500 mt-0.5">
-                OpenCode SDK events from fixture
-              </p>
-            </div>
-            <div className="flex-1 min-h-0 overflow-y-auto p-4">
-              {rawEvents.length === 0 ? (
-                <div className="text-gray-400 text-center py-8">
-                  Select a fixture to load events
-                </div>
-              ) : (
-                rawEvents.slice(0, 100).map((event, idx) => (
-                  <div key={idx} className="mb-2">
-                    {renderCollapsibleJson(
-                      `Event ${idx}: ${(event as { type?: string }).type || "unknown"}`,
-                      event,
-                      `raw-${idx}`,
-                      "max-h-48"
-                    )}
-                  </div>
-                ))
-              )}
-              {rawEvents.length > 100 && (
-                <div className="text-center text-gray-500 text-sm py-4">
-                  Showing first 100 of {rawEvents.length} events
-                </div>
-              )}
-            </div>
-          </div>
-
-          {/* Column 2: Session Events */}
-          <div className="flex flex-col bg-white rounded-lg shadow overflow-hidden">
-            <div className="flex-shrink-0 border-b px-4 py-3 bg-gray-50">
-              <h2 className="font-semibold text-gray-800">
-                Session Events ({result?.sessionEvents?.length ?? 0})
-              </h2>
-              <p className="text-xs text-gray-500 mt-0.5">
-                Converted events (streaming mode only)
-              </p>
-            </div>
-            <div className="flex-1 min-h-0 overflow-y-auto p-4">
-              {!result ? (
-                <div className="text-gray-400 text-center py-8">
-                  Click "Run Conversion" to see results
-                </div>
-              ) : mode === "transcript" ? (
-                <div className="text-gray-400 text-center py-8">
-                  Session events not available in transcript mode
-                </div>
-              ) : !result.sessionEvents || result.sessionEvents.length === 0 ? (
-                <div className="text-gray-400 text-center py-8">
-                  No session events generated
-                </div>
-              ) : (
-                result.sessionEvents.slice(0, 200).map((event, idx) => (
-                  <div key={idx} className="mb-2">
-                    {renderCollapsibleJson(
-                      `${idx}: ${(event as { type?: string }).type || "unknown"}`,
-                      event,
-                      `session-${idx}`,
-                      "max-h-48"
-                    )}
-                  </div>
-                ))
-              )}
-              {result?.sessionEvents && result.sessionEvents.length > 200 && (
-                <div className="text-center text-gray-500 text-sm py-4">
-                  Showing first 200 of {result.sessionEvents.length} events
-                </div>
-              )}
-            </div>
-          </div>
-
-          {/* Column 3: Final State */}
-          <div className="flex flex-col bg-white rounded-lg shadow overflow-hidden">
-            <div className="flex-shrink-0 border-b px-4 py-3 bg-gray-50">
-              <h2 className="font-semibold text-gray-800">Final State</h2>
-              <p className="text-xs text-gray-500 mt-0.5">
-                SessionConversationState after reduction
-              </p>
-            </div>
-            <div className="flex-1 min-h-0 overflow-y-auto p-4">
-              {!result ? (
-                <div className="text-gray-400 text-center py-8">
-                  Click "Run Conversion" to see results
-                </div>
-              ) : (
-                <>
-                  {/* Stats */}
-                  {renderCollapsibleJson("Stats", result.stats, "stats")}
-
-                  {/* Blocks */}
-                  <h3 className="font-medium text-sm text-gray-700 mt-4 mb-2">
-                    Blocks ({result.finalState.blocks.length})
-                  </h3>
-                  {result.finalState.blocks.map((block, idx) => (
-                    <div key={idx} className="mb-2">
-                      {renderCollapsibleJson(
-                        `${idx}: ${(block as { type?: string }).type || "unknown"}`,
-                        block,
-                        `block-${idx}`,
-                        "max-h-48"
-                      )}
-                    </div>
-                  ))}
-
-                  {/* Subagents */}
-                  {result.finalState.subagents.length > 0 && (
-                    <>
-                      <h3 className="font-medium text-sm text-gray-700 mt-4 mb-2">
-                        Subagents ({result.finalState.subagents.length})
-                      </h3>
-                      {result.finalState.subagents.map((subagent, idx) => (
-                        <div key={idx} className="mb-2">
-                          {renderCollapsibleJson(
-                            `Subagent ${idx}: ${(subagent as { toolUseId?: string }).toolUseId || "unknown"}`,
-                            subagent,
-                            `subagent-${idx}`,
-                            "max-h-64"
-                          )}
-                        </div>
-                      ))}
-                    </>
-                  )}
-                </>
-              )}
-            </div>
-          </div>
+      {/* Timeline Controls */}
+      {stepper.isLoaded && (
+        <div className="flex-shrink-0 px-6 py-3 bg-slate-900/50">
+          <TimelineControls
+            currentStep={stepper.state.currentStep}
+            totalSteps={stepper.state.totalSteps}
+            isPlaying={stepper.state.isPlaying}
+            playbackSpeed={stepper.state.playbackSpeed}
+            onStepForward={stepper.stepForward}
+            onStepBackward={stepper.stepBackward}
+            onJumpToStart={stepper.jumpToStart}
+            onJumpToEnd={stepper.jumpToEnd}
+            onJumpToStep={stepper.jumpToStep}
+            onTogglePlay={stepper.togglePlay}
+            onSetSpeed={stepper.setSpeed}
+          />
         </div>
+      )}
+
+      {/* Main content */}
+      <main className="flex-1 min-h-0 overflow-hidden">
+        {!stepper.isLoaded ? (
+          <div className="h-full flex items-center justify-center text-slate-400">
+            <div className="text-center">
+              <div className="text-lg mb-2">No data loaded</div>
+              <div className="text-sm">
+                Select a fixture and click "Load & Convert" to begin
+              </div>
+            </div>
+          </div>
+        ) : (
+          <div className="h-full grid grid-rows-[1fr_250px] gap-3 p-4">
+            {/* Top row: Event Timeline + State Viewer */}
+            <div className="grid grid-cols-[300px_1fr] gap-3 min-h-0">
+              {/* Event Timeline */}
+              <div className="bg-slate-900 rounded-lg overflow-hidden flex flex-col">
+                <div className="flex-shrink-0 px-3 py-2 border-b border-slate-700">
+                  <h3 className="text-sm font-semibold text-slate-200">
+                    Events ({stepper.state.rawEvents.length})
+                  </h3>
+                </div>
+                <div className="flex-1 min-h-0">
+                  <EventTimeline
+                    rawEvents={stepper.state.rawEvents}
+                    sessionEventsByStep={stepper.state.sessionEventsByStep}
+                    currentStep={stepper.state.currentStep}
+                    onSelectStep={stepper.jumpToStep}
+                  />
+                </div>
+              </div>
+
+              {/* State Viewer */}
+              <StateViewer
+                state={stepper.currentState}
+                stepNumber={stepper.state.currentStep}
+              />
+            </div>
+
+            {/* Bottom row: Event Detail Panel */}
+            <EventDetailPanel
+              rawEvent={stepper.currentRawEvent}
+              sessionEvents={stepper.currentSessionEvents}
+              stepNumber={stepper.state.currentStep}
+            />
+          </div>
+        )}
       </main>
     </div>
   );

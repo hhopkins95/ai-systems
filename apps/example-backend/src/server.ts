@@ -4,9 +4,11 @@ import {
   createOpenCodeEventConverter,
   parseOpenCodeTranscriptFile,
 } from "@hhopkins/agent-converters/opencode";
+import { sdkMessageToEvents } from "@hhopkins/agent-converters/claude-sdk";
 import {
   reduceSessionEvent,
   createInitialConversationState,
+  type AnySessionEvent,
 } from "@hhopkins/agent-converters";
 import dotenv from "dotenv";
 import fs from "fs/promises";
@@ -21,7 +23,8 @@ dotenv.config();
 
 const dirname = path.dirname(fileURLToPath(import.meta.url));
 const agentSessionsDirectoryPath = path.join(dirname, "../../../.agent-sessions");
-const fixturesDir = path.join(dirname, "../../../packages/converters/src/opencode/test");
+const openCodeFixturesDir = path.join(dirname, "../../../packages/converters/src/opencode/test");
+const claudeSdkFixturesDir = path.join(dirname, "../../../packages/converters/src/claude-sdk/test");
 
 /**
  * Main server entry point
@@ -169,27 +172,48 @@ async function main() {
       // Converter Debug Endpoints
       // =======================================================================
 
-      // GET /debug/fixtures - List available fixture files
+      // GET /debug/fixtures - List available fixture files from both converters
       if (req.url === '/debug/fixtures' && req.method === 'GET') {
         res.setHeader('Content-Type', 'application/json');
         res.setHeader('Access-Control-Allow-Origin', '*');
 
         try {
-          const files = await fs.readdir(fixturesDir);
-          const fixtures = await Promise.all(
-            files
+          // Load OpenCode fixtures
+          const openCodeFiles = await fs.readdir(openCodeFixturesDir);
+          const openCodeFixtures = await Promise.all(
+            openCodeFiles
               .filter(f => f.endsWith('.json') || f.endsWith('.jsonl'))
               .map(async (name) => {
-                const stat = await fs.stat(path.join(fixturesDir, name));
+                const stat = await fs.stat(path.join(openCodeFixturesDir, name));
                 return {
                   name,
                   size: stat.size,
-                  type: name.endsWith('.jsonl') ? 'jsonl' : 'json',
+                  fileType: name.endsWith('.jsonl') ? 'jsonl' as const : 'json' as const,
+                  converter: 'opencode' as const,
                 };
               })
           );
+
+          // Load Claude SDK fixtures
+          const claudeFiles = await fs.readdir(claudeSdkFixturesDir);
+          const claudeFixtures = await Promise.all(
+            claudeFiles
+              .filter(f => f.endsWith('.json') || f.endsWith('.jsonl'))
+              .map(async (name) => {
+                const stat = await fs.stat(path.join(claudeSdkFixturesDir, name));
+                return {
+                  name,
+                  size: stat.size,
+                  fileType: name.endsWith('.jsonl') ? 'jsonl' as const : 'json' as const,
+                  converter: 'claude-sdk' as const,
+                };
+              })
+          );
+
           res.statusCode = 200;
-          res.end(JSON.stringify({ fixtures }));
+          res.end(JSON.stringify({
+            fixtures: [...openCodeFixtures, ...claudeFixtures],
+          }));
         } catch (error) {
           console.error('Failed to list fixtures:', error);
           res.statusCode = 500;
@@ -198,10 +222,11 @@ async function main() {
         return;
       }
 
-      // GET /debug/fixtures/:filename - Get raw fixture content
-      const fixtureMatch = req.url?.match(/^\/debug\/fixtures\/(.+)$/);
+      // GET /debug/fixtures/:converter/:filename - Get raw fixture content
+      const fixtureMatch = req.url?.match(/^\/debug\/fixtures\/(opencode|claude-sdk)\/(.+)$/);
       if (fixtureMatch && req.method === 'GET') {
-        const filename = decodeURIComponent(fixtureMatch[1]);
+        const converter = fixtureMatch[1] as 'opencode' | 'claude-sdk';
+        const filename = decodeURIComponent(fixtureMatch[2]);
         res.setHeader('Access-Control-Allow-Origin', '*');
 
         // Security: prevent path traversal
@@ -210,6 +235,8 @@ async function main() {
           res.end(JSON.stringify({ error: 'Invalid filename' }));
           return;
         }
+
+        const fixturesDir = converter === 'opencode' ? openCodeFixturesDir : claudeSdkFixturesDir;
 
         try {
           const filePath = path.join(fixturesDir, filename);
@@ -226,39 +253,62 @@ async function main() {
       }
 
       // POST /debug/convert - Run conversion on fixture data
+      // Supports both OpenCode and Claude SDK converters
       if (req.url === '/debug/convert' && req.method === 'POST') {
         res.setHeader('Content-Type', 'application/json');
         res.setHeader('Access-Control-Allow-Origin', '*');
 
         try {
           const body = await getRequestBody(req);
-          const { mode, content, mainSessionId } = JSON.parse(body);
+          const { mode, content, mainSessionId, converter: converterType = 'opencode' } = JSON.parse(body);
 
           if (mode === 'streaming') {
-            // Streaming mode: convert raw events
-            const events = typeof content === 'string'
+            // Streaming mode: convert raw events one at a time
+            const rawEvents: unknown[] = typeof content === 'string'
               ? content.trim().split('\n').map((line: string) => JSON.parse(line))
               : content;
 
-            const converter = createOpenCodeEventConverter(mainSessionId || 'main-session');
             let state = createInitialConversationState();
-            const sessionEvents: any[] = [];
+            const sessionEventsByStep: AnySessionEvent[][] = [];
+            const allSessionEvents: AnySessionEvent[] = [];
 
-            for (const event of events) {
-              const converted = converter.parseEvent(event);
-              for (const sessionEvent of converted) {
-                sessionEvents.push(sessionEvent);
-                state = reduceSessionEvent(state, sessionEvent);
+            if (converterType === 'opencode') {
+              // OpenCode: stateful converter
+              const openCodeConverter = createOpenCodeEventConverter(mainSessionId || 'main-session');
+
+              for (const event of rawEvents) {
+                const converted = openCodeConverter.parseEvent(event);
+                sessionEventsByStep.push(converted);
+                for (const sessionEvent of converted) {
+                  allSessionEvents.push(sessionEvent);
+                  state = reduceSessionEvent(state, sessionEvent);
+                }
               }
+            } else if (converterType === 'claude-sdk') {
+              // Claude SDK: stateless converter (each message converts independently)
+              for (const event of rawEvents) {
+                const converted = sdkMessageToEvents(event as any);
+                sessionEventsByStep.push(converted);
+                for (const sessionEvent of converted) {
+                  allSessionEvents.push(sessionEvent);
+                  state = reduceSessionEvent(state, sessionEvent);
+                }
+              }
+            } else {
+              res.statusCode = 400;
+              res.end(JSON.stringify({ error: 'Invalid converter. Use "opencode" or "claude-sdk"' }));
+              return;
             }
 
             res.statusCode = 200;
             res.end(JSON.stringify({
-              sessionEvents,
+              rawEvents,
+              sessionEventsByStep,
+              sessionEvents: allSessionEvents,
               finalState: state,
               stats: {
-                rawEventCount: events.length,
-                sessionEventCount: sessionEvents.length,
+                rawEventCount: rawEvents.length,
+                sessionEventCount: allSessionEvents.length,
                 blockCount: state.blocks.length,
                 subagentCount: state.subagents.length,
               },
