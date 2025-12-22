@@ -1,13 +1,16 @@
 /**
  * State Reducer for Agent Service Client
  *
- * Manages global state for all sessions including:
+ * Manages global state for all sessions using the shared reducer pattern
+ * from @hhopkins/agent-converters for conversation state.
+ *
+ * State managed:
  * - Session list
- * - Conversation blocks
- * - Streaming state (separate from finalized blocks)
+ * - Conversation state (blocks, subagents) - via shared reducer
  * - Workspace files
- * - Subagent conversations
  * - Metadata (tokens, cost)
+ * - Session logs
+ * - EE status
  */
 
 import type {
@@ -19,10 +22,14 @@ import type {
   ErrorBlock,
   WorkspaceFile,
   SessionMetadata,
-  StreamingContent,
-  SubagentState,
   AgentArchitectureSessionOptions,
-} from '../types';
+  AnySessionEvent,
+  SessionConversationState,
+} from '@ai-systems/shared-types';
+import {
+  reduceSessionEvent,
+  createInitialState as createInitialConversationState,
+} from '@hhopkins/agent-converters';
 
 // ============================================================================
 // Debug Event Types
@@ -75,20 +82,14 @@ export interface SessionState {
   /** Session info including runtime state */
   info: SessionListItem;
 
-  /** Finalized conversation blocks (main transcript) */
-  blocks: ConversationBlock[];
-
-  /** Active streaming state keyed by conversationId ('main' or subagentId) */
-  streaming: Map<string, StreamingContent>;
+  /** Conversation state (blocks, subagents) managed by shared reducer */
+  conversationState: SessionConversationState;
 
   /** Session-level metadata (tokens, cost, model) */
   metadata: SessionMetadata;
 
   /** Workspace files tracked by the session */
   files: WorkspaceFile[];
-
-  /** Subagent conversations keyed by subagentId */
-  subagents: Map<string, SubagentState>;
 
   /** Session logs from execution environment */
   logs: SessionLogEntry[];
@@ -136,79 +137,19 @@ export type AgentServiceAction =
   // Session Options
   | { type: 'SESSION_OPTIONS_UPDATED'; sessionId: string; sessionOptions: AgentArchitectureSessionOptions }
 
-  // Streaming Events
-  | {
-      type: 'STREAM_STARTED';
-      sessionId: string;
-      conversationId: string;
-      block: ConversationBlock;
-    }
-  | {
-      type: 'STREAM_DELTA';
-      sessionId: string;
-      conversationId: string;
-      blockId: string;
-      delta: string;
-    }
-  | {
-      type: 'STREAM_COMPLETED';
-      sessionId: string;
-      conversationId: string;
-      blockId: string;
-      block: ConversationBlock;
-    }
-
-  // Block Updates (non-streaming metadata changes)
-  | {
-      type: 'BLOCK_UPDATED';
-      sessionId: string;
-      conversationId: string;
-      blockId: string;
-      updates: Partial<ConversationBlock>;
-    }
-
-  // Metadata
-  | {
-      type: 'METADATA_UPDATED';
-      sessionId: string;
-      conversationId: string;
-      metadata: SessionMetadata;
-    }
-
-  // Subagent Events
-  | {
-      type: 'SUBAGENT_SPAWNED';
-      sessionId: string;
-      toolUseId: string;
-      prompt: string;
-      subagentType?: string;
-      description?: string;
-    }
-  | {
-      type: 'SUBAGENT_COMPLETED';
-      sessionId: string;
-      toolUseId: string;
-      agentId?: string;
-      status: 'completed' | 'failed';
-      output?: string;
-      durationMs?: number;
-    }
-
-  // File Events
-  | { type: 'FILE_CREATED'; sessionId: string; file: WorkspaceFile }
-  | { type: 'FILE_MODIFIED'; sessionId: string; file: WorkspaceFile }
-  | { type: 'FILE_DELETED'; sessionId: string; path: string }
+  // Unified Session Event - handles all conversation events via shared reducer
+  | { type: 'SESSION_EVENT'; sessionId: string; event: AnySessionEvent }
 
   // Debug Events
   | { type: 'EVENT_LOGGED'; eventName: string; payload: unknown }
   | { type: 'EVENTS_CLEARED' }
 
-  // Optimistic Message Updates
+  // Optimistic Message Updates (client-specific)
   | { type: 'OPTIMISTIC_USER_MESSAGE'; sessionId: string; block: UserMessageBlock }
   | { type: 'REPLACE_OPTIMISTIC_USER_MESSAGE'; sessionId: string; block: ConversationBlock }
   | { type: 'REMOVE_OPTIMISTIC_MESSAGE'; sessionId: string; optimisticId: string }
 
-  // Error Display
+  // Error Display (client-specific)
   | { type: 'ERROR_BLOCK_ADDED'; sessionId: string; error: { message: string; code?: string } }
 
   // Session Logs
@@ -228,6 +169,42 @@ export const initialState: AgentServiceState = {
   isInitialized: false,
   eventLog: [],
 };
+
+// ============================================================================
+// Helper Functions
+// ============================================================================
+
+/**
+ * Upsert a file in the files array
+ */
+function upsertFile(files: WorkspaceFile[], file: WorkspaceFile): WorkspaceFile[] {
+  const existingIndex = files.findIndex((f) => f.path === file.path);
+  if (existingIndex >= 0) {
+    const newFiles = [...files];
+    newFiles[existingIndex] = file;
+    return newFiles;
+  }
+  return [...files, file];
+}
+
+/**
+ * Append a log entry, keeping only MAX_SESSION_LOG_SIZE most recent
+ */
+function appendLog(
+  logs: SessionLogEntry[],
+  sessionId: string,
+  log: { level?: LogLevel; message: string; data?: Record<string, unknown> }
+): SessionLogEntry[] {
+  const newLog: SessionLogEntry = {
+    id: `log-${Date.now()}-${Math.random().toString(36).slice(2, 9)}`,
+    timestamp: Date.now(),
+    sessionId,
+    level: log.level ?? 'info',
+    message: log.message,
+    data: log.data,
+  };
+  return [...logs, newLog].slice(-MAX_SESSION_LOG_SIZE);
+}
 
 // ============================================================================
 // Reducer
@@ -268,10 +245,10 @@ export function agentServiceReducer(
 
     case 'SESSION_CREATED': {
       // Check if session already exists (race condition with SESSIONS_LIST_UPDATED)
-      const exists = state.sessionList.some(s => s.sessionId === action.session.sessionId);
+      const exists = state.sessionList.some((s) => s.sessionId === action.session.sessionId);
 
       const newSessionList = exists
-        ? state.sessionList.map(s =>
+        ? state.sessionList.map((s) =>
             s.sessionId === action.session.sessionId ? action.session : s
           )
         : [...state.sessionList, action.session];
@@ -281,11 +258,9 @@ export function agentServiceReducer(
       const existingSession = sessions.get(action.session.sessionId);
       sessions.set(action.session.sessionId, {
         info: action.session,
-        blocks: existingSession?.blocks ?? [],
-        streaming: existingSession?.streaming ?? new Map(),
+        conversationState: existingSession?.conversationState ?? createInitialConversationState(),
         metadata: existingSession?.metadata ?? {},
         files: existingSession?.files ?? [],
-        subagents: existingSession?.subagents ?? new Map(),
         logs: existingSession?.logs ?? [],
         eeStatus: existingSession?.eeStatus ?? null,
         isLoading: existingSession?.isLoading ?? false,
@@ -300,29 +275,12 @@ export function agentServiceReducer(
 
     case 'SESSION_LOADED': {
       const sessions = new Map(state.sessions);
-      const { conversationState } = action.data;
-
-      // Convert subagents array to Map
-      // Map from shared SubagentState to client SubagentState (which has metadata)
-      const subagentsMap = new Map<string, SubagentState>(
-        conversationState.subagents.map((sub) => [
-          sub.id,
-          {
-            id: sub.id,
-            blocks: sub.blocks,
-            status: sub.status === 'success' ? 'completed' : sub.status === 'error' ? 'failed' : 'running',
-            metadata: {},
-          },
-        ])
-      );
 
       sessions.set(action.sessionId, {
         info: action.data,
-        blocks: conversationState.blocks,
-        streaming: new Map(),
+        conversationState: action.data.conversationState,
         metadata: {},
         files: action.data.workspaceFiles,
-        subagents: subagentsMap,
         logs: [],
         eeStatus: null,
         isLoading: false,
@@ -341,9 +299,7 @@ export function agentServiceReducer(
       return {
         ...state,
         sessions,
-        sessionList: state.sessionList.filter(
-          (s) => s.sessionId !== action.sessionId
-        ),
+        sessionList: state.sessionList.filter((s) => s.sessionId !== action.sessionId),
       };
     }
 
@@ -365,9 +321,7 @@ export function agentServiceReducer(
         ...state,
         sessions,
         sessionList: state.sessionList.map((s) =>
-          s.sessionId === action.sessionId
-            ? { ...s, runtime: action.runtime }
-            : s
+          s.sessionId === action.sessionId ? { ...s, runtime: action.runtime } : s
         ),
       };
     }
@@ -390,310 +344,64 @@ export function agentServiceReducer(
         ...state,
         sessions,
         sessionList: state.sessionList.map((s) =>
-          s.sessionId === action.sessionId
-            ? { ...s, sessionOptions: action.sessionOptions }
-            : s
+          s.sessionId === action.sessionId ? { ...s, sessionOptions: action.sessionOptions } : s
         ),
       };
     }
 
-    case 'STREAM_STARTED': {
-      const sessions = new Map(state.sessions);
-      const session = sessions.get(action.sessionId);
-
+    // =========================================================================
+    // Unified Session Event Handler
+    // Uses shared reducer for conversation events (blocks, subagents)
+    // Handles other events (files, metadata, logs, EE status) directly
+    // =========================================================================
+    case 'SESSION_EVENT': {
+      const { sessionId, event } = action;
+      const session = state.sessions.get(sessionId);
       if (!session) return state;
 
-      // Add/update streaming entry keyed by conversationId
-      // Don't add shell block to blocks - just track streaming content
-      const streaming = new Map(session.streaming);
-      streaming.set(action.conversationId, {
-        conversationId: action.conversationId,
-        content: '',
-        startedAt: Date.now(),
-      });
+      // Use shared reducer for conversation events (blocks, subagents)
+      const newConversationState = reduceSessionEvent(session.conversationState, event);
 
-      sessions.set(action.sessionId, {
-        ...session,
-        streaming,
-      });
+      // Handle non-conversation events
+      let newFiles = session.files;
+      let newLogs = session.logs;
+      let newMetadata = session.metadata;
+      let newEEStatus = session.eeStatus;
 
-      return { ...state, sessions };
-    }
-
-    case 'STREAM_DELTA': {
-      const sessions = new Map(state.sessions);
-      const session = sessions.get(action.sessionId);
-
-      if (!session) return state;
-
-      // Lookup streaming content by conversationId (not blockId)
-      const streamingContent = session.streaming.get(action.conversationId);
-      if (!streamingContent) return state;
-
-      const streaming = new Map(session.streaming);
-      streaming.set(action.conversationId, {
-        ...streamingContent,
-        content: streamingContent.content + action.delta,
-      });
-
-      sessions.set(action.sessionId, {
-        ...session,
-        streaming,
-      });
-
-      return { ...state, sessions };
-    }
-
-    case 'STREAM_COMPLETED': {
-      const sessions = new Map(state.sessions);
-      const session = sessions.get(action.sessionId);
-
-      if (!session) return state;
-
-      const conversationId = action.conversationId;
-      if (!conversationId) return state;
-
-      // Clear streaming for this conversation
-      const streaming = new Map(session.streaming);
-      streaming.delete(conversationId);
-
-      if (conversationId === 'main') {
-        // Append the finalized block (no shell block to replace)
-        sessions.set(action.sessionId, {
-          ...session,
-          blocks: [...session.blocks, action.block],
-          streaming,
-        });
-      } else {
-        // Append to subagent
-        const newSubagents = new Map(session.subagents);
-        const subagent = session.subagents.get(conversationId);
-
-        if (subagent) {
-          // Subagent exists, append the block
-          newSubagents.set(conversationId, {
-            ...subagent,
-            blocks: [...subagent.blocks, action.block],
-          });
-        } else {
-          // Subagent doesn't exist yet - create it as a fallback
-          // This can happen if subagent:discovered arrives late or is missed
-          newSubagents.set(conversationId, {
-            id: conversationId,
-            blocks: [action.block],
-            metadata: {},
-            status: 'running',
-          });
-        }
-
-        sessions.set(action.sessionId, {
-          ...session,
-          subagents: newSubagents,
-          streaming,
-        });
+      switch (event.type) {
+        case 'file:created':
+        case 'file:modified':
+          newFiles = upsertFile(session.files, event.payload.file);
+          break;
+        case 'file:deleted':
+          newFiles = session.files.filter((f) => f.path !== event.payload.path);
+          break;
+        case 'metadata:update':
+          newMetadata = { ...session.metadata, ...event.payload.metadata };
+          break;
+        case 'log':
+          newLogs = appendLog(session.logs, sessionId, event.payload);
+          break;
+        case 'ee:creating':
+          newEEStatus = 'creating';
+          break;
+        case 'ee:ready':
+          newEEStatus = 'ready';
+          break;
+        case 'ee:terminated':
+          newEEStatus = 'terminated';
+          break;
       }
 
-      return { ...state, sessions };
-    }
-
-    case 'BLOCK_UPDATED': {
       const sessions = new Map(state.sessions);
-      const session = sessions.get(action.sessionId);
-
-      if (!session) return state;
-
-      const updateBlocks = (blocks: ConversationBlock[]): ConversationBlock[] =>
-        blocks.map((block) =>
-          block.id === action.blockId ? { ...block, ...action.updates } as ConversationBlock : block
-        );
-
-      if (action.conversationId === 'main') {
-        sessions.set(action.sessionId, {
-          ...session,
-          blocks: updateBlocks(session.blocks),
-        });
-      } else {
-        const newSubagents = new Map(session.subagents);
-        const subagent = session.subagents.get(action.conversationId);
-
-        if (subagent) {
-          // Subagent exists, update its blocks
-          newSubagents.set(action.conversationId, {
-            ...subagent,
-            blocks: updateBlocks(subagent.blocks),
-          });
-        } else {
-          // Subagent doesn't exist - create it as a fallback
-          // Note: The update won't find any blocks to update, but this ensures
-          // the subagent entry exists for subsequent block additions
-          newSubagents.set(action.conversationId, {
-            id: action.conversationId,
-            blocks: [],
-            metadata: {},
-            status: 'running',
-          });
-        }
-
-        sessions.set(action.sessionId, {
-          ...session,
-          subagents: newSubagents,
-        });
-      }
-
-      return { ...state, sessions };
-    }
-
-    case 'METADATA_UPDATED': {
-      const sessions = new Map(state.sessions);
-      const session = sessions.get(action.sessionId);
-
-      if (!session) return state;
-
-      if (action.conversationId === 'main') {
-        sessions.set(action.sessionId, {
-          ...session,
-          metadata: { ...session.metadata, ...action.metadata },
-        });
-      } else {
-        const newSubagents = new Map(session.subagents);
-        const subagent = session.subagents.get(action.conversationId);
-
-        if (subagent) {
-          // Subagent exists, update its metadata
-          newSubagents.set(action.conversationId, {
-            ...subagent,
-            metadata: { ...subagent.metadata, ...action.metadata },
-          });
-        } else {
-          // Subagent doesn't exist - create it as a fallback
-          newSubagents.set(action.conversationId, {
-            id: action.conversationId,
-            blocks: [],
-            metadata: action.metadata,
-            status: 'running',
-          });
-        }
-
-        sessions.set(action.sessionId, {
-          ...session,
-          subagents: newSubagents,
-        });
-      }
-
-      return { ...state, sessions };
-    }
-
-    case 'SUBAGENT_SPAWNED': {
-      const sessions = new Map(state.sessions);
-      const session = sessions.get(action.sessionId);
-
-      if (!session) return state;
-
-      // Create SubagentBlock in main conversation
-      const subagentBlock: ConversationBlock = {
-        id: `subagent-block-${action.toolUseId}`,
-        type: 'subagent',
-        timestamp: new Date().toISOString(),
-        toolUseId: action.toolUseId,
-        name: action.subagentType,
-        input: action.prompt,
-        status: 'running',
-      } as ConversationBlock;
-
-      // Create subagent entry
-      const newSubagents = new Map(session.subagents);
-      newSubagents.set(action.toolUseId, {
-        id: action.toolUseId,
-        blocks: [],
-        metadata: {},
-        status: 'running',
-      });
-
-      sessions.set(action.sessionId, {
+      sessions.set(sessionId, {
         ...session,
-        blocks: [...session.blocks, subagentBlock],
-        subagents: newSubagents,
-      });
-
-      return { ...state, sessions };
-    }
-
-    case 'SUBAGENT_COMPLETED': {
-      const sessions = new Map(state.sessions);
-      const session = sessions.get(action.sessionId);
-
-      if (!session) return state;
-
-      // Update SubagentBlock in main conversation
-      const newBlocks = session.blocks.map((block) => {
-        if (block.type === 'subagent' && (block as any).toolUseId === action.toolUseId) {
-          return {
-            ...block,
-            subagentId: action.agentId ? `agent-${action.agentId}` : undefined,
-            status: action.status === 'completed' ? 'success' : 'error',
-            output: action.output,
-            durationMs: action.durationMs,
-          } as ConversationBlock;
-        }
-        return block;
-      });
-
-      // Update subagent entry
-      const subagent = session.subagents.get(action.toolUseId);
-      const newSubagents = new Map(session.subagents);
-      if (subagent) {
-        newSubagents.set(action.toolUseId, {
-          ...subagent,
-          status: action.status === 'completed' ? 'completed' : 'failed',
-        });
-      }
-
-      sessions.set(action.sessionId, {
-        ...session,
-        blocks: newBlocks,
-        subagents: newSubagents,
-      });
-
-      return { ...state, sessions };
-    }
-
-    case 'FILE_CREATED':
-    case 'FILE_MODIFIED': {
-      const sessions = new Map(state.sessions);
-      const session = sessions.get(action.sessionId);
-
-      if (!session) return state;
-
-      const existingIndex = session.files.findIndex(
-        (f) => f.path === action.file.path
-      );
-
-      const newFiles = [...session.files];
-      if (existingIndex >= 0) {
-        newFiles[existingIndex] = action.file;
-      } else {
-        newFiles.push(action.file);
-      }
-
-      sessions.set(action.sessionId, {
-        ...session,
+        conversationState: newConversationState,
         files: newFiles,
+        logs: newLogs,
+        metadata: newMetadata,
+        eeStatus: newEEStatus,
       });
-
-      return { ...state, sessions };
-    }
-
-    case 'FILE_DELETED': {
-      const sessions = new Map(state.sessions);
-      const session = sessions.get(action.sessionId);
-
-      if (!session) return state;
-
-      sessions.set(action.sessionId, {
-        ...session,
-        files: session.files.filter((f) => f.path !== action.path),
-      });
-
       return { ...state, sessions };
     }
 
@@ -706,10 +414,7 @@ export function agentServiceReducer(
       };
 
       // Prepend new event, keep only the most recent MAX_EVENT_LOG_SIZE
-      const newEventLog = [newEvent, ...state.eventLog].slice(
-        0,
-        MAX_EVENT_LOG_SIZE
-      );
+      const newEventLog = [newEvent, ...state.eventLog].slice(0, MAX_EVENT_LOG_SIZE);
 
       return {
         ...state,
@@ -730,9 +435,13 @@ export function agentServiceReducer(
 
       if (!session) return state;
 
+      // Add optimistic block to conversation state
       sessions.set(action.sessionId, {
         ...session,
-        blocks: [...session.blocks, action.block],
+        conversationState: {
+          ...session.conversationState,
+          blocks: [...session.conversationState.blocks, action.block],
+        },
       });
 
       return { ...state, sessions };
@@ -745,29 +454,31 @@ export function agentServiceReducer(
       if (!session) return state;
 
       // Find optimistic block with matching content (user_message type, optimistic- prefix)
-      const optimisticIndex = session.blocks.findIndex(
+      const blocks = session.conversationState.blocks;
+      const optimisticIndex = blocks.findIndex(
         (block) =>
           block.type === 'user_message' &&
           block.id.startsWith('optimistic-') &&
           block.content === (action.block as UserMessageBlock).content
       );
 
+      let newBlocks: ConversationBlock[];
       if (optimisticIndex >= 0) {
         // Replace optimistic with real block
-        const updatedBlocks = [...session.blocks];
-        updatedBlocks[optimisticIndex] = action.block;
-
-        sessions.set(action.sessionId, {
-          ...session,
-          blocks: updatedBlocks,
-        });
+        newBlocks = [...blocks];
+        newBlocks[optimisticIndex] = action.block;
       } else {
         // No optimistic block found, just append (edge case)
-        sessions.set(action.sessionId, {
-          ...session,
-          blocks: [...session.blocks, action.block],
-        });
+        newBlocks = [...blocks, action.block];
       }
+
+      sessions.set(action.sessionId, {
+        ...session,
+        conversationState: {
+          ...session.conversationState,
+          blocks: newBlocks,
+        },
+      });
 
       return { ...state, sessions };
     }
@@ -780,7 +491,12 @@ export function agentServiceReducer(
 
       sessions.set(action.sessionId, {
         ...session,
-        blocks: session.blocks.filter((block) => block.id !== action.optimisticId),
+        conversationState: {
+          ...session.conversationState,
+          blocks: session.conversationState.blocks.filter(
+            (block) => block.id !== action.optimisticId
+          ),
+        },
       });
 
       return { ...state, sessions };
@@ -802,7 +518,10 @@ export function agentServiceReducer(
 
       sessions.set(action.sessionId, {
         ...session,
-        blocks: [...session.blocks, errorBlock],
+        conversationState: {
+          ...session.conversationState,
+          blocks: [...session.conversationState.blocks, errorBlock],
+        },
       });
 
       return { ...state, sessions };
@@ -814,21 +533,9 @@ export function agentServiceReducer(
 
       if (!session) return state;
 
-      const newLog: SessionLogEntry = {
-        id: `log-${Date.now()}-${Math.random().toString(36).slice(2, 9)}`,
-        timestamp: Date.now(),
-        sessionId: action.sessionId,
-        level: action.log.level ?? 'info',
-        message: action.log.message,
-        data: action.log.data,
-      };
-
-      // Append log, keep only MAX_SESSION_LOG_SIZE most recent
-      const logs = [...session.logs, newLog].slice(-MAX_SESSION_LOG_SIZE);
-
       sessions.set(action.sessionId, {
         ...session,
-        logs,
+        logs: appendLog(session.logs, action.sessionId, action.log),
       });
 
       return { ...state, sessions };

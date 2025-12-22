@@ -70,8 +70,9 @@ export type {
   ActiveQueryState,
   RuntimeSessionData,
   WorkspaceFile,
-  StreamingBlock,
   SubagentState,
+  SessionConversationState,
+  AnySessionEvent,
 
   // Session Options
   AgentArchitectureSessionOptions,

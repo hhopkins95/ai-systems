@@ -4,26 +4,37 @@
  * Access subagent conversations for Claude SDK sessions.
  * Provides real-time updates when subagents are discovered or completed.
  *
- * Blocks are pre-merged with streaming content for ready-to-render display.
+ * Blocks with status === 'pending' are currently streaming.
+ * Content accumulates directly in block.content via the shared reducer.
  */
 
 import { useContext, useCallback, useMemo } from 'react';
 import { AgentServiceContext } from '../context/AgentServiceContext';
-import type { ConversationBlock, SessionMetadata } from '../types';
+import type { ConversationBlock } from '@ai-systems/shared-types';
 
 export interface SubagentInfo {
+  /** Tool use ID (primary key during streaming) */
   id: string;
+  /** Agent ID (available after completion) */
+  agentId?: string;
+  /** Conversation blocks within this subagent */
   blocks: ConversationBlock[];
-  metadata: SessionMetadata;
-  status: 'running' | 'completed' | 'failed';
-  /** Set of block IDs currently streaming in this subagent */
+  /** Current status */
+  status: 'pending' | 'running' | 'success' | 'error';
+  /** Set of block IDs currently streaming (status === 'pending') */
   streamingBlockIds: Set<string>;
+  /** The prompt/task given to this subagent */
+  prompt?: string;
+  /** Final output from the subagent */
+  output?: string;
+  /** Execution duration in milliseconds */
+  durationMs?: number;
 }
 
 export interface UseSubagentsResult {
   /**
    * Array of all subagents for this session.
-   * Blocks are pre-merged with streaming content.
+   * Blocks with status === 'pending' are streaming.
    */
   subagents: SubagentInfo[];
 
@@ -38,12 +49,12 @@ export interface UseSubagentsResult {
   hasRunningSubagents: boolean;
 
   /**
-   * Get a specific subagent by ID (with merged blocks)
+   * Get a specific subagent by ID (toolUseId or agentId)
    */
   getSubagent: (subagentId: string) => SubagentInfo | undefined;
 
   /**
-   * Get blocks for a specific subagent (pre-merged with streaming)
+   * Get blocks for a specific subagent
    */
   getSubagentBlocks: (subagentId: string) => ConversationBlock[];
 
@@ -51,7 +62,7 @@ export interface UseSubagentsResult {
    * Get subagents by status
    */
   getSubagentsByStatus: (
-    status: 'running' | 'completed' | 'failed'
+    status: 'pending' | 'running' | 'success' | 'error'
   ) => SubagentInfo[];
 }
 
@@ -73,65 +84,55 @@ export function useSubagents(sessionId: string): UseSubagentsResult {
   const { state } = context;
   const session = state.sessions.get(sessionId);
 
-  // Merge streaming content into subagent blocks
+  // Map subagents from conversation state to SubagentInfo
   const subagents = useMemo((): SubagentInfo[] => {
     if (!session) return [];
 
-    return Array.from(session.subagents.values()).map((subagent): SubagentInfo => {
+    return session.conversationState.subagents.map((subagent): SubagentInfo => {
+      // Find streaming blocks (status === 'pending')
       const streamingBlockIds = new Set<string>();
-
-      // Merge streaming content for this subagent's blocks
-      const mergedBlocks = subagent.blocks.map(block => {
-        const streamingBlock = session.streaming.get(block.id);
-        if (!streamingBlock || streamingBlock.conversationId !== subagent.id) {
-          return block;
+      for (const block of subagent.blocks) {
+        if ('status' in block && block.status === 'pending') {
+          streamingBlockIds.add(block.id);
         }
-
-        streamingBlockIds.add(block.id);
-
-        // Only assistant_text and thinking blocks have streamable content
-        if (block.type === 'assistant_text' || block.type === 'thinking') {
-          return {
-            ...block,
-            content: streamingBlock.content,
-          };
-        }
-
-        return block;
-      });
+      }
 
       return {
-        id: subagent.id,
-        blocks: mergedBlocks,
-        metadata: subagent.metadata,
+        id: subagent.toolUseId,
+        agentId: subagent.agentId,
+        blocks: subagent.blocks,
         status: subagent.status,
         streamingBlockIds,
+        prompt: subagent.prompt,
+        output: subagent.output,
+        durationMs: subagent.durationMs,
       };
     });
-  }, [session?.subagents, session?.streaming]);
+  }, [session?.conversationState.subagents]);
 
   const count = subagents.length;
 
   const hasRunningSubagents = useMemo(() => {
-    return subagents.some((sub) => sub.status === 'running');
+    return subagents.some((sub) => sub.status === 'pending' || sub.status === 'running');
   }, [subagents]);
 
   const getSubagent = useCallback(
     (subagentId: string) => {
-      return subagents.find(sub => sub.id === subagentId);
+      // Check both toolUseId (id) and agentId
+      return subagents.find((sub) => sub.id === subagentId || sub.agentId === subagentId);
     },
     [subagents]
   );
 
   const getSubagentBlocks = useCallback(
     (subagentId: string) => {
-      return subagents.find(sub => sub.id === subagentId)?.blocks ?? [];
+      return getSubagent(subagentId)?.blocks ?? [];
     },
-    [subagents]
+    [getSubagent]
   );
 
   const getSubagentsByStatus = useCallback(
-    (status: 'running' | 'completed' | 'failed') => {
+    (status: 'pending' | 'running' | 'success' | 'error') => {
       return subagents.filter((sub) => sub.status === status);
     },
     [subagents]

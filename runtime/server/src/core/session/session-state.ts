@@ -12,10 +12,18 @@
  * - Testable: state logic can be tested in isolation
  * - Portable: state can be moved between hosts
  *
- * Event Subscriptions:
- * - block:start, block:complete, block:update → update conversation blocks
+ * Event Subscriptions (conversation events handled by shared reducer):
+ * - block:upsert, block:delta → update conversation blocks
+ * - subagent:spawned, subagent:completed → update subagent state
+ * - session:idle → finalize pending blocks
+ * - block:start, block:complete, block:update → legacy (backwards compat)
+ *
+ * Other event subscriptions (handled directly):
  * - file:created, file:modified, file:deleted → update workspace files
  * - error → update lastError
+ * - ee:creating, ee:ready, ee:terminated → EE lifecycle
+ * - query:started, query:completed, query:failed → query lifecycle
+ * - options:update → session options
  */
 
 import type {
@@ -201,12 +209,12 @@ export class SessionState {
   private subscribeToEvents(eventBus: SessionEventBus): void {
     // Use shared reducer for conversation events (blocks, subagents)
     const conversationEventTypes = [
-      'block:start',
-      'block:complete',
-      'block:update',
+      // Primary events
+      'block:upsert',
       'block:delta',
       'subagent:spawned',
       'subagent:completed',
+      'session:idle',
     ] as const;
 
     for (const eventType of conversationEventTypes) {
