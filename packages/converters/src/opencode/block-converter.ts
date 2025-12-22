@@ -135,15 +135,15 @@ export function opencodeEventToSessionEvents(
       // -----------------------------------------------------------------------
 
       case 'message.updated': {
-        const { info } = event.properties as any;
-        const conversationId = info.sessionID === mainSessionId ? 'main' : info.sessionID;
+        const { info : messageInfo } = event.properties 
+        const conversationId = messageInfo.sessionID === mainSessionId ? 'main' : messageInfo.sessionID;
 
         // User message → create user_message block immediately (already complete)
-        if (info.role === 'user') {
+        if (messageInfo.role === 'user') {
           const userBlock: ConversationBlock = {
             type: 'user_message',
-            id: info.id,
-            timestamp: info.time?.created ? toISOTimestamp(info.time.created) : new Date().toISOString(),
+            id: messageInfo.id,
+            timestamp: messageInfo.time?.created ? toISOTimestamp(messageInfo.time.created) : new Date().toISOString(),
             content: '', // Content comes from message.part.updated
             status: 'complete' as BlockLifecycleStatus, // User message is always complete
           };
@@ -159,22 +159,22 @@ export function opencodeEventToSessionEvents(
 
         // Assistant message → no block yet, parts will create blocks
         // But emit metadata if available
-        if (info.role === 'assistant' && (info.tokens || info.cost !== undefined)) {
+        if (messageInfo.role === 'assistant' && (messageInfo.tokens || messageInfo.cost !== undefined)) {
           return [
             createSessionEvent(
               'metadata:update',
               {
                 metadata: {
-                  usage: info.tokens ? {
-                    inputTokens: info.tokens.input || 0,
-                    outputTokens: info.tokens.output || 0,
-                    thinkingTokens: info.tokens.reasoning || 0,
-                    cacheReadTokens: info.tokens.cache?.read || 0,
-                    cacheWriteTokens: info.tokens.cache?.write || 0,
-                    totalTokens: (info.tokens.input || 0) + (info.tokens.output || 0),
+                  usage: messageInfo.tokens ? {
+                    inputTokens: messageInfo.tokens.input || 0,
+                    outputTokens: messageInfo.tokens.output || 0,
+                    thinkingTokens: messageInfo.tokens.reasoning || 0,
+                    cacheReadTokens: messageInfo.tokens.cache?.read || 0,
+                    cacheWriteTokens: messageInfo.tokens.cache?.write || 0,
+                    totalTokens: (messageInfo.tokens.input || 0) + (messageInfo.tokens.output || 0),
                   } : undefined,
-                  costUSD: info.cost,
-                  model: info.modelID,
+                  costUSD: messageInfo.cost,
+                  model: messageInfo.modelID,
                 },
               },
               { conversationId, source: 'runner' }

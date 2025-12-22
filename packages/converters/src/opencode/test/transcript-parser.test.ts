@@ -10,7 +10,7 @@ import { readFileSync, writeFileSync, mkdirSync, existsSync } from 'node:fs';
 import { join, dirname } from 'node:path';
 import { fileURLToPath } from 'node:url';
 import type { Event } from '@opencode-ai/sdk/v2';
-import type { SessionConversationState, ConversationBlock } from '@ai-systems/shared-types';
+import type { SessionConversationState, ConversationBlock, AnySessionEvent } from '@ai-systems/shared-types';
 import { createInitialConversationState } from '@ai-systems/shared-types';
 import { opencodeEventToSessionEvents } from '../block-converter.js';
 import { reduceSessionEvent } from '../../session-state/reducer.js';
@@ -33,15 +33,44 @@ function buildStateFromStreaming(): SessionConversationState {
 
   let state = createInitialConversationState();
 
+  let allSessionEvents: AnySessionEvent[] = [];
+
+  // events that we care about -- helps with debugging
+  let rawEventsConverted: Event[] = [];
+
+
+  const linesToProcess = 25
+  let lineCount = 0;
+
   for (const line of lines) {
     const event = JSON.parse(line) as Event;
+    lineCount++;
+    if (lineCount > linesToProcess) {
+      break;
+    }
     const sessionEvents = opencodeEventToSessionEvents(event, MAIN_SESSION_ID);
+    allSessionEvents.push(...sessionEvents);
+
+    if (sessionEvents.length > 0) {
+      rawEventsConverted.push(event);
+    }
+
+    // if (sessionEvents.length > 0) {
+    //   cleanedRawEvents.push(event);
+    // }
 
     for (const sessionEvent of sessionEvents) {
       state = reduceSessionEvent(state, sessionEvent);
     }
   }
 
+  // write allSessionEvents to a file as JSONl
+  writeFileSync(join(OUTPUT_DIR, 'streamed-session-events.jsonl'), allSessionEvents.map(event => JSON.stringify(event)).join('\n'));
+
+  writeFileSync(
+    join(OUTPUT_DIR, 'raw-events-converted.jsonl'),
+    rawEventsConverted.map(ev => JSON.stringify(ev)).join('\n')
+  );
   return state;
 }
 
