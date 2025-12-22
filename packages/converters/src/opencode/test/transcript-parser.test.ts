@@ -12,7 +12,7 @@ import { fileURLToPath } from 'node:url';
 import type { Event } from '@opencode-ai/sdk/v2';
 import type { SessionConversationState, ConversationBlock, AnySessionEvent } from '@ai-systems/shared-types';
 import { createInitialConversationState } from '@ai-systems/shared-types';
-import { opencodeEventToSessionEvents } from '../block-converter.js';
+import { createOpenCodeEventConverter } from '../block-converter.js';
 import { reduceSessionEvent } from '../../session-state/reducer.js';
 import { parseOpenCodeTranscriptFile } from '../transcript-parser.js';
 
@@ -32,14 +32,12 @@ function buildStateFromStreaming(): SessionConversationState {
   const lines = content.trim().split('\n').filter((line) => line.trim());
 
   let state = createInitialConversationState();
+  const converter = createOpenCodeEventConverter(MAIN_SESSION_ID);
 
-  let allSessionEvents: AnySessionEvent[] = [];
+  const allSessionEvents: AnySessionEvent[] = [];
+  const rawEventsConverted: Event[] = [];
 
-  // events that we care about -- helps with debugging
-  let rawEventsConverted: Event[] = [];
-
-
-  const linesToProcess = 25
+  const linesToProcess = 25;
   let lineCount = 0;
 
   for (const line of lines) {
@@ -48,29 +46,29 @@ function buildStateFromStreaming(): SessionConversationState {
     if (lineCount > linesToProcess) {
       break;
     }
-    const sessionEvents = opencodeEventToSessionEvents(event, MAIN_SESSION_ID);
+
+    const sessionEvents = converter.parseEvent(event);
     allSessionEvents.push(...sessionEvents);
 
     if (sessionEvents.length > 0) {
       rawEventsConverted.push(event);
     }
 
-    // if (sessionEvents.length > 0) {
-    //   cleanedRawEvents.push(event);
-    // }
-
     for (const sessionEvent of sessionEvents) {
       state = reduceSessionEvent(state, sessionEvent);
     }
   }
 
-  // write allSessionEvents to a file as JSONl
-  writeFileSync(join(OUTPUT_DIR, 'streamed-session-events.jsonl'), allSessionEvents.map(event => JSON.stringify(event)).join('\n'));
-
+  // Write debug output files
+  writeFileSync(
+    join(OUTPUT_DIR, 'streamed-session-events.jsonl'),
+    allSessionEvents.map(event => JSON.stringify(event)).join('\n')
+  );
   writeFileSync(
     join(OUTPUT_DIR, 'raw-events-converted.jsonl'),
     rawEventsConverted.map(ev => JSON.stringify(ev)).join('\n')
   );
+
   return state;
 }
 

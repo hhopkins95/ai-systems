@@ -17,7 +17,8 @@ export {
 
 // Stream event conversion (primary API)
 export {
-  opencodeEventToSessionEvents,
+  createOpenCodeEventConverter,
+  type OpenCodeEventConverter,
 } from './block-converter.js';
 
 // Shared helpers (for advanced use cases)
