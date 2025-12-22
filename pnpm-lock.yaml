@@ -17,6 +17,9 @@ importers:
 
   apps/example-backend:
     dependencies:
+      '@hhopkins/agent-converters':
+        specifier: workspace:*
+        version: link:../../packages/converters
       '@hhopkins/agent-server':
         specifier: workspace:*
         version: link:../../runtime/server

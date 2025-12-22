@@ -1,6 +1,15 @@
 import { createServer } from "http";
 import { createAgentRuntime, type PersistenceAdapter } from "@hhopkins/agent-server";
+import {
+  createOpenCodeEventConverter,
+  parseOpenCodeTranscriptFile,
+} from "@hhopkins/agent-converters/opencode";
+import {
+  reduceSessionEvent,
+  createInitialConversationState,
+} from "@hhopkins/agent-converters";
 import dotenv from "dotenv";
+import fs from "fs/promises";
 import { InMemoryPersistenceAdapter, SqlitePersistenceAdapter } from "./persistence/index.js";
 import { config, validateConfig, createExampleAgentProfile } from "./config.js";
 import path from "path";
@@ -12,6 +21,7 @@ dotenv.config();
 
 const dirname = path.dirname(fileURLToPath(import.meta.url));
 const agentSessionsDirectoryPath = path.join(dirname, "../../../.agent-sessions");
+const fixturesDir = path.join(dirname, "../../../packages/converters/src/opencode/test");
 
 /**
  * Main server entry point
@@ -155,6 +165,139 @@ async function main() {
         return;
       }
 
+      // =======================================================================
+      // Converter Debug Endpoints
+      // =======================================================================
+
+      // GET /debug/fixtures - List available fixture files
+      if (req.url === '/debug/fixtures' && req.method === 'GET') {
+        res.setHeader('Content-Type', 'application/json');
+        res.setHeader('Access-Control-Allow-Origin', '*');
+
+        try {
+          const files = await fs.readdir(fixturesDir);
+          const fixtures = await Promise.all(
+            files
+              .filter(f => f.endsWith('.json') || f.endsWith('.jsonl'))
+              .map(async (name) => {
+                const stat = await fs.stat(path.join(fixturesDir, name));
+                return {
+                  name,
+                  size: stat.size,
+                  type: name.endsWith('.jsonl') ? 'jsonl' : 'json',
+                };
+              })
+          );
+          res.statusCode = 200;
+          res.end(JSON.stringify({ fixtures }));
+        } catch (error) {
+          console.error('Failed to list fixtures:', error);
+          res.statusCode = 500;
+          res.end(JSON.stringify({ error: 'Failed to list fixtures' }));
+        }
+        return;
+      }
+
+      // GET /debug/fixtures/:filename - Get raw fixture content
+      const fixtureMatch = req.url?.match(/^\/debug\/fixtures\/(.+)$/);
+      if (fixtureMatch && req.method === 'GET') {
+        const filename = decodeURIComponent(fixtureMatch[1]);
+        res.setHeader('Access-Control-Allow-Origin', '*');
+
+        // Security: prevent path traversal
+        if (filename.includes('..') || filename.includes('/')) {
+          res.statusCode = 400;
+          res.end(JSON.stringify({ error: 'Invalid filename' }));
+          return;
+        }
+
+        try {
+          const filePath = path.join(fixturesDir, filename);
+          const content = await fs.readFile(filePath, 'utf-8');
+          res.setHeader('Content-Type', filename.endsWith('.jsonl') ? 'text/plain' : 'application/json');
+          res.statusCode = 200;
+          res.end(content);
+        } catch (error) {
+          console.error('Failed to read fixture:', error);
+          res.statusCode = 404;
+          res.end(JSON.stringify({ error: 'Fixture not found' }));
+        }
+        return;
+      }
+
+      // POST /debug/convert - Run conversion on fixture data
+      if (req.url === '/debug/convert' && req.method === 'POST') {
+        res.setHeader('Content-Type', 'application/json');
+        res.setHeader('Access-Control-Allow-Origin', '*');
+
+        try {
+          const body = await getRequestBody(req);
+          const { mode, content, mainSessionId } = JSON.parse(body);
+
+          if (mode === 'streaming') {
+            // Streaming mode: convert raw events
+            const events = typeof content === 'string'
+              ? content.trim().split('\n').map((line: string) => JSON.parse(line))
+              : content;
+
+            const converter = createOpenCodeEventConverter(mainSessionId || 'main-session');
+            let state = createInitialConversationState();
+            const sessionEvents: any[] = [];
+
+            for (const event of events) {
+              const converted = converter.parseEvent(event);
+              for (const sessionEvent of converted) {
+                sessionEvents.push(sessionEvent);
+                state = reduceSessionEvent(state, sessionEvent);
+              }
+            }
+
+            res.statusCode = 200;
+            res.end(JSON.stringify({
+              sessionEvents,
+              finalState: state,
+              stats: {
+                rawEventCount: events.length,
+                sessionEventCount: sessionEvents.length,
+                blockCount: state.blocks.length,
+                subagentCount: state.subagents.length,
+              },
+            }));
+          } else if (mode === 'transcript') {
+            // Transcript mode: parse complete transcript
+            const transcriptContent = typeof content === 'string' ? content : JSON.stringify(content);
+            const state = parseOpenCodeTranscriptFile(transcriptContent);
+
+            res.statusCode = 200;
+            res.end(JSON.stringify({
+              finalState: state,
+              stats: {
+                blockCount: state.blocks.length,
+                subagentCount: state.subagents.length,
+              },
+            }));
+          } else {
+            res.statusCode = 400;
+            res.end(JSON.stringify({ error: 'Invalid mode. Use "streaming" or "transcript"' }));
+          }
+        } catch (error) {
+          console.error('Conversion failed:', error);
+          res.statusCode = 500;
+          res.end(JSON.stringify({ error: 'Conversion failed', details: String(error) }));
+        }
+        return;
+      }
+
+      // Handle CORS preflight for debug endpoints
+      if (req.url?.startsWith('/debug/') && req.method === 'OPTIONS') {
+        res.setHeader('Access-Control-Allow-Origin', '*');
+        res.setHeader('Access-Control-Allow-Methods', 'GET, POST, OPTIONS');
+        res.setHeader('Access-Control-Allow-Headers', 'Content-Type');
+        res.statusCode = 204;
+        res.end();
+        return;
+      }
+
       // Use Hono's fetch handler
       const response = await restApp.fetch(
         new Request(`http://${req.headers.host}${req.url}`, {
@@ -201,7 +344,10 @@ async function main() {
       console.log(`  GET    /agent-profiles`);
       console.log(`  GET    /health`);
       console.log(`  GET    /debug (raw server state)`);
-      console.log(`  GET    /persistence/:id (raw SQLite data)\n`);
+      console.log(`  GET    /persistence/:id (raw SQLite data)`);
+      console.log(`  GET    /debug/fixtures (list test fixtures)`);
+      console.log(`  GET    /debug/fixtures/:name (get fixture content)`);
+      console.log(`  POST   /debug/convert (run converter)\n`);
     });
 
     // Graceful shutdown

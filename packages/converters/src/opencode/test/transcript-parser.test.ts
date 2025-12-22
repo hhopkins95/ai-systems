@@ -37,7 +37,7 @@ function buildStateFromStreaming(): SessionConversationState {
   const allSessionEvents: AnySessionEvent[] = [];
   const rawEventsConverted: Event[] = [];
 
-  const linesToProcess = 25;
+  const linesToProcess = 2500;
   let lineCount = 0;
 
   for (const line of lines) {

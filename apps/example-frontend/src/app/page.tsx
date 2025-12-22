@@ -1,6 +1,7 @@
 "use client";
 
 import { useState } from "react";
+import Link from "next/link";
 import { useAgentSession } from "@hhopkins/agent-client";
 import { SessionList } from "@/components/SessionList";
 import { AgentChat } from "@/components/AgentChat";
@@ -32,13 +33,21 @@ export default function HomePage() {
     <div className="h-screen flex flex-col overflow-hidden bg-gray-50">
       {/* Header */}
       <header className="flex-shrink-0 bg-white border-b shadow-sm">
-        <div className="max-w-screen-2xl mx-auto px-6 py-4">
-          <h1 className="text-2xl font-bold text-gray-800">
-            Agent Runtime Example
-          </h1>
-          <p className="text-sm text-gray-600 mt-1">
-            Demonstrating @hhopkins/agent-runtime with Next.js
-          </p>
+        <div className="max-w-screen-2xl mx-auto px-6 py-4 flex items-center justify-between">
+          <div>
+            <h1 className="text-2xl font-bold text-gray-800">
+              Agent Runtime Example
+            </h1>
+            <p className="text-sm text-gray-600 mt-1">
+              Demonstrating @hhopkins/agent-runtime with Next.js
+            </p>
+          </div>
+          <Link
+            href="/debug"
+            className="px-4 py-2 bg-gray-100 text-gray-700 rounded hover:bg-gray-200 text-sm font-medium"
+          >
+            Converter Debug →
+          </Link>
         </div>
       </header>
 
