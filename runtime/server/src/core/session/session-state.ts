@@ -28,6 +28,7 @@ import type {
   PersistedSessionListData,
   RuntimeSessionData,
   SessionRuntimeState,
+  SubagentState,
   WorkspaceFile,
 } from '@ai-systems/shared-types';
 import {
@@ -172,12 +173,12 @@ export class SessionState {
       this._conversationState = {
         blocks: parsed.blocks,
         subagents: parsed.subagents.map((sub) => ({
-          id: sub.id,
-          toolUseId: sub.id, // Use same ID for toolUseId
+          agentId: sub.agentId,
+          toolUseId: sub.toolUseId, // Use same ID for toolUseId
           blocks: sub.blocks,
           status: 'success' as const, // Transcripts are completed sessions
         })),
-        streaming: { byConversation: new Map() },
+        // streaming: { byConversation: new Map() },
       };
     } else {
       this._conversationState = createInitialState();
@@ -326,7 +327,7 @@ export class SessionState {
     return this._conversationState.blocks;
   }
 
-  get subagents(): { id: string; blocks: ConversationBlock[] }[] {
+  get subagents(): SubagentState[] {
     return this._conversationState.subagents;
   }
 
@@ -483,7 +484,7 @@ export class SessionState {
       lastActivity: this._lastActivity,
       blocks: [...this._conversationState.blocks],
       subagents: this._conversationState.subagents.map((s) => ({
-        id: s.id,
+        id: s.agentId ?? '',
         blocks: [...s.blocks],
       })),
       workspaceFiles: [...this._workspaceFiles],
