@@ -30,8 +30,8 @@ Restructure OpenCode converters to match the Claude SDK pattern, where both stre
   - Now emits `subagent:spawned` and `subagent:completed` events for task tools
 
 - [x] Updated `index.ts` exports
-  - Added new exports: `opencodeEventToSessionEvents`, shared helpers
-  - Kept deprecated exports for backward compatibility
+  - Added new exports: `createOpenCodeEventConverter`, `OpenCodeEventConverter` type, shared helpers
+  - Stateful factory pattern for proper message role correlation
 
 - [x] Created OpenCode parity tests (`src/test/opencode/transcript-parser.test.ts`)
   - Compares streaming vs transcript loading
@@ -65,9 +65,13 @@ Restructure OpenCode converters to match the Claude SDK pattern, where both stre
 3. **Extra tool_use blocks in streaming** - Task tools emit tool_use + subagent blocks
 4. **Different subagent routing** - Streaming routes blocks to subagent sessions, transcript embeds in main
 
+## Resolved (2025-12-22)
+
+- [x] Fixed user_message handling - stateful converter now tracks message roles (`messageId → role`) and correctly emits `user_message` blocks for user text parts
+- [x] Implemented efficient streaming - only `block:upsert` once per part, then `block:delta` for subsequent updates
+
 ## Next Session
 
-- [ ] Fix user_message handling in streaming path (need to emit from user message events)
 - [ ] Filter empty thinking/reasoning blocks in streaming (like transcript does)
 - [ ] Align subagent block handling - decide if task tools should emit tool_use or just subagent
 - [ ] Investigate subagent routing differences

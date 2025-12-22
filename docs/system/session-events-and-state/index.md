@@ -20,11 +20,11 @@ How agent interactions become structured conversation state.
              │                                │
              ▼                                ▼
 ┌─────────────────────────────────────────────────────────────────────────────┐
-│                         STATELESS CONVERTERS                                │
+│                              CONVERTERS                                     │
 │                                                                             │
-│   sdkMessageToEvents()              opencodeEventToSessionEvents()          │
+│   sdkMessageToEvents()              createOpenCodeEventConverter()          │
 │                                                                             │
-│   • Pure functions (no state)                                               │
+│   • Claude: Pure functions          • OpenCode: Stateful factory            │
 │   • Architecture-specific → unified format                                  │
 │   • One input event → zero or more SessionEvents                            │
 │                                                                             │
