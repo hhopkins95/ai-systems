@@ -5,13 +5,10 @@
  * Used by both server (SessionState) and client (React reducer).
  *
  * Key events:
- * - block:upsert - Create or replace a block (primary)
+ * - block:upsert - Create or update a block (merge semantics for existing, create with defaults for new)
  * - block:delta - Append content to a block
  * - subagent:spawned/completed - Subagent lifecycle
  * - session:idle - Finalize pending blocks
- *
- * Legacy events (deprecated):
- * - block:start, block:complete, block:update
  *
  * Returns new state objects (never mutates).
  */
@@ -22,10 +19,6 @@ import {
   handleBlockUpsert,
   handleBlockDelta,
   handleSessionIdle,
-  // Legacy handlers
-  handleBlockStart,
-  handleBlockComplete,
-  handleBlockUpdate,
 } from './handlers/block-handlers.js';
 import {
   handleSubagentSpawned,
@@ -77,16 +70,6 @@ export function reduceSessionEvent(
       return handleSessionIdle(state, conversationId);
     }
 
-    // Legacy block events (deprecated - for backwards compatibility)
-    case 'block:start':
-      return handleBlockStart(state, event);
-
-    case 'block:complete':
-      return handleBlockComplete(state, event);
-
-    case 'block:update':
-      return handleBlockUpdate(state, event);
-
     // All other events don't affect conversation state
     default:
       return state;
@@ -103,9 +86,5 @@ export function isConversationEvent(event: AnySessionEvent): boolean {
     'subagent:spawned',
     'subagent:completed',
     'session:idle',
-    // Legacy events
-    'block:start',
-    'block:complete',
-    'block:update',
   ].includes(event.type);
 }

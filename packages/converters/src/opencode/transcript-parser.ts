@@ -80,14 +80,14 @@ function transcriptToEvents(
 
       if (content) {
         events.push(createSessionEvent(
-          'block:complete',
+          'block:upsert',
           {
-            blockId: info.id,
             block: {
               type: 'user_message',
               id: info.id,
               timestamp: toISOTimestamp(info.time.created),
               content,
+              status: 'complete',
             },
           },
           { conversationId: 'main', source: 'runner' }

@@ -15,7 +15,7 @@
  * - ClientHubEvents/ServerToClientEvents (client communication)
  */
 
-import type { ConversationBlock } from './blocks.js';
+import type { ConversationBlock, PartialConversationBlock } from './blocks.js';
 import type { AgentArchitectureSessionOptions } from './architecture.js';
 import type { WorkspaceFile, SessionRuntimeState } from './session.js';
 
@@ -125,8 +125,12 @@ export interface SessionEventPayloads {
    * Create or replace a block (upsert semantics).
    *
    * This is the primary block event - replaces block:start/block:complete.
-   * - If block doesn't exist: creates it
-   * - If block exists: replaces it entirely
+   * - If block doesn't exist: creates it with defaults for missing fields
+   * - If block exists: merges partial data into existing block
+   *
+   * Accepts partial blocks (id and type required, everything else optional):
+   * - On update: partial fields are merged with existing block
+   * - On create: missing required fields are filled with defaults + console.warn
    *
    * Block status indicates lifecycle:
    * - status: 'pending' → block is being built (may receive deltas)
@@ -134,7 +138,7 @@ export interface SessionEventPayloads {
    * - status: 'error' → block construction failed
    */
   'block:upsert': {
-    block: ConversationBlock;
+    block: PartialConversationBlock;
   };
 
   /**

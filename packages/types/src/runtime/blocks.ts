@@ -368,6 +368,35 @@ export type ConversationBlock =
   | SkillLoadBlock;
 
 // ============================================================================
+// Partial Block Types (for incremental updates)
+// ============================================================================
+
+/**
+ * Helper type to create a partial version of a block that requires id and type.
+ * Used for incremental block updates via block:upsert.
+ */
+export type PartialBlock<T extends ConversationBlock> = Pick<T, 'id' | 'type'> &
+  Partial<Omit<T, 'id' | 'type'>>;
+
+/**
+ * Partial conversation block - requires id and type, everything else optional.
+ * Used for block:upsert events to enable incremental updates.
+ *
+ * On update: partial fields are merged with existing block
+ * On create: missing required fields are filled with defaults
+ */
+export type PartialConversationBlock =
+  | PartialBlock<UserMessageBlock>
+  | PartialBlock<AssistantTextBlock>
+  | PartialBlock<ToolUseBlock>
+  | PartialBlock<ToolResultBlock>
+  | PartialBlock<ThinkingBlock>
+  | PartialBlock<SystemBlock>
+  | PartialBlock<SubagentBlock>
+  | PartialBlock<ErrorBlock>
+  | PartialBlock<SkillLoadBlock>;
+
+// ============================================================================
 // Type Guards
 // ============================================================================
 

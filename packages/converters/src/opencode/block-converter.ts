@@ -16,7 +16,8 @@
 
 import type { Event, Part, 
   EventMessagePartUpdated, 
-  EventMessageUpdated
+  EventMessageUpdated, 
+  EventSessionCreated, 
  } from "@opencode-ai/sdk/v2";
 import type {
   ConversationBlock,

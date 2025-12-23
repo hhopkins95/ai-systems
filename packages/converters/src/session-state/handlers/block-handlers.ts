@@ -11,7 +11,12 @@
  * - Block status tracks lifecycle: pending → complete
  */
 
-import type { ConversationBlock, SessionEvent, BlockLifecycleStatus } from '@ai-systems/shared-types';
+import type {
+  ConversationBlock,
+  SessionEvent,
+  BlockLifecycleStatus,
+  PartialConversationBlock,
+} from '@ai-systems/shared-types';
 import type { SessionConversationState, SubagentState } from '../types.js';
 import { findSubagentIndex } from '../types.js';
 
@@ -21,8 +26,8 @@ import { findSubagentIndex } from '../types.js';
 
 /**
  * Handle block:upsert event
- * - Creates block if it doesn't exist
- * - Replaces block entirely if it exists (replace semantics, not merge)
+ * - If block exists: merges partial data into existing block
+ * - If block doesn't exist: creates full block with defaults for missing fields
  * - Routes to main or subagent conversation based on conversationId
  */
 export function handleBlockUpsert(
@@ -30,9 +35,9 @@ export function handleBlockUpsert(
   event: SessionEvent<'block:upsert'>
 ): SessionConversationState {
   const conversationId = event.context.conversationId ?? 'main';
-  const block = event.payload.block;
+  const partial = event.payload.block;
 
-  return upsertBlock(state, block, conversationId);
+  return upsertBlock(state, partial, conversationId);
 }
 
 // ============================================================================
@@ -137,135 +142,128 @@ export function handleSessionIdle(
   }
 }
 
-// ============================================================================
-// Legacy Handlers (Deprecated - for backwards compatibility)
-// ============================================================================
-
-/**
- * @deprecated Use handleBlockUpsert instead
- * Handle block:start event - converts to upsert
- */
-export function handleBlockStart(
-  state: SessionConversationState,
-  event: SessionEvent<'block:start'>
-): SessionConversationState {
-  const conversationId = event.context.conversationId ?? 'main';
-  const block = event.payload.block;
-
-  // Ensure block has pending status
-  const blockWithStatus = { ...block, status: 'pending' as BlockLifecycleStatus };
-  return upsertBlock(state, blockWithStatus, conversationId);
-}
-
-/**
- * @deprecated Use handleBlockUpsert instead
- * Handle block:complete event - converts to upsert with complete status
- */
-export function handleBlockComplete(
-  state: SessionConversationState,
-  event: SessionEvent<'block:complete'>
-): SessionConversationState {
-  const conversationId = event.context.conversationId ?? 'main';
-  const block = event.payload.block;
-
-  // Ensure block has complete status
-  const blockWithStatus = { ...block, status: 'complete' as BlockLifecycleStatus };
-  return upsertBlock(state, blockWithStatus, conversationId);
-}
-
-/**
- * @deprecated Use handleBlockUpsert instead
- * Handle block:update event - merges updates into existing block
- */
-export function handleBlockUpdate(
-  state: SessionConversationState,
-  event: SessionEvent<'block:update'>
-): SessionConversationState {
-  const conversationId = event.context.conversationId ?? 'main';
-  const { blockId, updates } = event.payload;
-
-  if (conversationId === 'main') {
-    const blockIndex = state.blocks.findIndex((b) => b.id === blockId);
-    if (blockIndex < 0) return state;
-
-    const newBlocks = [...state.blocks];
-    newBlocks[blockIndex] = { ...newBlocks[blockIndex], ...updates } as ConversationBlock;
-
-    return { ...state, blocks: newBlocks };
-  } else {
-    const subagentIndex = findSubagentIndex(state, conversationId);
-    if (subagentIndex < 0) return state;
-
-    const subagent = state.subagents[subagentIndex];
-    const blockIndex = subagent.blocks.findIndex((b) => b.id === blockId);
-    if (blockIndex < 0) return state;
-
-    const newBlocks = [...subagent.blocks];
-    newBlocks[blockIndex] = { ...newBlocks[blockIndex], ...updates } as ConversationBlock;
-
-    const newSubagents = [...state.subagents];
-    newSubagents[subagentIndex] = { ...subagent, blocks: newBlocks };
-
-    return { ...state, subagents: newSubagents };
-  }
-}
 
 // ============================================================================
 // Helper Functions
 // ============================================================================
 
 /**
+ * Get default values for a block type.
+ * Used when creating blocks from partial data.
+ */
+function getBlockDefaults(type: ConversationBlock['type']): Record<string, unknown> {
+  const baseDefaults: Record<string, unknown> = {
+    timestamp: new Date().toISOString(),
+    status: 'pending' as BlockLifecycleStatus,
+  };
+
+  switch (type) {
+    case 'assistant_text':
+      return { ...baseDefaults, content: '' };
+    case 'thinking':
+      return { ...baseDefaults, content: '' };
+    case 'user_message':
+      return { ...baseDefaults, content: '' };
+    case 'tool_use':
+      return { ...baseDefaults, toolName: '', toolUseId: '', input: {} };
+    case 'tool_result':
+      return { ...baseDefaults, toolUseId: '', output: null, isError: false };
+    case 'system':
+      return { ...baseDefaults, subtype: 'status', message: '' };
+    case 'subagent':
+      return { ...baseDefaults, input: '' };
+    case 'error':
+      return { ...baseDefaults, message: '' };
+    case 'skill_load':
+      return { ...baseDefaults, skillName: '', content: '' };
+    default:
+      return baseDefaults;
+  }
+}
+
+/**
+ * Create a full block from a partial block by merging with defaults.
+ * Logs a warning if required fields are missing.
+ */
+function createBlockFromPartial(partial: PartialConversationBlock): ConversationBlock {
+  const defaults = getBlockDefaults(partial.type);
+
+  // Check if we're missing required fields (anything that would normally be required)
+  const hasAllFields = Object.keys(defaults).every(
+    (key) => key in partial || key === 'timestamp' || key === 'status'
+  );
+
+  if (!hasAllFields) {
+    // eslint-disable-next-line no-console
+    (globalThis as any).console?.warn?.(
+      `[block:upsert] Creating block "${partial.id}" (${partial.type}) with default values for missing required fields`
+    );
+  }
+
+  return { ...defaults, ...partial } as ConversationBlock;
+}
+
+/**
  * Upsert a block into the correct conversation (main or subagent)
- * If block exists, replaces it. If not, appends it.
+ * - If block exists: merges partial into existing block
+ * - If block doesn't exist: creates full block from partial + defaults
  */
 function upsertBlock(
   state: SessionConversationState,
-  block: ConversationBlock,
+  partial: PartialConversationBlock,
   conversationId: string
 ): SessionConversationState {
   if (conversationId === 'main') {
-    return upsertMainBlock(state, block);
+    return upsertMainBlock(state, partial);
   } else {
-    return upsertSubagentBlock(state, conversationId, block);
+    return upsertSubagentBlock(state, conversationId, partial);
   }
 }
 
 /**
  * Upsert a block into the main conversation
+ * - If exists: merge partial into existing
+ * - If new: create full block from partial + defaults
  */
 function upsertMainBlock(
   state: SessionConversationState,
-  block: ConversationBlock
+  partial: PartialConversationBlock
 ): SessionConversationState {
-  const existingIndex = state.blocks.findIndex((b) => b.id === block.id);
+  const existingIndex = state.blocks.findIndex((b) => b.id === partial.id);
 
   if (existingIndex >= 0) {
-    // Replace existing block
+    // Merge partial into existing block
+    const existingBlock = state.blocks[existingIndex];
+    const mergedBlock = { ...existingBlock, ...partial } as ConversationBlock;
     const newBlocks = [...state.blocks];
-    newBlocks[existingIndex] = block;
+    newBlocks[existingIndex] = mergedBlock;
     return { ...state, blocks: newBlocks };
   } else {
-    // Append new block
-    return { ...state, blocks: [...state.blocks, block] };
+    // Create new block from partial + defaults
+    const fullBlock = createBlockFromPartial(partial);
+    return { ...state, blocks: [...state.blocks, fullBlock] };
   }
 }
 
 /**
  * Upsert a block into a subagent conversation
  * Creates the subagent if it doesn't exist (defensive for out-of-order events)
+ * - If exists: merge partial into existing
+ * - If new: create full block from partial + defaults
  */
 function upsertSubagentBlock(
   state: SessionConversationState,
   conversationId: string,
-  block: ConversationBlock
+  partial: PartialConversationBlock
 ): SessionConversationState {
   const subagentIndex = findSubagentIndex(state, conversationId);
 
   if (subagentIndex < 0) {
     // Subagent doesn't exist - create it (defensive for out-of-order events)
+    const fullBlock = createBlockFromPartial(partial);
     const newSubagent: SubagentState = {
       toolUseId: conversationId,
-      blocks: [block],
+      blocks: [fullBlock],
       status: 'running',
     };
     return { ...state, subagents: [...state.subagents, newSubagent] };
@@ -273,16 +271,19 @@ function upsertSubagentBlock(
 
   // Update existing subagent
   const subagent = state.subagents[subagentIndex];
-  const blockIndex = subagent.blocks.findIndex((b) => b.id === block.id);
+  const blockIndex = subagent.blocks.findIndex((b) => b.id === partial.id);
 
   let newBlocks: ConversationBlock[];
   if (blockIndex >= 0) {
-    // Replace existing block
+    // Merge partial into existing block
+    const existingBlock = subagent.blocks[blockIndex];
+    const mergedBlock = { ...existingBlock, ...partial } as ConversationBlock;
     newBlocks = [...subagent.blocks];
-    newBlocks[blockIndex] = block;
+    newBlocks[blockIndex] = mergedBlock;
   } else {
-    // Append new block
-    newBlocks = [...subagent.blocks, block];
+    // Create new block from partial + defaults
+    const fullBlock = createBlockFromPartial(partial);
+    newBlocks = [...subagent.blocks, fullBlock];
   }
 
   const newSubagents = [...state.subagents];
