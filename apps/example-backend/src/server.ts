@@ -2,7 +2,7 @@ import { createServer } from "http";
 import { createAgentRuntime, type PersistenceAdapter } from "@hhopkins/agent-server";
 import {
   createOpenCodeEventConverter,
-  parseOpenCodeTranscriptFile,
+  parseCombinedOpenCodeTranscript,
 } from "@hhopkins/agent-converters/opencode";
 import { sdkMessageToEvents, parseCombinedClaudeTranscript } from "@hhopkins/agent-converters/claude-sdk";
 import {
@@ -348,7 +348,7 @@ async function main() {
             if (converterType === 'claude-sdk') {
               state = parseCombinedClaudeTranscript(transcriptContent);
             } else {
-              state = parseOpenCodeTranscriptFile(transcriptContent);
+              state = parseCombinedOpenCodeTranscript(transcriptContent);
             }
 
             res.statusCode = 200;
