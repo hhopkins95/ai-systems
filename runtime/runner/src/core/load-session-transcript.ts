@@ -9,7 +9,7 @@ import { exec } from 'child_process';
 import { promisify } from 'util';
 import os from 'os';
 import { join } from 'path';
-import type { AgentArchitecture, CombinedClaudeTranscript } from '@ai-systems/shared-types';
+import type { AgentArchitecture, CombinedClaudeTranscript, CombinedOpenCodeTranscript } from '@ai-systems/shared-types';
 import { ClaudeEntityManager } from '@hhopkins/claude-entity-manager';
 import { getWorkspacePaths } from '../helpers/get-workspace-paths';
 import { setEnvironment } from '../helpers/set-environment';
@@ -54,27 +54,38 @@ async function writeClaudeTranscript(
 /**
  * Write session transcript for OpenCode.
  * Uses opencode import CLI command.
+ * Handles combined format with main transcript and subagents.
  */
 async function writeOpencodeTranscript(
   sessionId: string,
   transcript: string
 ): Promise<string> {
-  // Write to temp file
-  const tempPath = join(os.tmpdir(), `session-${sessionId}.json`);
-  await writeFile(tempPath, transcript, 'utf-8');
+  // Parse combined format
+  const combined = JSON.parse(transcript) as CombinedOpenCodeTranscript;
 
+  // Import main transcript
+  const mainTempPath = join(os.tmpdir(), `session-${sessionId}.json`);
+  await writeFile(mainTempPath, combined.main, 'utf-8');
   try {
-    // Import via OpenCode CLI
-    await execAsync(`opencode import "${tempPath}"`);
-    return tempPath;
+    await execAsync(`opencode import "${mainTempPath}"`);
   } finally {
-    // Clean up temp file
+    await unlink(mainTempPath).catch(() => {});
+  }
+
+  // Import each subagent transcript
+  for (const { id, transcript: subTranscript } of combined.subagents) {
+    const subTempPath = join(os.tmpdir(), `session-${id}.json`);
+    await writeFile(subTempPath, subTranscript, 'utf-8');
     try {
-      await unlink(tempPath);
-    } catch {
-      // Ignore cleanup errors
+      await execAsync(`opencode import "${subTempPath}"`);
+    } catch (error) {
+      console.warn(`Failed to import subagent ${id}, skipping`);
+    } finally {
+      await unlink(subTempPath).catch(() => {});
     }
   }
+
+  return mainTempPath;
 }
 
 /**
