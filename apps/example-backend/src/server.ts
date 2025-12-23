@@ -281,9 +281,12 @@ async function main() {
 
         try {
           const body = await getRequestBody(req);
-          const { mode, content, mainSessionId, converter: converterType = 'opencode' } = JSON.parse(body);
+          const { mode, content, mainSessionId, converter: converterType = 'opencode', filename } = JSON.parse(body);
 
-          if (mode === 'streaming') {
+          // Auto-detect mode from filename extension if provided
+          const effectiveMode = filename?.endsWith('.json') ? 'transcript' : mode;
+
+          if (effectiveMode === 'streaming') {
             // Streaming mode: convert raw events one at a time
             const rawEvents: unknown[] = typeof content === 'string'
               ? content.trim().split('\n').map((line: string) => JSON.parse(line))
@@ -337,7 +340,7 @@ async function main() {
                 subagentCount: state.subagents.length,
               },
             }));
-          } else if (mode === 'transcript') {
+          } else if (effectiveMode === 'transcript') {
             // Transcript mode: parse complete transcript
             const transcriptContent = typeof content === 'string' ? content : JSON.stringify(content);
             const state = parseOpenCodeTranscriptFile(transcriptContent);

@@ -91,7 +91,7 @@ export default function DebugPage() {
           mode: "streaming",
           content,
           converter: selectedConverter,
-          // mainSessionId: "debug-session",
+          filename: selectedFixture,
         }),
       });
 
