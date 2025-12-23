@@ -301,6 +301,11 @@ export interface SubagentBlock extends BaseBlock {
    */
   input: string;
 
+  /**
+   * The description of the subagent's task
+   */
+  description?: string;
+
 
   /**
    * Final output from the subagent (once completed)
