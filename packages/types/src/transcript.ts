@@ -53,3 +53,15 @@ export interface OpenCodeSessionTranscript {
   }>;
 }
 
+/**
+ * Combined transcript format for OpenCode.
+ * Wraps the main session JSON + all subagent session JSONs.
+ * This mirrors CombinedClaudeTranscript for consistency.
+ */
+export interface CombinedOpenCodeTranscript {
+  /** Raw JSON content of the main transcript */
+  main: string;
+  /** Subagent transcripts */
+  subagents: { id: string; transcript: string }[];
+}
+

@@ -12,6 +12,7 @@ import type {
   SubagentBlock,
   BlockLifecycleStatus,
   AnySessionEvent,
+  OpenCodeSessionTranscript,
 } from '@ai-systems/shared-types';
 import { createSessionEvent } from '@ai-systems/shared-types';
 import { generateId, toISOTimestamp, noopLogger, type Logger } from '../utils.js';
@@ -57,6 +58,35 @@ export function getPartTimestamp(part: Part): string {
  */
 export function isTaskTool(part: Part): boolean {
   return part.type === 'tool' && part.tool === 'task';
+}
+
+/**
+ * Extract all subagent session IDs from an OpenCode transcript.
+ * Scans task tool parts for metadata.sessionId.
+ *
+ * @param transcript - The parsed OpenCode session transcript
+ * @returns Array of unique subagent session IDs
+ */
+export function extractSubagentSessionIds(transcript: OpenCodeSessionTranscript): string[] {
+  const ids = new Set<string>();
+
+  for (const message of transcript.messages) {
+    for (const part of message.parts) {
+      if (isTaskTool(part)) {
+        // Type narrowing: we know this is a tool part with task
+        const toolPart = part as Part & { type: 'tool' };
+        const state = toolPart.state;
+        if (state && typeof state === 'object' && 'metadata' in state) {
+          const metadata = (state as { metadata?: { sessionId?: string } }).metadata;
+          if (metadata?.sessionId) {
+            ids.add(metadata.sessionId);
+          }
+        }
+      }
+    }
+  }
+
+  return Array.from(ids);
 }
 
 // ============================================================================
