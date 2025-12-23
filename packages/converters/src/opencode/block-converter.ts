@@ -33,6 +33,7 @@ import type {
   ConversationBlock,
   AnySessionEvent,
   BlockLifecycleStatus,
+  SessionConversationState,
 } from '@ai-systems/shared-types';
 import { createSessionEvent } from '@ai-systems/shared-types';
 import { toISOTimestamp, noopLogger } from '../utils.js';
@@ -84,6 +85,7 @@ interface ConverterState {
  */
 export function createOpenCodeEventConverter(
   mainSessionId: string,
+  initialConversationState? : SessionConversationState,
   options: ConvertOptions = {}
 ): OpenCodeEventConverter {
   const logger = options.logger ?? noopLogger;
@@ -93,6 +95,28 @@ export function createOpenCodeEventConverter(
     messageRoles: new Map(),
     seenParts: new Set(),
   };
+
+  // Pre-populate state from initial conversation (for mid-session resume)
+  if (initialConversationState) {
+    const processBlocks = (blocks: ConversationBlock[]) => {
+      for (const block of blocks) {
+        // Mark as seen to prevent duplicate upserts
+        state.seenParts.add(block.id);
+
+        // Extract messageId and infer role from block type
+        const messageId = block.metadata?.opencodeMessageId as string | undefined;
+        if (messageId) {
+          const role = block.type === 'user_message' ? 'user' : 'assistant';
+          state.messageRoles.set(messageId, role);
+        }
+      }
+    };
+
+    processBlocks(initialConversationState.blocks);
+    for (const subagent of initialConversationState.subagents) {
+      processBlocks(subagent.blocks);
+    }
+  }
 
   /**
    * Get the role for a message ID
@@ -170,6 +194,7 @@ export function createOpenCodeEventConverter(
               content: part.text || '',
               status: 'complete' as BlockLifecycleStatus,
               timestamp: getPartTimestamp(part),
+              metadata: { opencodeMessageId: part.messageID },
             },
           },
           { conversationId, source: 'runner' }
@@ -192,6 +217,7 @@ export function createOpenCodeEventConverter(
               content: '', // Start empty, content comes via deltas
               status: 'pending' as BlockLifecycleStatus,
               timestamp: getPartTimestamp(part),
+              metadata: { opencodeMessageId: part.messageID },
             },
           },
           { conversationId, source: 'runner' }
@@ -248,6 +274,7 @@ export function createOpenCodeEventConverter(
               content: '', // Start empty, content comes via deltas
               status: 'pending' as BlockLifecycleStatus,
               timestamp: getPartTimestamp(part),
+              metadata: { opencodeMessageId: part.messageID },
             },
           },
           { conversationId, source: 'runner' }
@@ -316,6 +343,7 @@ export function createOpenCodeEventConverter(
             status: mapToBlockStatus(state.status),
             timestamp,
             displayName,
+            metadata: { opencodeMessageId: part.messageID },
           },
         },
         { conversationId, source: 'runner' }
