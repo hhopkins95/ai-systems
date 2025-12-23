@@ -25,6 +25,7 @@ import type {
   AgentArchitectureSessionOptions,
   AnySessionEvent,
   SessionConversationState,
+  PartialConversationBlock,
 } from '@ai-systems/shared-types';
 import {
   reduceSessionEvent,
@@ -146,7 +147,7 @@ export type AgentServiceAction =
 
   // Optimistic Message Updates (client-specific)
   | { type: 'OPTIMISTIC_USER_MESSAGE'; sessionId: string; block: UserMessageBlock }
-  | { type: 'REPLACE_OPTIMISTIC_USER_MESSAGE'; sessionId: string; block: ConversationBlock }
+  | { type: 'REPLACE_OPTIMISTIC_USER_MESSAGE'; sessionId: string; block: PartialConversationBlock }
   | { type: 'REMOVE_OPTIMISTIC_MESSAGE'; sessionId: string; optimisticId: string }
 
   // Error Display (client-specific)
@@ -453,23 +454,33 @@ export function agentServiceReducer(
 
       if (!session) return state;
 
+      // Create full block from partial with defaults
+      const partialBlock = action.block;
+      const fullBlock: ConversationBlock = {
+        timestamp: new Date().toISOString(),
+        status: 'complete',
+        ...partialBlock,
+      } as ConversationBlock;
+
       // Find optimistic block with matching content (user_message type, optimistic- prefix)
       const blocks = session.conversationState.blocks;
+      const incomingContent = 'content' in partialBlock ? partialBlock.content : undefined;
       const optimisticIndex = blocks.findIndex(
         (block) =>
           block.type === 'user_message' &&
           block.id.startsWith('optimistic-') &&
-          block.content === (action.block as UserMessageBlock).content
+          incomingContent !== undefined &&
+          block.content === incomingContent
       );
 
       let newBlocks: ConversationBlock[];
       if (optimisticIndex >= 0) {
         // Replace optimistic with real block
         newBlocks = [...blocks];
-        newBlocks[optimisticIndex] = action.block;
+        newBlocks[optimisticIndex] = fullBlock;
       } else {
         // No optimistic block found, just append (edge case)
-        newBlocks = [...blocks, action.block];
+        newBlocks = [...blocks, fullBlock];
       }
 
       sessions.set(action.sessionId, {

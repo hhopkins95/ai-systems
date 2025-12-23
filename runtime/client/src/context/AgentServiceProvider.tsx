@@ -143,7 +143,7 @@ export function AgentServiceProvider({
           return;
 
         // block:complete with user_message replaces optimistic message
-        case 'block:complete':
+        case 'block:upsert':
           if (payload.block.type === 'user_message') {
             dispatch({
               type: 'REPLACE_OPTIMISTIC_USER_MESSAGE',
