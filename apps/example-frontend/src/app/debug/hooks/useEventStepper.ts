@@ -15,6 +15,8 @@ export type ConverterType = "opencode" | "claude-sdk";
 export interface StepperData {
   rawEvents: unknown[];
   sessionEventsByStep: AnySessionEvent[][];
+  /** Optional final state (used for transcript mode where we don't have individual events) */
+  finalState?: SessionConversationState;
 }
 
 export interface StepperState {
@@ -87,8 +89,23 @@ export function useEventStepper(): UseEventStepperResult {
 
   // Precompute all intermediate states when data is loaded
   const loadData = useCallback((data: StepperData) => {
-    const { rawEvents, sessionEventsByStep } = data;
+    const { rawEvents, sessionEventsByStep, finalState } = data;
     const statesAtEachStep: SessionConversationState[] = [];
+
+    // If we have a finalState but no events (transcript mode), use it directly
+    if (finalState && rawEvents.length === 0) {
+      statesAtEachStep.push(finalState);
+      setState({
+        rawEvents: [],
+        sessionEventsByStep: [],
+        statesAtEachStep,
+        currentStep: 0,
+        isPlaying: false,
+        playbackSpeed: 1,
+        totalSteps: 0,
+      });
+      return;
+    }
 
     // Initial state (before any events)
     let currentState = createInitialConversationState();
@@ -201,7 +218,8 @@ export function useEventStepper(): UseEventStepperResult {
   const currentState =
     state.statesAtEachStep[state.currentStep] || createInitialConversationState();
 
-  const isLoaded = state.totalSteps > 0;
+  // Loaded if we have events OR if we have a finalState with blocks (transcript mode)
+  const isLoaded = state.totalSteps > 0 || state.statesAtEachStep[0]?.blocks?.length > 0;
 
   return {
     state,

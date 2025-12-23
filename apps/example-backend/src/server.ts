@@ -347,8 +347,13 @@ async function main() {
 
             res.statusCode = 200;
             res.end(JSON.stringify({
+              rawEvents: [],
+              sessionEventsByStep: [],
+              sessionEvents: [],
               finalState: state,
               stats: {
+                rawEventCount: 0,
+                sessionEventCount: 0,
                 blockCount: state.blocks.length,
                 subagentCount: state.subagents.length,
               },

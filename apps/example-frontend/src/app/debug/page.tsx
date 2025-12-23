@@ -104,6 +104,7 @@ export default function DebugPage() {
       stepper.loadData({
         rawEvents: data.rawEvents,
         sessionEventsByStep: data.sessionEventsByStep,
+        finalState: data.finalState,
       });
     } catch (err) {
       setError(err instanceof Error ? err.message : "Unknown error");
