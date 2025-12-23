@@ -296,6 +296,7 @@ async function main() {
             if (converterType === 'opencode') {
               // OpenCode: stateful converter - detect session ID from events if not provided
               const detectedSessionId = mainSessionId || extractSessionIdFromEvents(rawEvents) || 'main-session';
+
               const openCodeConverter = createOpenCodeEventConverter(detectedSessionId);
 
               for (const event of rawEvents) {
