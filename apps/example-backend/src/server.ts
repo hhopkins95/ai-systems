@@ -4,7 +4,7 @@ import {
   createOpenCodeEventConverter,
   parseOpenCodeTranscriptFile,
 } from "@hhopkins/agent-converters/opencode";
-import { sdkMessageToEvents } from "@hhopkins/agent-converters/claude-sdk";
+import { sdkMessageToEvents, parseCombinedClaudeTranscript } from "@hhopkins/agent-converters/claude-sdk";
 import {
   reduceSessionEvent,
   createInitialConversationState,

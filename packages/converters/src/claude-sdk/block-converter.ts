@@ -19,7 +19,19 @@
  * Main entry point: sdkMessageToEvents()
  */
 
-import type { SDKMessage } from '@anthropic-ai/claude-agent-sdk';
+import type {
+  SDKMessage,
+  SDKPartialAssistantMessage,
+  SDKAssistantMessage,
+  SDKUserMessage,
+  SDKUserMessageReplay,
+} from '@anthropic-ai/claude-agent-sdk';
+
+/**
+ * RawMessageStreamEvent type from Anthropic SDK.
+ * Extracted from SDKPartialAssistantMessage['event'] since the SDK doesn't re-export it.
+ */
+type RawMessageStreamEvent = SDKPartialAssistantMessage['event'];
 import type {
   ConversationBlock,
   SkillLoadBlock,
@@ -29,6 +41,123 @@ import type {
 import { createSessionEvent } from '@ai-systems/shared-types';
 import { generateId, noopLogger } from '../utils.js';
 import type { ConvertOptions } from '../types.js';
+
+// ============================================================================
+// Type Helpers for SDK Message Handling
+// ============================================================================
+
+/**
+ * Messages that have parent_tool_use_id field.
+ * This is used to route events to the correct conversation (main vs subagent).
+ */
+type MessageWithParentToolUseId =
+  | SDKPartialAssistantMessage
+  | SDKAssistantMessage
+  | SDKUserMessage
+  | SDKUserMessageReplay;
+
+/**
+ * Extract parent_tool_use_id from SDK messages that support it.
+ */
+function getParentToolUseId(event: SDKMessage): string | null {
+  switch (event.type) {
+    case 'stream_event':
+    case 'assistant':
+    case 'user':
+      return (event as MessageWithParentToolUseId).parent_tool_use_id ?? null;
+    case 'tool_progress':
+      return event.parent_tool_use_id ?? null;
+    default:
+      return null;
+  }
+}
+
+/**
+ * Check if message is a system error (runtime error from SDK executor).
+ * Note: This is not part of the typed SDK message union but can occur at runtime.
+ */
+function isSystemError(event: SDKMessage): event is SDKMessage & { error?: { message?: string } } {
+  return event.type === 'system' && (event as { subtype?: string }).subtype === 'error';
+}
+
+/**
+ * Type guard for text content blocks.
+ */
+type TextContentBlock = { type: 'text'; text: string };
+
+function isTextContentBlock(block: unknown): block is TextContentBlock {
+  return (
+    typeof block === 'object' &&
+    block !== null &&
+    (block as { type?: string }).type === 'text' &&
+    typeof (block as { text?: unknown }).text === 'string'
+  );
+}
+
+/**
+ * Type guard for tool_result content blocks.
+ */
+type ToolResultContentBlock = { type: 'tool_result'; tool_use_id: string; content?: unknown };
+
+function isToolResultContentBlock(block: unknown): block is ToolResultContentBlock {
+  return (
+    typeof block === 'object' &&
+    block !== null &&
+    (block as { type?: string }).type === 'tool_result'
+  );
+}
+
+/**
+ * Thinking content block type (from Anthropic Beta API).
+ * Used to extract thinking content from assistant messages.
+ */
+type ThinkingContentBlock = { type: 'thinking'; thinking: string; id?: string };
+
+/**
+ * Get thinking content from a content block that has been narrowed to type 'thinking'.
+ */
+function getThinkingContent(block: { type: 'thinking' }): string {
+  return (block as ThinkingContentBlock).thinking || '';
+}
+
+/**
+ * Thinking delta type (from Anthropic Beta API streaming).
+ */
+type ThinkingDelta = { type: 'thinking_delta'; thinking: string };
+
+/**
+ * Get thinking delta content from a delta event.
+ */
+function getThinkingDelta(delta: { type: 'thinking_delta' }): string {
+  return (delta as ThinkingDelta).thinking || '';
+}
+
+/**
+ * Task tool use result shape (from Claude Agent SDK).
+ * This is set when a Task (subagent) completes execution.
+ */
+type TaskToolUseResult = {
+  agentId: string;
+  status: 'completed' | 'failed' | string;
+  content?: unknown;
+  totalDurationMs?: number;
+};
+
+/**
+ * Check if a user message is a Task tool completion.
+ */
+function isTaskCompletion(event: SDKUserMessage | SDKUserMessageReplay): event is (SDKUserMessage | SDKUserMessageReplay) & { tool_use_result: TaskToolUseResult } {
+  const result = event.tool_use_result as TaskToolUseResult | undefined;
+  return result !== undefined && typeof result.agentId === 'string';
+}
+
+/**
+ * Get the tool_use_result from a user message.
+ */
+function getTaskToolUseResult(event: SDKUserMessage | SDKUserMessageReplay): TaskToolUseResult | undefined {
+  const result = event.tool_use_result as TaskToolUseResult | undefined;
+  return result?.agentId ? result : undefined;
+}
 
 // ============================================================================
 // Subagent Prompt Tracking (Claude SDK-specific workaround)
@@ -161,8 +290,11 @@ function getSystemLogMessage(msg: Extract<SDKMessage, { type: 'system' }>): stri
       return `Hook ${msg.hook_name} (${msg.hook_event})`;
     case 'compact_boundary':
       return `Compact boundary (${msg.compact_metadata?.trigger || 'unknown'})`;
-    default:
-      return `System: ${(msg as any).subtype}`;
+    default: {
+      // Handle unknown subtypes that may appear at runtime
+      const subtype = (msg as { subtype?: string }).subtype;
+      return `System: ${subtype ?? 'unknown'}`;
+    }
   }
 }
 
@@ -184,18 +316,13 @@ export function sdkMessageToEvents(
   const logger = options.logger ?? noopLogger;
 
   // Handle system error messages from SDK executor
-  if ((event as any).type === 'system' && (event as any).subtype === 'error') {
+  if (isSystemError(event)) {
     logger.error({ event }, 'System error message from SDK executor');
-    throw new Error((event as any).error?.message || 'Unknown SDK error');
+    throw new Error(event.error?.message || 'Unknown SDK error');
   }
 
-  // Determine which conversation this belongs to
-  // Check parent_tool_use_id in multiple locations:
-  // 1. On the outer event wrapper (for result/system events)
-  // 2. On the inner event.event (for stream_event types from subagents)
-  const outerParentId = (event as any).parent_tool_use_id;
-  const innerParentId = event.type === 'stream_event' ? (event as any).event?.parent_tool_use_id : undefined;
-  const conversationId: 'main' | string = outerParentId || innerParentId || 'main';
+  // Determine which conversation this belongs to using parent_tool_use_id
+  const conversationId: 'main' | string = getParentToolUseId(event) || 'main';
 
   // Handle streaming events (SDKPartialAssistantMessage)
   if (event.type === 'stream_event') {
@@ -312,19 +439,20 @@ export function sdkMessageToEvents(
   // When Task tool_result arrives, emit subagent:completed instead of creating SubagentBlock
   // The reducer will update the existing SubagentBlock created on subagent:spawned
   if (event.type === 'user') {
-    const toolUseResult = (event as any).tool_use_result;
-    if (toolUseResult?.agentId) {
+    const userEvent = event as SDKUserMessage | SDKUserMessageReplay;
+    const toolUseResult = getTaskToolUseResult(userEvent);
+    if (toolUseResult) {
       // This is a Task completion - emit subagent:completed
-      const content = (event as any).message?.content;
+      const content = userEvent.message?.content;
       const toolResultBlock = Array.isArray(content)
-        ? content.find((b: any) => b.type === 'tool_result')
+        ? content.find(isToolResultContentBlock)
         : null;
 
       return [
         createSessionEvent(
           'subagent:completed',
           {
-            toolUseId: toolResultBlock?.tool_use_id,
+            toolUseId: toolResultBlock?.tool_use_id ?? '',
             agentId: toolUseResult.agentId,
             status: toolUseResult.status === 'completed' ? 'completed' : 'failed',
             output: extractTextFromToolResultContent(toolUseResult.content),
@@ -401,9 +529,12 @@ function messageToBlocks(
         logger.debug({ msg }, 'queue-operation message received');
         return [];
 
-      default:
-        logger.warn({ msgType: (msg as any).type, msg }, 'Unknown SDK message type');
+      default: {
+        // Handle unknown message types that may appear at runtime
+        const msgType = (msg as { type?: string }).type;
+        logger.warn({ msgType, msg }, 'Unknown SDK message type');
         return [];
+      }
     }
   } catch (error) {
     logger.error({ error, msg }, 'Failed to convert SDK message to block');
@@ -422,16 +553,14 @@ function convertUserMessage(msg: Extract<SDKMessage, { type: 'user' }>): Convers
   const content = msg.message.content;
 
   // Tool result messages have content as array with tool_result blocks
-  if (Array.isArray(content) && content.some((b: any) => b.type === 'tool_result')) {
+  if (Array.isArray(content) && content.some(isToolResultContentBlock)) {
     const blocks: ConversationBlock[] = [];
+    // Get Task tool use result if this is a subagent completion
+    const taskResult = getTaskToolUseResult(msg);
 
     for (const block of content) {
-      if ((block as any).type === 'tool_result') {
-        const toolResultBlock = block as any;
-        // SDK uses snake_case: tool_use_result
-        const toolUseResult = (msg as any).tool_use_result;
-
-        if (toolUseResult?.agentId) {
+      if (isToolResultContentBlock(block)) {
+        if (taskResult) {
           // Task tool result → SubagentBlock
           // Note: BlockLifecycleStatus ('complete') is separate from execution status
           // The subagent's execution result is indicated by the output/error content
@@ -439,16 +568,17 @@ function convertUserMessage(msg: Extract<SDKMessage, { type: 'user' }>): Convers
             type: 'subagent',
             id: generateId(),
             timestamp: new Date().toISOString(),
-            subagentId: toolUseResult.agentId, // SDK's agent ID (e.g., "abc123")
-            name: toolUseResult.subagent_type,
-            input: toolUseResult.prompt || '',
+            subagentId: taskResult.agentId, // SDK's agent ID (e.g., "abc123")
+            name: (taskResult as { subagent_type?: string }).subagent_type,
+            input: (taskResult as { prompt?: string }).prompt || '',
             status: 'complete' as BlockLifecycleStatus, // Block is finalized
-            output: extractTextFromToolResultContent(toolUseResult.content),
-            durationMs: toolUseResult.totalDurationMs,
-            toolUseId: toolResultBlock.tool_use_id,
+            output: extractTextFromToolResultContent(taskResult.content),
+            durationMs: taskResult.totalDurationMs,
+            toolUseId: block.tool_use_id,
           });
         } else {
           // Regular tool result → ToolResultBlock
+          const toolResultBlock = block as ToolResultContentBlock & { content?: unknown; is_error?: boolean };
           blocks.push({
             type: 'tool_result',
             id: generateId(),
@@ -572,7 +702,7 @@ function convertAssistantMessage(msg: Extract<SDKMessage, { type: 'assistant' }>
           type: 'thinking',
           id: contentBlock.id || generateId(),
           timestamp: new Date().toISOString(),
-          content: (contentBlock as any).thinking || '',
+          content: getThinkingContent(contentBlock),
           status: 'complete' as BlockLifecycleStatus, // In transcript, block is finalized
         });
         break;
@@ -590,7 +720,7 @@ function convertAssistantMessage(msg: Extract<SDKMessage, { type: 'assistant' }>
  * Parse Anthropic SDK RawMessageStreamEvent to SessionEvent(s)
  * Returns an array because some events (like Task tool start) generate multiple session events.
  */
-function parseRawStreamEvent(rawEvent: any, conversationId: 'main' | string): AnySessionEvent[] {
+function parseRawStreamEvent(rawEvent: RawMessageStreamEvent, conversationId: 'main' | string): AnySessionEvent[] {
   switch (rawEvent.type) {
     case 'content_block_start': {
       const block = rawEvent.content_block;
@@ -695,7 +825,7 @@ function parseRawStreamEvent(rawEvent: any, conversationId: 'main' | string): An
           'block:delta',
           {
             blockId: '', // Will be set by the caller based on index
-            delta: (delta as any).thinking || '',
+            delta: getThinkingDelta(delta),
           },
           { conversationId, source: 'runner' }
         )];
