@@ -555,12 +555,13 @@ function convertAssistantMessage(msg: Extract<SDKMessage, { type: 'assistant' }>
         // In transcript, tool_use block is already finalized (status: complete)
         // Note: BlockLifecycleStatus tracks data finalization, not execution result
         // The actual tool execution result is in the corresponding ToolResultBlock
+        const toolUseId = contentBlock.id || generateId();
         blocks.push({
           type: 'tool_use',
-          id: contentBlock.id,
+          id: toolUseId,
           timestamp: new Date().toISOString(),
           toolName: contentBlock.name,
-          toolUseId: contentBlock.id,
+          toolUseId: toolUseId,
           input: contentBlock.input as Record<string, unknown>,
           status: 'complete' as BlockLifecycleStatus,
         });
@@ -602,7 +603,7 @@ function parseRawStreamEvent(rawEvent: any, conversationId: 'main' | string): An
           {
             block: {
               type: 'assistant_text',
-              id: block.id,
+              id: block.id || generateId(),
               timestamp: new Date().toISOString(),
               content: block.text || '',
               status: 'pending' as BlockLifecycleStatus,
@@ -637,15 +638,16 @@ function parseRawStreamEvent(rawEvent: any, conversationId: 'main' | string): An
         }
 
         // Emit the tool_use block:upsert event with pending status
+        const toolUseId = block.id || generateId();
         events.push(createSessionEvent(
           'block:upsert',
           {
             block: {
               type: 'tool_use',
-              id: block.id,
+              id: toolUseId,
               timestamp: new Date().toISOString(),
               toolName: block.name,
-              toolUseId: block.id,
+              toolUseId: toolUseId,
               input: block.input || {},
               status: 'pending' as BlockLifecycleStatus,
             },
@@ -660,7 +662,7 @@ function parseRawStreamEvent(rawEvent: any, conversationId: 'main' | string): An
           {
             block: {
               type: 'thinking',
-              id: block.id,
+              id: block.id || generateId(),
               timestamp: new Date().toISOString(),
               content: '',
               status: 'pending' as BlockLifecycleStatus,
