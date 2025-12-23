@@ -203,11 +203,18 @@ export function createOpenCodeEventConverter(
     }
 
     // Assistant text - stream with deltas
+    // Only emit upsert when we have meaningful content (not just whitespace/newlines)
+    const hasMeaningfulContent = delta?.trim();
+
     if (!state.seenParts.has(part.id)) {
-      // First time seeing this part
+      // First time seeing this part - only create block if we have real content
+      if (!hasMeaningfulContent) {
+        return []; // Skip until we have meaningful content
+      }
+
       state.seenParts.add(part.id);
 
-      const events: AnySessionEvent[] = [
+      return [
         createSessionEvent(
           'block:upsert',
           {
@@ -222,28 +229,20 @@ export function createOpenCodeEventConverter(
           },
           { conversationId, source: 'runner' }
         ),
+        createSessionEvent(
+          'block:delta',
+          { blockId: part.id, delta: delta! },
+          { conversationId, source: 'runner' }
+        ),
       ];
-
-      // Emit initial delta
-      if (delta) {
-        events.push(
-          createSessionEvent(
-            'block:delta',
-            { blockId: part.id, delta },
-            { conversationId, source: 'runner' }
-          )
-        );
-      }
-
-      return events;
     }
 
-    // Subsequent updates - delta only
-    if (delta) {
+    // Subsequent updates - delta only if meaningful
+    if (hasMeaningfulContent) {
       return [
         createSessionEvent(
           'block:delta',
-          { blockId: part.id, delta },
+          { blockId: part.id, delta: delta! },
           { conversationId, source: 'runner' }
         ),
       ];
@@ -260,11 +259,18 @@ export function createOpenCodeEventConverter(
     delta: string | undefined,
     conversationId: string
   ): AnySessionEvent[] {
+    // Only emit upsert when we have meaningful content (not just whitespace/newlines)
+    const hasMeaningfulContent = delta?.trim();
+
     if (!state.seenParts.has(part.id)) {
-      // First time seeing this part
+      // First time seeing this part - only create block if we have real content
+      if (!hasMeaningfulContent) {
+        return []; // Skip until we have meaningful content
+      }
+
       state.seenParts.add(part.id);
 
-      const events: AnySessionEvent[] = [
+      return [
         createSessionEvent(
           'block:upsert',
           {
@@ -279,28 +285,20 @@ export function createOpenCodeEventConverter(
           },
           { conversationId, source: 'runner' }
         ),
+        createSessionEvent(
+          'block:delta',
+          { blockId: part.id, delta: delta! },
+          { conversationId, source: 'runner' }
+        ),
       ];
-
-      // Emit initial delta
-      if (delta) {
-        events.push(
-          createSessionEvent(
-            'block:delta',
-            { blockId: part.id, delta },
-            { conversationId, source: 'runner' }
-          )
-        );
-      }
-
-      return events;
     }
 
-    // Subsequent updates - delta only
-    if (delta) {
+    // Subsequent updates - delta only if meaningful
+    if (hasMeaningfulContent) {
       return [
         createSessionEvent(
           'block:delta',
-          { blockId: part.id, delta },
+          { blockId: part.id, delta: delta! },
           { conversationId, source: 'runner' }
         ),
       ];
