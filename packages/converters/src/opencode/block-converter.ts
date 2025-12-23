@@ -14,11 +14,21 @@
  * - session.idle → session:idle, clear seenParts
  */
 
-import type { Event, Part, 
-  EventMessagePartUpdated, 
-  EventMessageUpdated, 
-  EventSessionCreated, 
- } from "@opencode-ai/sdk/v2";
+import type {
+  Event,
+  Part,
+  EventMessagePartUpdated,
+  EventMessageUpdated,
+  EventSessionIdle,
+  EventSessionError,
+  TextPart,
+  ReasoningPart,
+  ToolPart,
+  ToolState,
+  StepStartPart,
+  StepFinishPart,
+  RetryPart,
+} from "@opencode-ai/sdk/v2";
 import type {
   ConversationBlock,
   AnySessionEvent,
@@ -137,13 +147,11 @@ export function createOpenCodeEventConverter(
    * Handle text part (user or assistant)
    */
   function handleTextPart(
-    part: Part & { type: 'text' },
+    part: TextPart,
     delta: string | undefined,
     conversationId: string,
     role: 'user' | 'assistant' | undefined
   ): AnySessionEvent[] {
-    const partData = part as any;
-
     if (role === 'user') {
       // User text - emit as user_message, already complete
       // Only emit once (user messages don't stream)
@@ -159,7 +167,7 @@ export function createOpenCodeEventConverter(
             block: {
               type: 'user_message',
               id: part.id,
-              content: partData.text || '',
+              content: part.text || '',
               status: 'complete' as BlockLifecycleStatus,
               timestamp: getPartTimestamp(part),
             },
@@ -222,7 +230,7 @@ export function createOpenCodeEventConverter(
    * Handle reasoning part
    */
   function handleReasoningPart(
-    part: Part & { type: 'reasoning' },
+    part: ReasoningPart,
     delta: string | undefined,
     conversationId: string
   ): AnySessionEvent[] {
@@ -278,12 +286,21 @@ export function createOpenCodeEventConverter(
    * Handle tool part (regular tools, not task/subagent)
    */
   function handleToolPart(
-    part: Part & { type: 'tool' },
+    part: ToolPart,
     conversationId: string
   ): AnySessionEvent[] {
-    const partState = part.state as any;
-    const isComplete = partState.status === 'completed' || partState.status === 'error';
+    const state: ToolState = part.state;
     const events: AnySessionEvent[] = [];
+
+    // Get timestamp - running/completed/error states have time.start
+    const timestamp = state.status !== 'pending' && state.time?.start
+      ? toISOTimestamp(state.time.start)
+      : new Date().toISOString();
+
+    // Get display name - only running/completed have title
+    const displayName = state.status === 'running' || state.status === 'completed'
+      ? state.title
+      : undefined;
 
     // Always emit tool_use upsert (status changes as tool progresses)
     events.push(
@@ -295,10 +312,10 @@ export function createOpenCodeEventConverter(
             id: part.id,
             toolName: part.tool,
             toolUseId: part.callID,
-            input: partState.input || {},
-            status: mapToBlockStatus(partState.status),
-            timestamp: partState.time?.start ? toISOTimestamp(partState.time.start) : new Date().toISOString(),
-            displayName: partState.title,
+            input: state.input || {},
+            status: mapToBlockStatus(state.status),
+            timestamp,
+            displayName,
           },
         },
         { conversationId, source: 'runner' }
@@ -306,7 +323,7 @@ export function createOpenCodeEventConverter(
     );
 
     // Emit tool_result when complete
-    if (isComplete) {
+    if (state.status === 'completed') {
       events.push(
         createSessionEvent(
           'block:upsert',
@@ -315,13 +332,30 @@ export function createOpenCodeEventConverter(
               type: 'tool_result',
               id: `result-${part.id}`,
               toolUseId: part.callID,
-              output: partState.status === 'error' ? partState.error : partState.output,
-              isError: partState.status === 'error',
+              output: state.output,
+              isError: false,
               status: 'complete' as BlockLifecycleStatus,
-              timestamp: partState.time?.end ? toISOTimestamp(partState.time.end) : new Date().toISOString(),
-              durationMs: partState.time?.end && partState.time?.start
-                ? partState.time.end - partState.time.start
-                : undefined,
+              timestamp: toISOTimestamp(state.time.end),
+              durationMs: state.time.end - state.time.start,
+            },
+          },
+          { conversationId, source: 'runner' }
+        )
+      );
+    } else if (state.status === 'error') {
+      events.push(
+        createSessionEvent(
+          'block:upsert',
+          {
+            block: {
+              type: 'tool_result',
+              id: `result-${part.id}`,
+              toolUseId: part.callID,
+              output: state.error,
+              isError: true,
+              status: 'complete' as BlockLifecycleStatus,
+              timestamp: toISOTimestamp(state.time.end),
+              durationMs: state.time.end - state.time.start,
             },
           },
           { conversationId, source: 'runner' }
@@ -336,12 +370,24 @@ export function createOpenCodeEventConverter(
    * Handle task/subagent tool part
    */
   function handleSubagentPart(
-    part: Part & { type: 'tool' },
+    part: ToolPart,
     conversationId: string
   ): AnySessionEvent[] {
-    const partState = part.state as any;
+    const state: ToolState = part.state;
     const toolUseId = part.callID;
     const events: AnySessionEvent[] = [];
+
+    // Extract input fields (input is always present on all ToolState variants)
+    const input = state.input as Record<string, unknown>;
+    const prompt = (input.prompt ?? input.description ?? '') as string;
+    const subagentType = input.subagent_type as string | undefined;
+    const description = input.description as string | undefined;
+
+    // Get metadata (only on running/completed/error states)
+    const metadata = state.status !== 'pending'
+      ? (state.metadata as Record<string, unknown> | undefined)
+      : undefined;
+    const agentId = metadata?.sessionId as string | undefined;
 
     // Emit subagent:spawned
     events.push(
@@ -349,28 +395,40 @@ export function createOpenCodeEventConverter(
         'subagent:spawned',
         {
           toolUseId,
-          agentId: partState.metadata?.sessionId,
-          prompt: partState?.input?.prompt || partState?.input?.description || '',
-          subagentType: partState?.input?.subagent_type,
-          description: partState?.input?.description,
+          agentId,
+          prompt,
+          subagentType,
+          description,
         },
         { conversationId, source: 'runner' }
       )
     );
 
     // Check if subagent completed - emit subagent:completed
-    if (partState.status === 'completed' || partState.status === 'error') {
+    if (state.status === 'completed') {
       events.push(
         createSessionEvent(
           'subagent:completed',
           {
             toolUseId,
-            agentId: partState.metadata?.sessionId,
-            status: partState.status === 'completed' ? 'completed' : 'failed',
-            output: typeof partState.output === 'string' ? partState.output : undefined,
-            durationMs: partState.time?.end && partState.time?.start
-              ? partState.time.end - partState.time.start
-              : undefined,
+            agentId: (state.metadata as Record<string, unknown>)?.sessionId as string | undefined,
+            status: 'completed',
+            output: state.output,
+            durationMs: state.time.end - state.time.start,
+          },
+          { conversationId, source: 'runner' }
+        )
+      );
+    } else if (state.status === 'error') {
+      events.push(
+        createSessionEvent(
+          'subagent:completed',
+          {
+            toolUseId,
+            agentId: (state.metadata as Record<string, unknown> | undefined)?.sessionId as string | undefined,
+            status: 'failed',
+            output: state.error,
+            durationMs: state.time.end - state.time.start,
           },
           { conversationId, source: 'runner' }
         )
@@ -383,17 +441,29 @@ export function createOpenCodeEventConverter(
   /**
    * Handle step/retry log events
    */
-  function handleLogPart(part: Part): AnySessionEvent[] {
-    const partData = part as any;
+  function handleLogPart(part: StepStartPart | StepFinishPart | RetryPart): AnySessionEvent[] {
+    let message: string;
+    let level: 'info' | 'warn' = 'info';
+
+    switch (part.type) {
+      case 'step-start':
+        message = 'Step started';
+        break;
+      case 'step-finish':
+        message = `Step finished: ${part.reason || 'unknown'}`;
+        break;
+      case 'retry':
+        level = 'warn';
+        message = `Retry attempt ${part.attempt}: ${part.error.data?.message || 'Unknown error'}`;
+        break;
+    }
 
     return [
       createSessionEvent(
         'log',
         {
-          level: part.type === 'retry' ? 'warn' : 'info',
-          message: part.type === 'step-start' ? 'Step started'
-                 : part.type === 'step-finish' ? `Step finished: ${partData.reason || 'unknown'}`
-                 : `Retry attempt ${partData.attempt || '?'}: ${partData.error?.message || 'Unknown error'}`,
+          level,
+          message,
           data: {
             partType: part.type,
             partId: part.id,
@@ -407,8 +477,8 @@ export function createOpenCodeEventConverter(
   /**
    * Handle message.part.updated event
    */
-  function handlePartUpdated(event: Event): AnySessionEvent[] {
-    const { part, delta } = (event as any).properties;
+  function handlePartUpdated(event: EventMessagePartUpdated): AnySessionEvent[] {
+    const { part, delta } = event.properties;
     const conversationId = part.sessionID === mainSessionId ? 'main' : part.sessionID;
     const role = getMessageRole(part.messageID);
 
@@ -440,7 +510,7 @@ export function createOpenCodeEventConverter(
         return [];
 
       default:
-        logger.debug({ partType: part.type }, 'Unknown OpenCode part type, skipping');
+        logger.debug({ partType: (part as Part).type }, 'Unknown OpenCode part type, skipping');
         return [];
     }
   }
@@ -448,8 +518,8 @@ export function createOpenCodeEventConverter(
   /**
    * Handle session.idle event
    */
-  function handleSessionIdle(event: Event): AnySessionEvent[] {
-    const { sessionID } = (event as any).properties;
+  function handleSessionIdle(event: EventSessionIdle): AnySessionEvent[] {
+    const { sessionID } = event.properties;
     const conversationId = sessionID === mainSessionId ? 'main' : sessionID;
 
     // Clear seenParts for next turn (messages persist across turns)
@@ -467,14 +537,18 @@ export function createOpenCodeEventConverter(
   /**
    * Handle session.error event
    */
-  function handleSessionError(event: Event): AnySessionEvent[] {
-    const e = event as any;
+  function handleSessionError(event: EventSessionError): AnySessionEvent[] {
+    const { sessionID, error } = event.properties;
+    // Extract error message from the error union type (message is in data.message)
+    const errorMessage = error?.data?.message;
+    const message = typeof errorMessage === 'string' ? errorMessage : 'Session error';
+
     return [
       createSessionEvent(
         'error',
         {
-          message: e.properties?.message || 'Session error',
-          data: e.properties,
+          message,
+          data: { sessionID, error },
         },
         { source: 'runner' }
       ),
