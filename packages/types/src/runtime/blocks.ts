@@ -105,6 +105,11 @@ export interface BaseBlock {
    * Optional for backwards compatibility - defaults to 'complete' if not set.
    */
   status?: BlockLifecycleStatus;
+
+  /**
+   * Additional structured metadata
+   */
+  metadata?: Record<string, unknown>;
 }
 
 // ============================================================================
@@ -244,10 +249,7 @@ export interface SystemBlock extends BaseBlock {
    */
   message: string;
 
-  /**
-   * Additional structured metadata
-   */
-  metadata?: Record<string, unknown>;
+  
 }
 
 /**
