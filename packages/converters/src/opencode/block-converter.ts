@@ -14,7 +14,10 @@
  * - session.idle → session:idle, clear seenParts
  */
 
-import type { Event, Part } from "@opencode-ai/sdk/v2";
+import type { Event, Part, 
+  EventMessagePartUpdated, 
+  EventMessageUpdated
+ } from "@opencode-ai/sdk/v2";
 import type {
   ConversationBlock,
   AnySessionEvent,
@@ -90,9 +93,12 @@ export function createOpenCodeEventConverter(
   /**
    * Handle message.updated event
    */
-  function handleMessageUpdated(event: Event): AnySessionEvent[] {
-    const { info: messageInfo } = (event as any).properties;
+  function handleMessageUpdated(event: EventMessageUpdated): AnySessionEvent[] {
+    const { info: messageInfo } = (event).properties;
     const conversationId = messageInfo.sessionID === mainSessionId ? 'main' : messageInfo.sessionID;
+
+
+  
 
     // Always store the role for part correlation
     if (messageInfo.role === 'user' || messageInfo.role === 'assistant') {

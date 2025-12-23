@@ -146,36 +146,6 @@ export interface SessionEventPayloads {
     delta: string;
   };
 
-  // Legacy events - kept for backwards compatibility during migration
-  // TODO: Remove after all converters emit block:upsert
-
-  /**
-   * @deprecated Use block:upsert instead
-   * New block started (may be incomplete, will receive deltas)
-   */
-  'block:start': {
-    block: ConversationBlock;
-    /** OpenCode: message ID for role lookup (user vs assistant) */
-    messageId?: string;
-  };
-
-  /**
-   * @deprecated Use block:upsert instead
-   * Block metadata/status updated (not text content)
-   */
-  'block:update': {
-    blockId: string;
-    updates: Partial<ConversationBlock>;
-  };
-
-  /**
-   * @deprecated Use block:upsert instead
-   * Block finalized - no more updates coming
-   */
-  'block:complete': {
-    blockId: string;
-    block: ConversationBlock;
-  };
 
   // ---------------------------------------------------------------------------
   // Metadata Events
@@ -560,10 +530,6 @@ export function isServerEvent(event: AnySessionEvent): boolean {
 export const BLOCK_EVENT_TYPES = [
   'block:upsert',
   'block:delta',
-  // Legacy events (deprecated)
-  'block:start',
-  'block:update',
-  'block:complete',
 ] as const satisfies readonly SessionEventType[];
 
 /**
@@ -607,11 +573,6 @@ export const QUERY_LIFECYCLE_EVENT_TYPES = [
 export const CLIENT_BROADCAST_EVENT_TYPES = [
   'block:upsert',
   'block:delta',
-  // Legacy block events (deprecated)
-  'block:start',
-  'block:update',
-  'block:complete',
-  'metadata:update',
   'status',
   'file:created',
   'file:modified',
