@@ -343,7 +343,13 @@ async function main() {
           } else if (effectiveMode === 'transcript') {
             // Transcript mode: parse complete transcript
             const transcriptContent = typeof content === 'string' ? content : JSON.stringify(content);
-            const state = parseOpenCodeTranscriptFile(transcriptContent);
+
+            let state;
+            if (converterType === 'claude-sdk') {
+              state = parseCombinedClaudeTranscript(transcriptContent);
+            } else {
+              state = parseOpenCodeTranscriptFile(transcriptContent);
+            }
 
             res.statusCode = 200;
             res.end(JSON.stringify({
