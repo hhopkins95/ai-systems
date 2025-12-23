@@ -145,17 +145,23 @@ type TaskToolUseResult = {
 
 /**
  * Check if a user message is a Task tool completion.
+ * Handles both snake_case (streaming) and camelCase (transcript) formats.
  */
-function isTaskCompletion(event: SDKUserMessage | SDKUserMessageReplay): event is (SDKUserMessage | SDKUserMessageReplay) & { tool_use_result: TaskToolUseResult } {
-  const result = event.tool_use_result as TaskToolUseResult | undefined;
+function isTaskCompletion(event: SDKUserMessage | SDKUserMessageReplay): boolean {
+  // Check both snake_case (streaming: tool_use_result) and camelCase (transcript: toolUseResult)
+  const msg = event as SDKUserMessage & { toolUseResult?: TaskToolUseResult };
+  const result = (event.tool_use_result ?? msg.toolUseResult) as TaskToolUseResult | undefined;
   return result !== undefined && typeof result.agentId === 'string';
 }
 
 /**
  * Get the tool_use_result from a user message.
+ * Handles both snake_case (streaming) and camelCase (transcript) formats.
  */
 function getTaskToolUseResult(event: SDKUserMessage | SDKUserMessageReplay): TaskToolUseResult | undefined {
-  const result = event.tool_use_result as TaskToolUseResult | undefined;
+  // Check both snake_case (streaming: tool_use_result) and camelCase (transcript: toolUseResult)
+  const msg = event as SDKUserMessage & { toolUseResult?: TaskToolUseResult };
+  const result = (event.tool_use_result ?? msg.toolUseResult) as TaskToolUseResult | undefined;
   return result?.agentId ? result : undefined;
 }
 
@@ -464,16 +470,51 @@ export function sdkMessageToEvents(
     }
   }
 
-  // For other message types (user, assistant, etc.)
+  // For assistant messages, check for Task tool_use and emit subagent:spawned
+  // (In streaming, this is done in parseRawStreamEvent; for transcripts, we do it here)
+  const events: AnySessionEvent[] = [];
+
+  if (event.type === 'assistant') {
+    const assistantMsg = event as SDKAssistantMessage;
+    const content = assistantMsg.message?.content;
+    if (Array.isArray(content)) {
+      for (const block of content) {
+        if (block.type === 'tool_use' && block.name === 'Task') {
+          const input = block.input as Record<string, unknown> | undefined;
+          const prompt = input?.prompt;
+
+          // Emit subagent:spawned for Task tool_use
+          events.push(createSessionEvent(
+            'subagent:spawned',
+            {
+              toolUseId: block.id,
+              prompt: typeof prompt === 'string' ? prompt : '',
+              subagentType: input?.subagent_type as string | undefined,
+              description: input?.description as string | undefined,
+            },
+            { conversationId, source: 'runner' }
+          ));
+
+          // Register the Task prompt for filtering
+          if (typeof prompt === 'string') {
+            registerTaskPrompt(block.id, prompt);
+          }
+        }
+      }
+    }
+  }
+
   // Convert to blocks and emit block:upsert events with status: complete
   const blocks = messageToBlocks(event, options);
-  return blocks.map((block) =>
-    createSessionEvent(
+  for (const block of blocks) {
+    events.push(createSessionEvent(
       'block:upsert',
       { block: { ...block, status: 'complete' as BlockLifecycleStatus } },
       { conversationId, source: 'runner' }
-    )
-  );
+    ));
+  }
+
+  return events;
 }
 
 /**

@@ -102,8 +102,22 @@ export function handleBlockDelta(
 // ============================================================================
 
 /**
+ * Check if a block is an empty text block that should be filtered out.
+ * Empty assistant_text or thinking blocks with no content are considered ghost blocks
+ * created during streaming that never received content.
+ */
+function isEmptyTextBlock(block: ConversationBlock): boolean {
+  if (block.type === 'assistant_text' || block.type === 'thinking') {
+    const content = (block as { content?: string }).content;
+    return !content || content.trim() === '';
+  }
+  return false;
+}
+
+/**
  * Handle session:idle event
  * - Finalizes any blocks still in 'pending' status
+ * - Filters out empty text blocks (ghost blocks from streaming)
  * - Sets their status to 'complete'
  *
  * @param state - Current conversation state
@@ -114,13 +128,16 @@ export function handleSessionIdle(
   conversationId: string
 ): SessionConversationState {
   if (conversationId === 'main') {
-    // Finalize pending blocks in main conversation
+    // Finalize pending blocks and filter out empty text blocks
     const hasAnyPending = state.blocks.some((b) => b.status === 'pending');
-    if (!hasAnyPending) return state;
+    const hasAnyEmpty = state.blocks.some(isEmptyTextBlock);
+    if (!hasAnyPending && !hasAnyEmpty) return state;
 
-    const newBlocks = state.blocks.map((b) =>
-      b.status === 'pending' ? { ...b, status: 'complete' as BlockLifecycleStatus } : b
-    );
+    const newBlocks = state.blocks
+      .filter((b) => !isEmptyTextBlock(b))
+      .map((b) =>
+        b.status === 'pending' ? { ...b, status: 'complete' as BlockLifecycleStatus } : b
+      );
     return { ...state, blocks: newBlocks };
   } else {
     // Finalize pending blocks in subagent conversation
@@ -129,11 +146,14 @@ export function handleSessionIdle(
 
     const subagent = state.subagents[subagentIndex];
     const hasAnyPending = subagent.blocks.some((b) => b.status === 'pending');
-    if (!hasAnyPending) return state;
+    const hasAnyEmpty = subagent.blocks.some(isEmptyTextBlock);
+    if (!hasAnyPending && !hasAnyEmpty) return state;
 
-    const newBlocks = subagent.blocks.map((b) =>
-      b.status === 'pending' ? { ...b, status: 'complete' as BlockLifecycleStatus } : b
-    );
+    const newBlocks = subagent.blocks
+      .filter((b) => !isEmptyTextBlock(b))
+      .map((b) =>
+        b.status === 'pending' ? { ...b, status: 'complete' as BlockLifecycleStatus } : b
+      );
 
     const newSubagents = [...state.subagents];
     newSubagents[subagentIndex] = { ...subagent, blocks: newBlocks };
