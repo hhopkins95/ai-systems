@@ -27,6 +27,27 @@ const openCodeFixturesDir = path.join(dirname, "../../../packages/converters/src
 const claudeSdkFixturesDir = path.join(dirname, "../../../packages/converters/src/claude-sdk/test");
 
 /**
+ * Extract the main session ID from raw OpenCode events.
+ * Looks for the first event that contains a session ID.
+ */
+function extractSessionIdFromEvents(events: unknown[]): string | undefined {
+  for (const event of events) {
+    const e = event as Record<string, unknown>;
+    // Check message.updated events
+    if (e.type === 'message.updated') {
+      const info = (e.properties as Record<string, unknown>)?.info as Record<string, unknown>;
+      if (info?.sessionID) return info.sessionID as string;
+    }
+    // Check session.updated events
+    if (e.type === 'session.updated') {
+      const info = (e.properties as Record<string, unknown>)?.info as Record<string, unknown>;
+      if (info?.id) return info.id as string;
+    }
+  }
+  return undefined;
+}
+
+/**
  * Main server entry point
  *
  * This example demonstrates:
@@ -273,10 +294,12 @@ async function main() {
             const allSessionEvents: AnySessionEvent[] = [];
 
             if (converterType === 'opencode') {
-              // OpenCode: stateful converter
-              const openCodeConverter = createOpenCodeEventConverter(mainSessionId || 'main-session');
+              // OpenCode: stateful converter - detect session ID from events if not provided
+              const detectedSessionId = mainSessionId || extractSessionIdFromEvents(rawEvents) || 'main-session';
+              const openCodeConverter = createOpenCodeEventConverter(detectedSessionId);
 
               for (const event of rawEvents) {
+                // @ts-ignore
                 const converted = openCodeConverter.parseEvent(event);
                 sessionEventsByStep.push(converted);
                 for (const sessionEvent of converted) {
