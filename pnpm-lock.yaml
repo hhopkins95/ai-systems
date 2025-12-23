@@ -275,6 +275,9 @@ importers:
       '@anthropic-ai/claude-agent-sdk':
         specifier: ^0.1.61
         version: 0.1.61(zod@4.1.8)
+      '@opencode-ai/sdk':
+        specifier: '>=1.0.0'
+        version: 1.0.163
       typescript:
         specifier: ^5.7.2
         version: 5.9.3

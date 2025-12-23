@@ -6,15 +6,16 @@
  * using the shared reducer for event processing.
  */
 
-import type { FileDiff, UserMessage, AssistantMessage, Part } from "@opencode-ai/sdk";
 import type {
-  SessionConversationState,
   AnySessionEvent,
+  OpenCodeSessionTranscript,
+  SessionConversationState,
 } from '@ai-systems/shared-types';
 import { createInitialConversationState, createSessionEvent } from '@ai-systems/shared-types';
-import { toISOTimestamp, noopLogger } from '../utils.js';
-import type { ParseTranscriptOptions } from '../types.js';
+import type { AssistantMessage, Part } from "@opencode-ai/sdk";
 import { reduceSessionEvent } from '../session-state/reducer.js';
+import type { ParseTranscriptOptions } from '../types.js';
+import { noopLogger, toISOTimestamp } from '../utils.js';
 import {
   isTaskTool,
   partToEvents,
@@ -22,38 +23,7 @@ import {
 } from './shared-helpers.js';
 
 // Re-export helpers for backward compatibility
-export { mapToBlockStatus, getPartTimestamp } from './shared-helpers.js';
-
-/**
- * Exported session type when running `opencode export <sessionId>`
- */
-export interface OpenCodeSessionTranscript {
-  info: {
-    id: string;
-    projectID: string;
-    directory: string;
-    parentID?: string;
-    title: string;
-    version: string;
-    time: {
-      created: number;
-      updated: number;
-      compacting?: number;
-    };
-    summary?: {
-      additions: number;
-      deletions: number;
-      files: number;
-      diffs?: FileDiff[];
-    };
-    share?: { url: string };
-    revert?: { messageID: string; partID?: string; snapshot?: string; diff?: string };
-  };
-  messages: Array<{
-    info: UserMessage | AssistantMessage;
-    parts: Part[];
-  }>;
-}
+export { getPartTimestamp, mapToBlockStatus } from './shared-helpers.js';
 
 // ============================================================================
 // Transcript to Events Conversion
