@@ -10,9 +10,9 @@ import { readFileSync, writeFileSync, mkdirSync, existsSync } from 'node:fs';
 import { join, dirname } from 'node:path';
 import { fileURLToPath } from 'node:url';
 import type { SDKMessage } from '@anthropic-ai/claude-agent-sdk';
-import type { SessionConversationState, AnySessionEvent } from '@ai-systems/shared-types';
+import type { SessionConversationState } from '@ai-systems/shared-types';
 import { createInitialConversationState, createSessionEvent } from '@ai-systems/shared-types';
-import { sdkMessageToEvents } from '../block-converter.js';
+import { createClaudeSdkEventConverter } from '../block-converter.js';
 import { reduceSessionEvent } from '../../session-state/reducer.js';
 import { parseCombinedClaudeTranscript } from '../transcript-parser.js';
 
@@ -50,26 +50,28 @@ function finalizeState(state: SessionConversationState): SessionConversationStat
 
 /**
  * Build state by processing raw SDK messages through events + reducer.
- * This simulates the streaming path.
+ * This simulates the streaming path using the stateful converter.
  */
 function buildStateFromStreaming(): SessionConversationState {
   const content = readFileSync(join(TEST_DATA_DIR, 'raw-sdk-messages.jsonl'), 'utf-8');
   const lines = content.trim().split('\n').filter((line) => line.trim());
 
+  // Create stateful converter for streaming
+  const converter = createClaudeSdkEventConverter();
   let state = createInitialConversationState();
 
   for (const line of lines) {
     const msg = JSON.parse(line) as SDKMessage;
 
-    // Convert SDK message to events
-    const events = sdkMessageToEvents(msg);
+    // Convert SDK message to events using stateful converter
+    const events = converter.parseEvent(msg);
 
-    // Set conversationId based on parent_tool_use_id
-    const conversationId = msg.parent_tool_use_id ?? 'main';
+    // Set conversationId based on parent_tool_use_id if not already set
+    const conversationId = (msg as { parent_tool_use_id?: string }).parent_tool_use_id ?? 'main';
 
     for (const event of events) {
       if (event.context) {
-        event.context.conversationId = conversationId;
+        event.context.conversationId = event.context.conversationId || conversationId;
       }
       state = reduceSessionEvent(state, event);
     }

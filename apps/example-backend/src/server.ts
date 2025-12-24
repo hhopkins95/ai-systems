@@ -4,7 +4,7 @@ import {
   createOpenCodeEventConverter,
   parseCombinedOpenCodeTranscript,
 } from "@hhopkins/agent-converters/opencode";
-import { sdkMessageToEvents, parseCombinedClaudeTranscript } from "@hhopkins/agent-converters/claude-sdk";
+import { createClaudeSdkEventConverter, parseCombinedClaudeTranscript } from "@hhopkins/agent-converters/claude-sdk";
 import {
   reduceSessionEvent,
   createInitialConversationState,
@@ -312,9 +312,11 @@ async function main() {
                 }
               }
             } else if (converterType === 'claude-sdk') {
-              // Claude SDK: stateless converter (each message converts independently)
+              // Claude SDK: stateful converter for deterministic block IDs
+              const claudeConverter = createClaudeSdkEventConverter();
+
               for (const event of rawEvents) {
-                const converted = sdkMessageToEvents(event as any);
+                const converted = claudeConverter.parseEvent(event as any);
                 sessionEventsByStep.push(converted);
                 for (const sessionEvent of converted) {
                   allSessionEvents.push(sessionEvent);

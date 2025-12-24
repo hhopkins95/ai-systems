@@ -1,96 +1,96 @@
 # Claude SDK Parser Parity Investigation
 
+## Status: ✅ RESOLVED
+
 ## Problem Statement
 
 The Claude SDK has two paths for building conversation state:
 1. **Streaming** - Processing `raw-sdk-messages.jsonl` (real-time events)
 2. **Transcript** - Loading saved `main-transcript.jsonl` / `combined-transcript.json`
 
-These two paths produce different output, causing inconsistencies when loading saved sessions vs. viewing live sessions.
+These two paths were producing different output, causing inconsistencies when loading saved sessions vs. viewing live sessions.
 
-## Key Discrepancies Observed
+## Root Cause (Confirmed)
 
-### 1. Ghost Empty `assistant_text` Blocks (Streaming)
-Empty `assistant_text` blocks with `status: "pending"` and `content: ""` appear in streamed state but not in transcript state.
+The streaming path was broken because:
 
-### 2. Missing `SubagentBlock` (Transcript)
-The transcript state was missing `subagent` type blocks - only had `tool_use` and `tool_result` for Task tools.
+1. **`message_start` was ignored** - This event contains the message ID (`msg_0181BxGX...`) but we weren't capturing it
+2. **`content_block_start` has no ID** - Only has `index: 0`, so we generated random UUIDs
+3. **`content_block_delta` couldn't find blocks** - Delta events have `index` but we were emitting `blockId: ''` since we had no ID mapping
+4. **Final `assistant` message created duplicates** - Used different IDs than streaming, creating duplicate blocks
 
-### 3. Task `tool_use`/`tool_result` Present Alongside SubagentBlock
-Both states show both the SubagentBlock AND the underlying tool_use/tool_result. Question: is this intentional or redundant?
+## Solution Implemented
 
-### 4. Subagent Conversation Blocks Differ
-- Streaming subagent: 2 blocks (`tool_use`, `tool_result`)
-- Transcript subagent: 4 blocks (`assistant_text`, `tool_use`, `tool_result`, `assistant_text`)
+Created a **stateful event converter factory** (matching OpenCode's pattern):
 
-## Root Cause Analysis
+### Key Changes
 
-### Data Format Differences
-| Field | Streaming Format | Transcript Format |
-|-------|------------------|-------------------|
-| Parent ID | `parent_tool_use_id` | `parentUuid` (different field!) |
-| Tool result | `tool_use_result` | `toolUseResult` |
-| Case style | snake_case | camelCase |
+1. **New factory function**: `createClaudeSdkEventConverter(initialState?, options?)`
+   - Returns `{ parseEvent, reset }` interface
+   - Captures state in closure (not a class)
 
-### Why Empty Text Blocks?
-Current hypothesis: **Delta events aren't being applied to blocks**
+2. **Message ID tracking**:
+   - `message_start` → capture `state.currentMessageId`
+   - `content_block_start` → generate deterministic ID: `${messageId}-${index}`
+   - Store `index → blockId` mapping in `state.blockIdsByIndex`
 
-1. SDK's `content_block_start` for text blocks has NO ID - just `{type: "text", text: ""}`
-2. We generate our own block IDs: `id: block.id || generateId()`
-3. SDK's `content_block_delta` only has `index`, not block ID
-4. Our delta events have `blockId: ''` (empty!) with comment "Will be set by caller based on index"
-5. **No caller is setting the blockId** - so `handleBlockDelta` can't find the block
+3. **Delta routing**:
+   - `content_block_delta` → look up `blockId` by `index` from state
+   - Emit `block:delta` with correct `blockId`
 
-However, there may be additional issues causing this behavior that need investigation.
+4. **Unified code paths**:
+   - Both streaming and transcript now use the factory
+   - `targetConversationId` parameter for subagent transcript routing
 
-## Changes Made So Far
+### Files Modified
 
-### 1. Fixed `toolUseResult` camelCase handling
-`block-converter.ts` - `getTaskToolUseResult()` and `isTaskCompletion()` now check both `tool_use_result` and `toolUseResult`.
+- `packages/converters/src/claude-sdk/block-converter.ts`
+  - Added `ClaudeSdkEventConverter` interface
+  - Added `createClaudeSdkEventConverter()` factory
+  - Added `ClaudeConverterState` with `currentMessageId`, `blockIdsByIndex`, `seenBlockIds`, `taskPrompts`
 
-### 2. Emit `subagent:spawned` for Task tool_use in transcript mode
-`block-converter.ts` - Added detection of Task tool_use in `sdkMessageToEvents()` to emit `subagent:spawned` event for transcripts (previously only done for streaming in `parseRawStreamEvent`).
+- `packages/converters/src/claude-sdk/transcript-parser.ts`
+  - Updated `parseCombinedClaudeTranscript` to use factory
+  - Pass `targetConversationId` for subagent messages
 
-### 3. Added empty block filtering in `handleSessionIdle`
-`block-handlers.ts` - Added `isEmptyTextBlock()` helper and filtering logic when session becomes idle.
+- `packages/converters/src/claude-sdk/index.ts`
+  - Export new factory and interface
 
-### 4. Added `finalizeState` helper to test
-`transcript-parser.test.ts` - Test now emits `session:idle` events to trigger block finalization.
+- `packages/converters/src/claude-sdk/test/transcript-parser.test.ts`
+  - Updated streaming path to use factory
 
-## Current Test Status
-- 6 of 7 tests passing
-- Remaining failure: subagent block types differ (streaming has 2, transcript has 4)
-  - This is a **data source difference**, not a code bug - streaming raw events don't include subagent assistant text
+## Test Results
 
-## Open Questions
+All 7 tests now pass:
+- ✅ streaming produces blocks
+- ✅ transcript produces blocks
+- ✅ streaming and transcript produce same main block count
+- ✅ streaming and transcript produce same subagent count
+- ✅ main blocks have matching types
+- ✅ subagent has tool_use and tool_result blocks in both sources
+- ✅ text block content matches
 
-1. **Why are delta events not being routed to blocks?**
-   - Current hypothesis: empty `blockId` in delta events
-   - May be other factors
+## Architecture Notes
 
-2. **Should we use SDK-provided IDs?**
-   - Tool use blocks have IDs from SDK
-   - Text blocks do NOT have IDs from SDK
-   - Currently: `id: block.id || generateId()`
+The stateful converter pattern (closure-based factory):
+```typescript
+export function createClaudeSdkEventConverter(
+  initialConversationState?: {...},
+  options?: ConvertOptions
+): ClaudeSdkEventConverter {
+  // State captured in closure
+  const state = {
+    currentMessageId: null,
+    blockIdsByIndex: new Map(),
+    seenBlockIds: new Set(),
+    taskPrompts: new Map(),
+  };
 
-3. **Should SubagentBlock and tool_use coexist?**
-   - Streaming creates both SubagentBlock AND tool_use block for Task tools
-   - Is this intentional for transparency, or redundant?
+  function parseEvent(msg, targetConversationId?) { ... }
+  function reset() { ... }
 
-4. **How should index-based delta routing work?**
-   - SDK uses `index` to identify content blocks within a message
-   - Options: stateful index→blockId tracking, or "latest pending block" heuristic
+  return { parseEvent, reset };
+}
+```
 
-## Files Involved
-
-- `packages/converters/src/claude-sdk/block-converter.ts` - Main event conversion
-- `packages/converters/src/claude-sdk/transcript-parser.ts` - Transcript loading
-- `packages/converters/src/session-state/handlers/block-handlers.ts` - Block state updates
-- `packages/converters/src/session-state/handlers/subagent-handlers.ts` - Subagent lifecycle
-- `packages/converters/src/claude-sdk/test/` - Test fixtures and tests
-
-## Test Data
-- `raw-sdk-messages.jsonl` - Streaming events (snake_case, has `parent_tool_use_id`)
-- `main-transcript.jsonl` - Main conversation transcript (camelCase, has `parentUuid`)
-- `subagent-transcript.jsonl` - Subagent conversation transcript
-- `combined-transcript.json` - Wrapper format bundling main + subagents
+This matches the OpenCode converter pattern, ensuring consistency across SDK implementations.
