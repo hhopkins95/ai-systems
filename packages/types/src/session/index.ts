@@ -5,7 +5,7 @@
  */
 
 // Session types (persistence + runtime)
-export * from "./session.js";
+export * from "./data.js";
 
 // Conversation block types
 export * from "./conversation-blocks.js";

@@ -17,7 +17,7 @@
 
 import type { ConversationBlock, PartialConversationBlock } from './conversation-blocks.js';
 import type { AgentArchitectureSessionOptions } from '../agent-architectures/architecture.js';
-import type { WorkspaceFile, SessionRuntimeState } from './session.js';
+import type { WorkspaceFile, SessionRuntimeState } from './data.js';
 
 // ============================================================================
 // Event Context
