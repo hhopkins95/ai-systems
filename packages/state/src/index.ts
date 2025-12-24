@@ -82,7 +82,7 @@ export {
 export * from './types.js';
 
 // Session state reducer (shared between server and client)
-export * from './reducers/conversation-state/index.js';
+export * from './reducers/conversation/index.js';
 
 // OpenCode helpers
 export { extractSubagentSessionIds } from './converters/opencode/index.js';
