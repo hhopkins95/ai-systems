@@ -57,7 +57,7 @@ ai-systems/
 │   ├── client/     # @hhopkins/agent-client
 │   └── runner/     # @hhopkins/agent-runner
 ├── packages/
-│   ├── converters/              # @hhopkins/agent-converters
+│   ├── converters/              # @ai-systems/state
 │   ├── claude-entity-manager/   # @hhopkins/claude-entity-manager
 │   ├── types/                   # @ai-systems/shared-types
 │   └── opencode-claude-adapter/

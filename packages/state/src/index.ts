@@ -1,5 +1,5 @@
 /**
- * @hhopkins/agent-converters
+ * @ai-systems/state
  *
  * Pure transformation functions for parsing agent transcripts
  * and converting SDK-specific messages to architecture-agnostic

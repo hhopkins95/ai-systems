@@ -63,7 +63,7 @@ Updated `packages/converters/src/claude-sdk/block-converter.ts`:
 1. **Verify build passes** for all packages:
    ```bash
    pnpm --filter @ai-systems/shared-types run build
-   pnpm --filter @hhopkins/agent-converters run build
+   pnpm --filter @ai-systems/state run build
    pnpm --filter @hhopkins/agent-server run build
    ```
 

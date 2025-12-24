@@ -35,7 +35,7 @@ Updated several runner files, but with incorrect approach:
 
 ### Misunderstanding Identified
 
-I incorrectly thought the converters package (`@hhopkins/agent-converters`) outputs `StreamEvent`.
+I incorrectly thought the converters package (`@ai-systems/state`) outputs `StreamEvent`.
 
 **Actual flow:**
 1. Converters parse raw SDK messages → `ConversationBlock[]`

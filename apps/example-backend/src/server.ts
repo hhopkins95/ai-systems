@@ -3,13 +3,13 @@ import { createAgentRuntime, type PersistenceAdapter } from "@hhopkins/agent-ser
 import {
   createOpenCodeEventConverter,
   parseCombinedOpenCodeTranscript,
-} from "@hhopkins/agent-converters/opencode";
-import { createClaudeSdkEventConverter, parseCombinedClaudeTranscript } from "@hhopkins/agent-converters/claude-sdk";
+} from "@ai-systems/state/opencode";
+import { createClaudeSdkEventConverter, parseCombinedClaudeTranscript } from "@ai-systems/state/claude-sdk";
 import {
   reduceSessionEvent,
   createInitialConversationState,
   type AnySessionEvent,
-} from "@hhopkins/agent-converters";
+} from "@ai-systems/state";
 import dotenv from "dotenv";
 import fs from "fs/promises";
 import { InMemoryPersistenceAdapter, SqlitePersistenceAdapter } from "./persistence/index.js";

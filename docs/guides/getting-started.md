@@ -82,7 +82,7 @@ ai-systems/
 │   ├── client/     # @hhopkins/agent-client - React hooks
 │   └── runner/     # @hhopkins/agent-runner - Sandbox execution
 ├── packages/
-│   ├── converters/ # @hhopkins/agent-converters - Transcript parsing
+│   ├── converters/ # @ai-systems/state - Transcript parsing
 │   ├── claude-entity-manager/  # Entity discovery
 │   ├── types/      # @ai-systems/shared-types
 │   └── opencode-claude-adapter/

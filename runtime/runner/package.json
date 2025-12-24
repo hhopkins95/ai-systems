@@ -51,7 +51,7 @@
     "@ai-systems/opencode-entity-manager": "workspace:*",
     "@ai-systems/shared-types": "workspace:*",
     "@anthropic-ai/claude-agent-sdk": "^0.1.18",
-    "@hhopkins/agent-converters": "workspace:*",
+    "@ai-systems/state": "workspace:*",
     "@hhopkins/claude-entity-manager": "workspace:*",
     "@opencode-ai/sdk": "^1.0.163",
     "commander": "^14.0.0",

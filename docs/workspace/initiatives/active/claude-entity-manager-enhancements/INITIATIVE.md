@@ -18,7 +18,7 @@ Enhance the `@hhopkins/claude-entity-manager` package with:
 - Update `getClaudeDir()` to check `CLAUDE_CONFIG_DIR` env variable
 - Create `SessionLoader` class for discovering and reading session transcripts
 - Add path utilities for project directory naming conventions
-- Integrate with `@hhopkins/agent-converters` for transcript parsing
+- Integrate with `@ai-systems/state` for transcript parsing
 - Add convenience methods to `ClaudeEntityManager`
 
 **Out of scope:**
@@ -111,7 +111,7 @@ export interface ParsedJsonlTranscript {
 ```typescript
 import type { SDKMessage } from '@anthropic-ai/claude-agent-sdk';
 import type { CombinedClaudeTranscript, ParsedTranscript } from '@ai-systems/shared-types';
-import { parseClaudeTranscriptFile, parseCombinedClaudeTranscript } from '@hhopkins/agent-converters';
+import { parseClaudeTranscriptFile, parseCombinedClaudeTranscript } from '@ai-systems/state';
 
 export class SessionLoader {
   private claudeDir: string;
@@ -212,7 +212,7 @@ Add to `package.json`:
 ```json
 {
   "dependencies": {
-    "@hhopkins/agent-converters": "workspace:*"
+    "@ai-systems/state": "workspace:*"
   },
   "peerDependencies": {
     "@anthropic-ai/claude-agent-sdk": ">=0.1.0"

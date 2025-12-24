@@ -203,7 +203,7 @@ socket.on('session:event', (event: SessionEvent) => {
 For conversation state, use the shared reducer for consistency with the server:
 
 ```typescript
-import { reduceSessionEvent, isConversationEvent } from '@hhopkins/agent-converters';
+import { reduceSessionEvent, isConversationEvent } from '@ai-systems/state';
 
 socket.on('session:event', (event: SessionEvent) => {
   if (isConversationEvent(event)) {

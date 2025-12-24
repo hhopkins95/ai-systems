@@ -50,7 +50,7 @@
   },
   "dependencies": {
     "@ai-systems/shared-types": "workspace:*",
-    "@hhopkins/agent-converters": "workspace:*",
+    "@ai-systems/state": "workspace:*",
     "fast-glob": "^3.3.2",
     "gray-matter": "^4.0.3",
     "simple-git": "^3.22.0"

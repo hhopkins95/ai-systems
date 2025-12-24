@@ -45,7 +45,7 @@ import {
   createInitialState,
   isConversationEvent,
   type SessionConversationState,
-} from '@hhopkins/agent-converters';
+} from '../../../../../packages/state/dist/index.js';
 import type { SessionEventBus } from './session-event-bus.js';
 
 // ============================================================================

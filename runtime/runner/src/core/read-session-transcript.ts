@@ -10,7 +10,7 @@ import { readFile, unlink } from 'fs/promises';
 import { join } from 'path';
 import os from 'os';
 import type { AgentArchitecture, OpenCodeSessionTranscript, CombinedOpenCodeTranscript } from '@ai-systems/shared-types';
-import { extractSubagentSessionIds } from '@hhopkins/agent-converters';
+import { extractSubagentSessionIds } from '../../../../packages/state/dist';
 import { ClaudeEntityManager } from '@hhopkins/claude-entity-manager';
 import { getWorkspacePaths } from '../helpers/get-workspace-paths';
 import { setEnvironment } from '../helpers/set-environment';

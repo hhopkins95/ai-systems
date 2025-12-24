@@ -76,7 +76,7 @@ SDKMessage → sdkMessageToEvents() → AnySessionEvent[] → reducer → Sessio
 
 All packages build successfully:
 - `@ai-systems/shared-types` ✓
-- `@hhopkins/agent-converters` ✓
+- `@ai-systems/state` ✓
 - `@hhopkins/claude-entity-manager` ✓
 - `@hhopkins/agent-server` ✓
 - `@hhopkins/agent-client` ✓

@@ -46,8 +46,8 @@ flowchart LR
 ### Transcript Parsing (Loading Saved Sessions)
 
 ```typescript
-import { parseClaudeTranscriptFile } from '@hhopkins/agent-converters/claude-sdk';
-import { parseOpenCodeTranscriptFile } from '@hhopkins/agent-converters/opencode';
+import { parseClaudeTranscriptFile } from '@ai-systems/state/claude-sdk';
+import { parseOpenCodeTranscriptFile } from '@ai-systems/state/opencode';
 
 // Parse Claude SDK transcript
 const blocks = parseClaudeTranscriptFile(rawTranscript);
@@ -60,8 +60,8 @@ console.log(state.blocks, state.subagents);
 ### Streaming Event Conversion (Live Sessions)
 
 ```typescript
-import { createOpenCodeEventConverter } from '@hhopkins/agent-converters/opencode';
-import { reduceSessionEvent, createInitialConversationState } from '@hhopkins/agent-converters';
+import { createOpenCodeEventConverter } from '@ai-systems/state/opencode';
+import { reduceSessionEvent, createInitialConversationState } from '@ai-systems/state';
 
 // Create stateful converter for a session
 const converter = createOpenCodeEventConverter(mainSessionId);
@@ -83,7 +83,7 @@ converter.reset();
 ### Type Guards
 
 ```typescript
-import { isAssistantTextBlock, isToolUseBlock } from '@hhopkins/agent-converters';
+import { isAssistantTextBlock, isToolUseBlock } from '@ai-systems/state';
 
 if (isAssistantTextBlock(block)) {
   console.log(block.content);

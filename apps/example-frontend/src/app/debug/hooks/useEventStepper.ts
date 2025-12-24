@@ -8,7 +8,7 @@ import type {
 import {
   reduceSessionEvent,
   createInitialConversationState,
-} from "@hhopkins/agent-converters";
+} from "@ai-systems/state";
 
 export type ConverterType = "opencode" | "claude-sdk";
 

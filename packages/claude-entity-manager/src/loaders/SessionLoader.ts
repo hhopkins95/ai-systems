@@ -22,7 +22,7 @@ import type {
 import {
   parseClaudeTranscriptFile,
   parseCombinedClaudeTranscript,
-} from "@hhopkins/agent-converters/claude-sdk";
+} from "@ai-systems/state/claude-sdk";
 import {
   getProjectsDir,
   getProjectTranscriptDir,

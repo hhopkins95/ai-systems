@@ -9,7 +9,7 @@ import * as path from 'path';
 import os from 'os';
 import { exec } from 'child_process';
 import { promisify } from 'util';
-import { createOpenCodeEventConverter } from '@hhopkins/agent-converters/opencode';
+import { createOpenCodeEventConverter } from '../../../../packages/state/dist/opencode/index.js';
 import type { AnySessionEvent, UserMessageBlock } from '@ai-systems/shared-types';
 import { createIsolatedServer } from '../clients/opencode.js';
 import { emptyAsyncIterable, createMessageChannel } from '../clients/channel.js';

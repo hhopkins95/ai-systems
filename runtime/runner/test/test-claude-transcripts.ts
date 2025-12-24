@@ -9,7 +9,7 @@
 import { resolve } from 'path';
 import { readFile } from 'fs/promises';
 import { loadSessionTranscript, readSessionTranscript } from '../src/core/index.js';
-import type { CombinedClaudeTranscript } from '@hhopkins/agent-converters/claude-sdk';
+import type { CombinedClaudeTranscript } from '../../../packages/state/dist/claude-sdk/index.js';
 import { setupTestWorkspace, TEST_WORKSPACE_ROOT } from './test-setup.js';
 
 // ============================================================================

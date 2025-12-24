@@ -236,12 +236,12 @@ The runner supports two architectures:
 1. **Claude SDK** (`claude-sdk`):
    - Uses `@anthropic-ai/claude-agent-sdk`
    - Session management via `~/.claude/projects/`
-   - Output converted via `@hhopkins/agent-converters/claude-sdk`
+   - Output converted via `@ai-systems/state/claude-sdk`
 
 2. **OpenCode** (`opencode`):
    - Uses `@opencode-ai/sdk`
    - Requires `OPENCODE_API_KEY`
-   - Output converted via `@hhopkins/agent-converters/opencode`
+   - Output converted via `@ai-systems/state/opencode`
 
 ### Test Harness
 

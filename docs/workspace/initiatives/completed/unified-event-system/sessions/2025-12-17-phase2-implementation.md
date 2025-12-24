@@ -78,7 +78,7 @@ Completed the full migration from the old `StreamEvent` type to the unified `Ses
 ## Build Status
 
 - `@ai-systems/shared-types` ✅ builds
-- `@hhopkins/agent-converters` ✅ builds
+- `@ai-systems/state` ✅ builds
 - `@hhopkins/agent-runner` ✅ builds
 - Server - needs verification
 

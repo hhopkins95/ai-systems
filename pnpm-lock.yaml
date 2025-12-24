@@ -17,7 +17,7 @@ importers:
 
   apps/example-backend:
     dependencies:
-      '@hhopkins/agent-converters':
+      '@ai-systems/state':
         specifier: workspace:*
         version: link:../../packages/converters
       '@hhopkins/agent-server':
@@ -172,7 +172,7 @@ importers:
       '@ai-systems/shared-types':
         specifier: workspace:*
         version: link:../types
-      '@hhopkins/agent-converters':
+      '@ai-systems/state':
         specifier: workspace:*
         version: link:../converters
       fast-glob:
@@ -287,7 +287,7 @@ importers:
       '@ai-systems/shared-types':
         specifier: workspace:*
         version: link:../../packages/types
-      '@hhopkins/agent-converters':
+      '@ai-systems/state':
         specifier: workspace:*
         version: link:../../packages/converters
       '@hhopkins/agent-server':
@@ -321,7 +321,7 @@ importers:
       '@anthropic-ai/claude-agent-sdk':
         specifier: ^0.1.18
         version: 0.1.61(zod@3.25.76)
-      '@hhopkins/agent-converters':
+      '@ai-systems/state':
         specifier: workspace:*
         version: link:../../packages/converters
       '@hhopkins/claude-entity-manager':
@@ -364,7 +364,7 @@ importers:
       '@anthropic-ai/claude-agent-sdk':
         specifier: ^0.1.54
         version: 0.1.60(zod@3.25.76)
-      '@hhopkins/agent-converters':
+      '@ai-systems/state':
         specifier: workspace:*
         version: link:../../packages/converters
       '@hhopkins/agent-runner':

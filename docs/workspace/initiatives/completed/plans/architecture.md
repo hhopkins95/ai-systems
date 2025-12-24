@@ -102,7 +102,7 @@ export async function* executeQuery(
 ```typescript
 // core/execute-claude-query.ts
 import { query } from '@anthropic-ai/claude-agent-sdk';
-import { convertClaudeMessage } from '@hhopkins/agent-converters/claude-sdk';
+import { convertClaudeMessage } from '@ai-systems/state/claude-sdk';
 
 export async function* executeClaudeQuery(
   input: QueryInput,
@@ -147,7 +147,7 @@ export async function* executeClaudeQuery(
 ```typescript
 // core/execute-opencode-query.ts
 import { getOpencodeClient } from '../clients/opencode';
-import { convertOpencodeEvent } from '@hhopkins/agent-converters/opencode';
+import { convertOpencodeEvent } from '@ai-systems/state/opencode';
 
 export async function* executeOpencodeQuery(
   input: QueryInput,

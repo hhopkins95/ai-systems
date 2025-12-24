@@ -1,5 +1,5 @@
 {
-  "name": "@hhopkins/agent-converters",
+  "name": "@ai-systems/state",
   "version": "0.1.0",
   "description": "Pure transformation functions for parsing agent transcripts and converting to ConversationBlocks",
   "type": "module",

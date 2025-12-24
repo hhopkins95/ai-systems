@@ -5,7 +5,7 @@
  */
 
 import { query, Options, HookCallback, PreToolUseHookInput } from '@anthropic-ai/claude-agent-sdk';
-import { createClaudeSdkEventConverter } from '@hhopkins/agent-converters/claude-sdk';
+import { createClaudeSdkEventConverter } from '../../../../packages/state/dist/claude-sdk/index.js';
 import type { AnySessionEvent, UserMessageBlock, McpServerConfig } from '@ai-systems/shared-types';
 import { ClaudeEntityManager } from '@hhopkins/claude-entity-manager';
 import { findClaudeExecutable } from '../clients/claude.js';

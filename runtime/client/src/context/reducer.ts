@@ -2,7 +2,7 @@
  * State Reducer for Agent Service Client
  *
  * Manages global state for all sessions using the shared reducer pattern
- * from @hhopkins/agent-converters for conversation state.
+ * from @ai-systems/state for conversation state.
  *
  * State managed:
  * - Session list
@@ -30,7 +30,7 @@ import type {
 import {
   reduceSessionEvent,
   createInitialState as createInitialConversationState,
-} from '@hhopkins/agent-converters';
+} from '@ai-systems/state';
 
 // ============================================================================
 // Debug Event Types

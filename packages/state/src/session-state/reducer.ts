@@ -37,7 +37,7 @@ import {
  *
  * @example
  * ```typescript
- * import { reduceSessionEvent, createInitialState } from '@hhopkins/agent-converters';
+ * import { reduceSessionEvent, createInitialState } from '@ai-systems/state';
  *
  * let state = createInitialState();
  * for (const event of events) {

@@ -469,7 +469,7 @@ Both paths use the **same reducer**, ensuring:
 - Testable with event replay
 
 ```typescript
-import { parseTranscript } from '@hhopkins/agent-converters';
+import { parseTranscript } from '@ai-systems/state';
 
 // Load from transcript
 const state = parseTranscript('claude-sdk', rawTranscriptString);
@@ -486,7 +486,7 @@ for (const event of transcriptEvents) {
 ### Basic Usage
 
 ```typescript
-import { reduceSessionEvent, createInitialConversationState } from '@hhopkins/agent-converters';
+import { reduceSessionEvent, createInitialConversationState } from '@ai-systems/state';
 
 let state = createInitialConversationState();
 

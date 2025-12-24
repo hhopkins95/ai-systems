@@ -51,7 +51,7 @@
   },
   "dependencies": {
     "@hhopkins/agent-server": "workspace:*",
-    "@hhopkins/agent-converters": "workspace:*",
+    "@ai-systems/state": "workspace:*",
     "@ai-systems/shared-types": "workspace:*",
     "socket.io-client": "^4.8.1"
   },

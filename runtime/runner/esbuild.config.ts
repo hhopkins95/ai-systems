@@ -50,9 +50,9 @@ const require = __createRequire(import.meta.url);`,
   // Resolve workspace packages
   alias: {
     '@ai-systems/shared-types': join(__dirname, '../../packages/types/src/index.ts'),
-    '@hhopkins/agent-converters/claude-sdk': join(__dirname, '../../packages/converters/src/claude-sdk/index.ts'),
-    '@hhopkins/agent-converters/opencode': join(__dirname, '../../packages/converters/src/opencode/index.ts'),
-    '@hhopkins/agent-converters': join(__dirname, '../../packages/converters/src/index.ts'),
+    '@ai-systems/state/claude-sdk': join(__dirname, '../../packages/converters/src/claude-sdk/index.ts'),
+    '@ai-systems/state/opencode': join(__dirname, '../../packages/converters/src/opencode/index.ts'),
+    '@ai-systems/state': join(__dirname, '../../packages/converters/src/index.ts'),
     '@hhopkins/claude-entity-manager': join(__dirname, '../../packages/claude-entity-manager/src/index.ts'),
   },
 };
