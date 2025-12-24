@@ -5,7 +5,7 @@
  * and defines client-specific types for REST API and configuration.
  */
 
-import { AgentArchitecture, AgentArchitectureSessionOptions, ConversationBlock, SessionRuntimeState } from '@ai-systems/shared-types';
+import type { AgentArchitecture, AgentArchitectureSessionOptions, SessionRuntimeState } from '@ai-systems/shared-types';
 
 
 // ============================================================================
@@ -52,9 +52,14 @@ export type {
   // Status types
   ToolExecutionStatus,
   SubagentStatus,
-  
+
   // Architecture session options
   AgentArchitectureSessionOptions,
+
+  // Session state types (for shared reducer pattern)
+  SessionConversationState,
+  SubagentState,
+  AnySessionEvent,
 } from '@ai-systems/shared-types';
 
 
@@ -83,35 +88,6 @@ export interface SessionMetadata {
   costUSD?: number;
   model?: string;
   [key: string]: unknown;
-}
-
-/**
- * Streaming content state for in-progress text
- * Keyed by conversationId - accumulates all deltas for a conversation
- * until block_complete arrives with finalized content
- */
-export interface StreamingContent {
-  /** Which conversation this belongs to ('main' or subagentId) */
-  conversationId: 'main' | string;
-  /** Accumulated content from deltas */
-  content: string;
-  /** When streaming started */
-  startedAt: number;
-}
-
-/**
- * @deprecated Use StreamingContent instead - now keyed by conversationId
- */
-export type StreamingBlock = StreamingContent;
-
-/**
- * Subagent state including blocks and status
- */
-export interface SubagentState {
-  id: string;
-  blocks: ConversationBlock[]
-  status: 'running' | 'completed' | 'failed';
-  metadata: SessionMetadata;
 }
 
 // ============================================================================

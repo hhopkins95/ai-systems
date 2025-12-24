@@ -4,23 +4,23 @@
  * Access conversation blocks and send messages to the agent.
  * Provides real-time streaming updates for the main conversation.
  *
- * Blocks are pre-merged with streaming content - consumers receive
- * ready-to-render data with streaming content included.
+ * Blocks with status === 'pending' are currently streaming.
+ * Content accumulates directly in block.content via the shared reducer.
  */
 
 import { useContext, useCallback, useState, useMemo } from 'react';
 import { AgentServiceContext } from '../context/AgentServiceContext';
-import type { ConversationBlock, UserMessageBlock, SessionMetadata } from '../types';
+import type { ConversationBlock, UserMessageBlock, SessionMetadata } from '@ai-systems/shared-types';
 
 export interface UseMessagesResult {
   /**
    * Conversation blocks for the main transcript.
-   * Pre-merged with streaming content for ready-to-render display.
+   * Streaming blocks have status === 'pending' with content accumulating.
    */
   blocks: ConversationBlock[];
 
   /**
-   * Set of block IDs that are currently streaming.
+   * Set of block IDs that are currently streaming (status === 'pending').
    * Use to show typing indicators, cursors, etc.
    */
   streamingBlockIds: Set<string>;
@@ -47,12 +47,12 @@ export interface UseMessagesResult {
   sendMessage: (content: string) => Promise<void>;
 
   /**
-   * Get a specific block by ID (from merged blocks)
+   * Get a specific block by ID
    */
   getBlock: (blockId: string) => ConversationBlock | undefined;
 
   /**
-   * Get all blocks of a specific type (from merged blocks)
+   * Get all blocks of a specific type
    */
   getBlocksByType: <T extends ConversationBlock['type']>(
     type: T
@@ -79,40 +79,22 @@ export function useMessages(sessionId: string): UseMessagesResult {
 
   const session = state.sessions.get(sessionId);
 
-  // Merge streaming content into blocks for display
-  // Streaming is keyed by conversationId - append streaming content as a temporary block
-  const mergedBlocks = useMemo(() => {
+  // Get blocks from conversation state
+  const blocks = useMemo(() => {
     if (!session) return [];
+    return session.conversationState.blocks;
+  }, [session?.conversationState.blocks]);
 
-    const streamingContent = session.streaming.get('main');
-
-    // If actively streaming, append a temporary streaming block
-    if (streamingContent && streamingContent.content) {
-      return [
-        ...session.blocks,
-        {
-          type: 'assistant_text' as const,
-          id: 'streaming',
-          timestamp: new Date().toISOString(),
-          content: streamingContent.content,
-        },
-      ];
-    }
-
-    return session.blocks;
-  }, [session?.blocks, session?.streaming]);
-
-  // Get IDs of blocks that are currently streaming
-  // With conversationId-based streaming, return 'streaming' if main is active
+  // Get IDs of blocks that are currently streaming (status === 'pending')
   const streamingBlockIds = useMemo(() => {
-    if (!session) return new Set<string>();
-
-    const streamingContent = session.streaming.get('main');
-    if (streamingContent && streamingContent.content) {
-      return new Set(['streaming']);
+    const ids = new Set<string>();
+    for (const block of blocks) {
+      if ('status' in block && block.status === 'pending') {
+        ids.add(block.id);
+      }
     }
-    return new Set<string>();
-  }, [session?.streaming]);
+    return ids;
+  }, [blocks]);
 
   const metadata = session?.metadata ?? {};
   const isStreaming = streamingBlockIds.size > 0;
@@ -158,23 +140,23 @@ export function useMessages(sessionId: string): UseMessagesResult {
 
   const getBlock = useCallback(
     (blockId: string) => {
-      return mergedBlocks.find((block) => block.id === blockId);
+      return blocks.find((block) => block.id === blockId);
     },
-    [mergedBlocks]
+    [blocks]
   );
 
   const getBlocksByType = useCallback(
     <T extends ConversationBlock['type']>(type: T) => {
-      return mergedBlocks.filter((block) => block.type === type) as Extract<
+      return blocks.filter((block) => block.type === type) as Extract<
         ConversationBlock,
         { type: T }
       >[];
     },
-    [mergedBlocks]
+    [blocks]
   );
 
   return {
-    blocks: mergedBlocks,
+    blocks,
     streamingBlockIds,
     isStreaming,
     metadata,

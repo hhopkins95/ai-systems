@@ -9,7 +9,8 @@ import { promisify } from 'util';
 import { readFile, unlink } from 'fs/promises';
 import { join } from 'path';
 import os from 'os';
-import type { AgentArchitecture } from '@ai-systems/shared-types';
+import type { AgentArchitecture, OpenCodeSessionTranscript, CombinedOpenCodeTranscript } from '@ai-systems/shared-types';
+import { extractSubagentSessionIds } from '@hhopkins/agent-converters';
 import { ClaudeEntityManager } from '@hhopkins/claude-entity-manager';
 import { getWorkspacePaths } from '../helpers/get-workspace-paths';
 import { setEnvironment } from '../helpers/set-environment';
@@ -54,12 +55,10 @@ async function readClaudeSdkTranscript(
 }
 
 /**
- * Read OpenCode session transcript using temp file to avoid buffer limits.
+ * Export a single OpenCode session using temp file to avoid buffer limits.
+ * Returns raw JSON string content.
  */
-async function readOpencodeTranscript(
-  sessionId: string,
-  projectDir: string
-): Promise<string | null> {
+async function exportOpencodeSession(sessionId: string): Promise<string | null> {
   const tempPath = join(os.tmpdir(), `opencode-export-${sessionId}-${Date.now()}.json`);
 
   try {
@@ -102,6 +101,51 @@ async function readOpencodeTranscript(
       // Ignore cleanup errors
     }
   }
+}
+
+/**
+ * Read OpenCode session transcript with subagents.
+ * Returns combined format with main transcript and all subagent transcripts.
+ */
+async function readOpencodeTranscript(
+  sessionId: string,
+  _projectDir: string
+): Promise<string | null> {
+  // 1. Export main session
+  const mainContent = await exportOpencodeSession(sessionId);
+  if (!mainContent) {
+    return null;
+  }
+
+  // 2. Parse and extract subagent session IDs
+  let transcript: OpenCodeSessionTranscript;
+  try {
+    transcript = JSON.parse(mainContent) as OpenCodeSessionTranscript;
+  } catch {
+    console.error(`Failed to parse main transcript JSON`);
+    return null;
+  }
+
+  const subagentIds = extractSubagentSessionIds(transcript);
+
+  // 3. Fetch each subagent (log failures, continue)
+  const subagents: { id: string; transcript: string }[] = [];
+  for (const subId of subagentIds) {
+    const subContent = await exportOpencodeSession(subId);
+    if (subContent) {
+      subagents.push({ id: subId, transcript: subContent });
+    } else {
+      console.warn(`Failed to fetch subagent ${subId}, skipping`);
+    }
+  }
+
+  // 4. Return combined transcript
+  const combined: CombinedOpenCodeTranscript = {
+    main: mainContent,
+    subagents,
+  };
+
+  return JSON.stringify(combined);
 }
 
 /**

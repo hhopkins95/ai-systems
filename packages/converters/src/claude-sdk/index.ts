@@ -5,7 +5,7 @@
  * SDK messages to SessionEvents.
  *
  * Main entry points:
- * - sdkMessageToEvents: Convert SDK message to SessionEvents (for streaming)
+ * - createClaudeSdkEventConverter: Create stateful converter for streaming
  * - parseCombinedClaudeTranscript: Parse transcript to SessionConversationState
  */
 
@@ -20,4 +20,5 @@ export {
 } from './transcript-parser.js';
 
 // SDK message to events conversion
-export { sdkMessageToEvents } from './block-converter.js';
+export { createClaudeSdkEventConverter } from './block-converter.js';
+export type { ClaudeSdkEventConverter } from './block-converter.js';

@@ -60,10 +60,8 @@ Events are organized by category in `SessionEventPayloads`:
 
 ```typescript
 // Block streaming events (high frequency during query execution)
-'block:start'    // New block begins (may be incomplete)
+'block:upsert'   // Create or replace a block
 'block:delta'    // Incremental text content
-'block:update'   // Block metadata changes
-'block:complete' // Block finalized
 
 // Metadata events
 'metadata:update' // Token usage, cost, model info
@@ -94,8 +92,11 @@ Events are organized by category in `SessionEventPayloads`:
 'query:failed'    // Query errored
 
 // Subagent events
-'subagent:discovered' // New subagent found
+'subagent:spawned'    // Subagent started (Task tool invoked)
 'subagent:completed'  // Subagent finished
+
+// Session lifecycle
+'session:idle'        // Session ready for next query (finalizes pending blocks)
 
 // Operational events
 'log'    // Operational log message
@@ -107,10 +108,11 @@ Events are organized by category in `SessionEventPayloads`:
 
 | Event | When Emitted |
 |-------|--------------|
-| `block:start` | New conversation block begins |
+| `block:upsert` | Block created or updated (status: pending → complete) |
 | `block:delta` | Each chunk of assistant/thinking text |
-| `block:update` | Block status changes (e.g., tool pending → running) |
-| `block:complete` | Block finalized with full content |
+| `subagent:spawned` | Task tool invoked, subagent starting |
+| `subagent:completed` | Subagent finished with result |
+| `session:idle` | Query complete, pending blocks finalized |
 | `metadata:update` | Token usage or cost information |
 | `status` | Session runtime state transitions |
 | `session:initialized` | Session restored from persistence or newly created |
@@ -173,11 +175,20 @@ interface ToolResultBlock {
 // Single unified event handler
 socket.on('session:event', (event: SessionEvent) => {
   switch (event.type) {
-    case 'block:delta':
-      appendToCurrentMessage(event.payload.delta);
+    case 'block:upsert':
+      upsertBlock(event.payload.block);
       break;
-    case 'block:complete':
-      finalizeCurrentMessage(event.payload.block);
+    case 'block:delta':
+      appendToBlock(event.payload.blockId, event.payload.delta);
+      break;
+    case 'subagent:spawned':
+      createSubagent(event.payload);
+      break;
+    case 'subagent:completed':
+      finalizeSubagent(event.payload);
+      break;
+    case 'session:idle':
+      finalizePendingBlocks(event.context.conversationId);
       break;
     case 'error':
       handleError(event.payload.message);
@@ -186,6 +197,19 @@ socket.on('session:event', (event: SessionEvent) => {
       updateRuntimeState(event.payload.runtime);
       break;
   }
+});
+```
+
+For conversation state, use the shared reducer for consistency with the server:
+
+```typescript
+import { reduceSessionEvent, isConversationEvent } from '@hhopkins/agent-converters';
+
+socket.on('session:event', (event: SessionEvent) => {
+  if (isConversationEvent(event)) {
+    dispatch(event);  // Uses reduceSessionEvent
+  }
+  // Handle other events separately
 });
 ```
 
@@ -208,7 +232,7 @@ The unified event system means events flow unchanged from runner to client with 
 
 ## Related
 
-- [Core Concepts](./core-concepts.md) - SessionEventBus, ClientHub patterns
-- [Architecture Overview](./architecture-overview.md) - System structure
-- [Session Lifecycle](./session-lifecycle.md) - When events are emitted
-- [agent-converters](../packages/agent-converters.md) - Transcript parsing
+- [Conversation State](./conversation-state.md) — State machine for blocks and subagents
+- [OpenCode Event Reference](./reference/opencode-event-reference.md) — Complete OpenCode SSE event catalog
+- [Session Lifecycle](../session-lifecycle.md) — When events are emitted
+- [Architecture Overview](../architecture-overview.md) — System structure

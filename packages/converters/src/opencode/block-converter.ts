@@ -1,494 +1,613 @@
 /**
- * Block Converter - Convert OpenCode SDK events to SessionEvents
+ * OpenCode Block Converter (Stateful)
  *
- * Transforms OpenCode SDK events (from SSE streaming) into architecture-agnostic
- * SessionEvent structures for real-time UI updates.
+ * Converts OpenCode SDK events to SessionEvents using a stateful factory pattern.
+ * Maintains state to:
+ * - Correlate message roles with parts (messageId → role)
+ * - Track seen parts for efficient delta-only updates
  *
- * Main entry point: opencodeEventToSessionEvents() (stateful per-session)
+ * Event mapping:
+ * - message.updated → store role, emit metadata:update if tokens/cost present
+ * - message.part.updated (text, user) → block:upsert for user_message (complete)
+ * - message.part.updated (text, assistant) → block:upsert (first) + block:delta
+ * - message.part.updated (tool) → block:upsert + tool_result when complete
+ * - session.idle → session:idle, clear seenParts
  */
 
-import type { Event, Part, EventMessagePartUpdated, EventMessageUpdated, EventSessionIdle } from "@opencode-ai/sdk/v2";
+import type {
+  Event,
+  Part,
+  EventMessagePartUpdated,
+  EventMessageUpdated,
+  EventSessionIdle,
+  EventSessionError,
+  TextPart,
+  ReasoningPart,
+  ToolPart,
+  ToolState,
+  StepStartPart,
+  StepFinishPart,
+  RetryPart,
+} from "@opencode-ai/sdk/v2";
 import type {
   ConversationBlock,
   AnySessionEvent,
+  BlockLifecycleStatus,
+  SessionConversationState,
 } from '@ai-systems/shared-types';
 import { createSessionEvent } from '@ai-systems/shared-types';
-import { generateId, toISOTimestamp, noopLogger } from '../utils.js';
+import { toISOTimestamp, noopLogger } from '../utils.js';
 import type { ConvertOptions } from '../types.js';
 import {
-  mapToolStatus,
+  mapToBlockStatus,
   getPartTimestamp,
   isTaskTool,
-  extractSubagentBlock,
 } from './shared-helpers.js';
 
 // ============================================================================
-// Part to Block Converters (for streaming - may have empty content)
+// Types
 // ============================================================================
 
-/**
- * Convert a Part to an incomplete block (for block:start events)
- * Text and reasoning parts start with empty content that gets filled via deltas
- */
-function partToIncompleteBlock(part: Part, model?: string): ConversationBlock | null {
-  try {
-    switch (part.type) {
-      case 'text':
-        return {
-          type: 'assistant_text',
-          id: part.id,
-          timestamp: getPartTimestamp(part),
-          content: '', // Empty, will be filled via deltas
-          model,
-        };
-
-      case 'reasoning':
-        return {
-          type: 'thinking',
-          id: part.id,
-          timestamp: getPartTimestamp(part),
-          content: '', // Empty, will be filled via deltas
-        };
-
-      case 'tool': {
-        const state = part.state as any;
-        return {
-          type: 'tool_use',
-          id: part.id,
-          timestamp: state.time?.start ? toISOTimestamp(state.time.start) : new Date().toISOString(),
-          toolName: part.tool,
-          toolUseId: part.callID,
-          input: state.input || {},
-          status: 'pending', // Always starts as pending
-          displayName: state.title,
-        };
-      }
-
-      case 'agent': {
-        const p = part as any;
-        return {
-          type: 'subagent',
-          id: part.id,
-          timestamp: new Date().toISOString(),
-          subagentId: p.name || generateId(),
-          name: p.name,
-          input: p.source?.value || '',
-          status: 'success',
-        };
-      }
-
-      case 'subtask': {
-        const p = part as any;
-        return {
-          type: 'subagent',
-          id: part.id,
-          timestamp: new Date().toISOString(),
-          subagentId: generateId(),
-          name: p.agent,
-          input: p.prompt,
-          status: 'pending',
-        };
-      }
-
-      // Step events are handled as log events, not blocks
-      case 'step-start':
-      case 'step-finish':
-      case 'retry':
-        return null;
-
-      // Skip these part types
-      case 'file':
-      case 'snapshot':
-      case 'patch':
-      case 'compaction':
-        return null;
-
-      default:
-        return null;
-    }
-  } catch (error) {
-    return null;
-  }
-}
-
-// ============================================================================
-// Stream Event Parser (Stateful)
-// ============================================================================
-
-/**
- * State for tracking active blocks during streaming.
- * Tracks blocks that have received block:start and need block:complete on session end.
- */
-interface ActiveBlockState {
-  block: ConversationBlock;
-  conversationId: string;
-  accumulatedContent: string; // For text/reasoning blocks
-}
-
-/**
- * Create a new session event parser instance.
- *
- * This maintains minimal state per session for proper block lifecycle:
- * - Tracks active text/reasoning blocks for content accumulation
- * - Emits block:complete on session.idle with accumulated content
- *
- * @param mainSessionId - The main session ID for conversation routing
- * @param options - Optional configuration including logger
- */
-export function createStreamEventParser(mainSessionId: string, options: ConvertOptions = {}) {
-  const logger = options.logger ?? noopLogger;
-  const activeBlocks = new Map<string, ActiveBlockState>();
+export interface OpenCodeEventConverter {
+  /**
+   * Parse an OpenCode SDK event into SessionEvents
+   */
+  parseEvent(event: Event): AnySessionEvent[];
 
   /**
-   * Parse a message.part.updated event
+   * Reset converter state (call between sessions)
    */
-  function parsePartUpdatedEvent(event: EventMessagePartUpdated): AnySessionEvent[] {
-    const { part, delta } = event.properties;
-    const conversationId = part.sessionID === mainSessionId ? 'main' : part.sessionID;
-    const events: AnySessionEvent[] = [];
+  reset(): void;
+}
 
-    // Convert step/retry events to log events instead of ConversationBlock
-    if (part.type === 'step-start' || part.type === 'step-finish' || part.type === 'retry') {
-      const p = part as any;
+interface ConverterState {
+  /** message.updated → store role for part correlation */
+  messageRoles: Map<string, 'user' | 'assistant'>;
+
+  /** Track which parts we've created blocks for (for upsert vs delta) */
+  seenParts: Set<string>;
+}
+
+// ============================================================================
+// Factory Function
+// ============================================================================
+
+/**
+ * Create a stateful OpenCode event converter.
+ *
+ * The converter maintains internal state to:
+ * 1. Correlate message roles with parts (user vs assistant)
+ * 2. Track seen parts to emit block:upsert only once, then block:delta
+ *
+ * @param mainSessionId - The main session ID for routing (vs subagent sessions)
+ * @param options - Optional configuration including logger
+ * @returns Converter with parseEvent() and reset() methods
+ */
+export function createOpenCodeEventConverter(
+  mainSessionId: string,
+  initialConversationState? : SessionConversationState,
+  options: ConvertOptions = {}
+): OpenCodeEventConverter {
+  const logger = options.logger ?? noopLogger;
+
+  // Internal state
+  const state: ConverterState = {
+    messageRoles: new Map(),
+    seenParts: new Set(),
+  };
+
+  // Pre-populate state from initial conversation (for mid-session resume)
+  if (initialConversationState) {
+    const processBlocks = (blocks: ConversationBlock[]) => {
+      for (const block of blocks) {
+        // Mark as seen to prevent duplicate upserts
+        state.seenParts.add(block.id);
+
+        // Extract messageId and infer role from block type
+        const messageId = block.metadata?.opencodeMessageId as string | undefined;
+        if (messageId) {
+          const role = block.type === 'user_message' ? 'user' : 'assistant';
+          state.messageRoles.set(messageId, role);
+        }
+      }
+    };
+
+    processBlocks(initialConversationState.blocks);
+    for (const subagent of initialConversationState.subagents) {
+      processBlocks(subagent.blocks);
+    }
+  }
+
+  /**
+   * Get the role for a message ID
+   */
+  function getMessageRole(messageId: string): 'user' | 'assistant' | undefined {
+    return state.messageRoles.get(messageId);
+  }
+
+  /**
+   * Handle message.updated event
+   */
+  function handleMessageUpdated(event: EventMessageUpdated): AnySessionEvent[] {
+    const { info: messageInfo } = (event).properties;
+    const conversationId = messageInfo.sessionID === mainSessionId ? 'main' : messageInfo.sessionID;
+
+
+  
+
+    // Always store the role for part correlation
+    if (messageInfo.role === 'user' || messageInfo.role === 'assistant') {
+      state.messageRoles.set(messageInfo.id, messageInfo.role);
+    }
+
+    // Emit metadata:update if tokens/cost present (assistant messages only)
+    if (messageInfo.role === 'assistant' && (messageInfo.tokens || messageInfo.cost !== undefined)) {
       return [
         createSessionEvent(
-          'log',
+          'metadata:update',
           {
-            level: part.type === 'retry' ? 'warn' : 'info',
-            message: part.type === 'step-start' ? 'Step started'
-                   : part.type === 'step-finish' ? `Step finished: ${p.reason || 'unknown'}`
-                   : `Retry attempt ${p.attempt || '?'}: ${p.error?.message || 'Unknown error'}`,
-            data: {
-              partType: part.type,
-              partId: part.id,
-              ...(part.type === 'step-finish' && { reason: p.reason, cost: p.cost, tokens: p.tokens }),
-              ...(part.type === 'retry' && { attempt: p.attempt, error: p.error }),
+            metadata: {
+              usage: messageInfo.tokens ? {
+                inputTokens: messageInfo.tokens.input || 0,
+                outputTokens: messageInfo.tokens.output || 0,
+                thinkingTokens: messageInfo.tokens.reasoning || 0,
+                cacheReadTokens: messageInfo.tokens.cache?.read || 0,
+                cacheWriteTokens: messageInfo.tokens.cache?.write || 0,
+                totalTokens: (messageInfo.tokens.input || 0) + (messageInfo.tokens.output || 0),
+              } : undefined,
+              costUSD: messageInfo.cost,
+              model: messageInfo.modelID,
             },
           },
-          { source: 'runner' }
+          { conversationId, source: 'runner' }
         ),
       ];
     }
 
-    // Check if this is a new block or an update to existing
-    const isNewBlock = !activeBlocks.has(part.id);
+    return [];
+  }
 
-    if (isNewBlock) {
-      // Complete any active text/reasoning blocks before starting new one
-      for (const [blockId, state] of activeBlocks) {
-        if (state.block.type === 'assistant_text' || state.block.type === 'thinking') {
-          logger.debug({
-            action: 'completing_block',
-            blockId,
-            blockType: state.block.type,
-            contentLength: state.accumulatedContent.length,
-          }, 'Completing text/reasoning block on new block arrival');
-          events.push(
-            createSessionEvent(
-              'block:complete',
-              {
-                blockId,
-                block: {
-                  ...state.block,
-                  content: state.accumulatedContent,
-                } as ConversationBlock,
-              },
-              { conversationId: state.conversationId, source: 'runner' }
-            )
-          );
-          activeBlocks.delete(blockId);
-        }
+  /**
+   * Handle text part (user or assistant)
+   */
+  function handleTextPart(
+    part: TextPart,
+    delta: string | undefined,
+    conversationId: string,
+    role: 'user' | 'assistant' | undefined
+  ): AnySessionEvent[] {
+    if (role === 'user') {
+      // User text - emit as user_message, already complete
+      // Only emit once (user messages don't stream)
+      if (state.seenParts.has(part.id)) {
+        return [];
       }
+      state.seenParts.add(part.id);
 
-      // Handle task tools specially for subagent blocks
-      if (isTaskTool(part)) {
-        const subagentBlock = extractSubagentBlock(part as any);
-        if (subagentBlock) {
-          activeBlocks.set(part.id, {
-            block: subagentBlock,
-            conversationId,
-            accumulatedContent: '',
-          });
-
-          // Emit subagent:spawned event
-          const state = (part as any).state;
-          events.push(
-            createSessionEvent(
-              'subagent:spawned',
-              {
-                toolUseId: (part as any).callID,
-                prompt: state?.input?.prompt || state?.input?.description || '',
-                subagentType: state?.input?.subagent_type,
-                description: state?.input?.description,
-              },
-              { conversationId: 'main', source: 'runner' }
-            )
-          );
-          return events;
-        }
-      }
-
-      // Emit block:start immediately for new blocks
-      const incompleteBlock = partToIncompleteBlock(part);
-      if (incompleteBlock) {
-        logger.debug({
-          action: 'block_start',
-          blockId: part.id,
-          blockType: incompleteBlock.type,
-          partType: part.type,
-        }, 'Starting new block');
-
-        activeBlocks.set(part.id, {
-          block: incompleteBlock,
-          conversationId,
-          accumulatedContent: '',
-        });
-
-        events.push(
-          createSessionEvent(
-            'block:start',
-            { block: incompleteBlock },
-            { conversationId, source: 'runner' }
-          )
-        );
-      }
+      return [
+        createSessionEvent(
+          'block:upsert',
+          {
+            block: {
+              type: 'user_message',
+              id: part.id,
+              content: part.text || '',
+              status: 'complete' as BlockLifecycleStatus,
+              timestamp: getPartTimestamp(part),
+              metadata: { opencodeMessageId: part.messageID },
+            },
+          },
+          { conversationId, source: 'runner' }
+        ),
+      ];
     }
 
-    // Handle text delta for streaming content
-    if (delta && (part.type === 'text' || part.type === 'reasoning')) {
-      const activeState = activeBlocks.get(part.id);
-      if (activeState) {
-        activeState.accumulatedContent += delta;
-        logger.debug({
-          action: 'block_delta',
-          blockId: part.id,
-          deltaLength: delta.length,
-          totalAccumulated: activeState.accumulatedContent.length,
-        }, 'Received block delta');
+    // Assistant text - stream with deltas
+    // Only emit upsert when we have meaningful content (not just whitespace/newlines)
+    const hasMeaningfulContent = delta?.trim();
+
+    if (!state.seenParts.has(part.id)) {
+      // First time seeing this part - only create block if we have real content
+      if (!hasMeaningfulContent) {
+        return []; // Skip until we have meaningful content
       }
 
-      events.push(
+      state.seenParts.add(part.id);
+
+      return [
+        createSessionEvent(
+          'block:upsert',
+          {
+            block: {
+              type: 'assistant_text',
+              id: part.id,
+              content: '', // Start empty, content comes via deltas
+              status: 'pending' as BlockLifecycleStatus,
+              timestamp: getPartTimestamp(part),
+              metadata: { opencodeMessageId: part.messageID },
+            },
+          },
+          { conversationId, source: 'runner' }
+        ),
         createSessionEvent(
           'block:delta',
-          { blockId: part.id, delta },
+          { blockId: part.id, delta: delta! },
           { conversationId, source: 'runner' }
-        )
-      );
+        ),
+      ];
     }
 
-    // Handle tool state updates
-    if (part.type === 'tool') {
-      const state = part.state as any;
-      const status = mapToolStatus(state.status);
+    // Subsequent updates - delta only if meaningful
+    if (hasMeaningfulContent) {
+      return [
+        createSessionEvent(
+          'block:delta',
+          { blockId: part.id, delta: delta! },
+          { conversationId, source: 'runner' }
+        ),
+      ];
+    }
 
+    return [];
+  }
+
+  /**
+   * Handle reasoning part
+   */
+  function handleReasoningPart(
+    part: ReasoningPart,
+    delta: string | undefined,
+    conversationId: string
+  ): AnySessionEvent[] {
+    // Only emit upsert when we have meaningful content (not just whitespace/newlines)
+    const hasMeaningfulContent = delta?.trim();
+
+    if (!state.seenParts.has(part.id)) {
+      // First time seeing this part - only create block if we have real content
+      if (!hasMeaningfulContent) {
+        return []; // Skip until we have meaningful content
+      }
+
+      state.seenParts.add(part.id);
+
+      return [
+        createSessionEvent(
+          'block:upsert',
+          {
+            block: {
+              type: 'thinking',
+              id: part.id,
+              content: '', // Start empty, content comes via deltas
+              status: 'pending' as BlockLifecycleStatus,
+              timestamp: getPartTimestamp(part),
+              metadata: { opencodeMessageId: part.messageID },
+            },
+          },
+          { conversationId, source: 'runner' }
+        ),
+        createSessionEvent(
+          'block:delta',
+          { blockId: part.id, delta: delta! },
+          { conversationId, source: 'runner' }
+        ),
+      ];
+    }
+
+    // Subsequent updates - delta only if meaningful
+    if (hasMeaningfulContent) {
+      return [
+        createSessionEvent(
+          'block:delta',
+          { blockId: part.id, delta: delta! },
+          { conversationId, source: 'runner' }
+        ),
+      ];
+    }
+
+    return [];
+  }
+
+  /**
+   * Handle tool part (regular tools, not task/subagent)
+   */
+  function handleToolPart(
+    part: ToolPart,
+    conversationId: string
+  ): AnySessionEvent[] {
+    const state: ToolState = part.state;
+    const events: AnySessionEvent[] = [];
+
+    // Get timestamp - running/completed/error states have time.start
+    const timestamp = state.status !== 'pending' && state.time?.start
+      ? toISOTimestamp(state.time.start)
+      : new Date().toISOString();
+
+    // Get display name - only running/completed have title
+    const displayName = state.status === 'running' || state.status === 'completed'
+      ? state.title
+      : undefined;
+
+    // Always emit tool_use upsert (status changes as tool progresses)
+    events.push(
+      createSessionEvent(
+        'block:upsert',
+        {
+          block: {
+            type: 'tool_use',
+            id: part.id,
+            toolName: part.tool,
+            toolUseId: part.callID,
+            input: state.input || {},
+            status: mapToBlockStatus(state.status),
+            timestamp,
+            displayName,
+            metadata: { opencodeMessageId: part.messageID },
+          },
+        },
+        { conversationId, source: 'runner' }
+      )
+    );
+
+    // Emit tool_result when complete
+    if (state.status === 'completed') {
       events.push(
         createSessionEvent(
-          'block:update',
+          'block:upsert',
           {
-            blockId: part.id,
-            updates: {
-              status,
-              displayName: state.title,
-            } as Partial<ConversationBlock>,
+            block: {
+              type: 'tool_result',
+              id: `result-${part.id}`,
+              toolUseId: part.callID,
+              output: state.output,
+              isError: false,
+              status: 'complete' as BlockLifecycleStatus,
+              timestamp: toISOTimestamp(state.time.end),
+              durationMs: state.time.end - state.time.start,
+            },
           },
           { conversationId, source: 'runner' }
         )
       );
-
-      // If tool is completed or errored, emit block:complete and tool_result
-      if (state.status === 'completed' || state.status === 'error') {
-        activeBlocks.delete(part.id);
-
-        logger.debug({
-          toolName: part.tool,
-          hasOutput: !!state.output,
-          status: state.status,
-        }, 'Tool completed');
-
-        // Check if this is a task tool (subagent completion)
-        if (isTaskTool(part) && state.metadata?.sessionId) {
-          events.push(
-            createSessionEvent(
-              'subagent:completed',
-              {
-                toolUseId: part.callID,
-                agentId: state.metadata.sessionId,
-                status: state.status === 'completed' ? 'completed' : 'failed',
-                output: typeof state.output === 'string' ? state.output : undefined,
-                durationMs: state.time?.end && state.time?.start
-                  ? state.time.end - state.time.start
-                  : undefined,
-              },
-              { conversationId: 'main', source: 'runner' }
-            )
-          );
-        } else {
-          // Regular tool - emit block:complete for tool_use
-          const toolUseBlock: ConversationBlock = {
-            type: 'tool_use',
-            id: part.id,
-            timestamp: state.time?.start ? toISOTimestamp(state.time.start) : new Date().toISOString(),
-            toolName: part.tool,
-            toolUseId: part.callID,
-            input: state.input || {},
-            status: mapToolStatus(state.status),
-            displayName: state.title,
-          };
-
-          events.push(
-            createSessionEvent(
-              'block:complete',
-              { blockId: part.id, block: toolUseBlock },
-              { conversationId, source: 'runner' }
-            )
-          );
-
-          // Emit tool_result as block:complete
-          const resultBlock: ConversationBlock = {
-            type: 'tool_result',
-            id: generateId(),
-            timestamp: state.time?.end ? toISOTimestamp(state.time.end) : new Date().toISOString(),
-            toolUseId: part.callID,
-            output: state.status === 'error' ? state.error : state.output,
-            isError: state.status === 'error',
-            durationMs: state.time?.end && state.time?.start
-              ? state.time.end - state.time.start
-              : undefined,
-          };
-
-          events.push(
-            createSessionEvent(
-              'block:complete',
-              { blockId: resultBlock.id, block: resultBlock },
-              { conversationId, source: 'runner' }
-            )
-          );
-        }
-      }
+    } else if (state.status === 'error') {
+      events.push(
+        createSessionEvent(
+          'block:upsert',
+          {
+            block: {
+              type: 'tool_result',
+              id: `result-${part.id}`,
+              toolUseId: part.callID,
+              output: state.error,
+              isError: true,
+              status: 'complete' as BlockLifecycleStatus,
+              timestamp: toISOTimestamp(state.time.end),
+              durationMs: state.time.end - state.time.start,
+            },
+          },
+          { conversationId, source: 'runner' }
+        )
+      );
     }
 
     return events;
   }
 
   /**
-   * Parse a message.updated event for metadata updates
+   * Handle task/subagent tool part
    */
-  function parseMessageUpdatedEvent(event: EventMessageUpdated): AnySessionEvent[] {
-    const { info } = event.properties;
+  function handleSubagentPart(
+    part: ToolPart,
+    conversationId: string
+  ): AnySessionEvent[] {
+    const state: ToolState = part.state;
+    const toolUseId = part.callID;
+    const events: AnySessionEvent[] = [];
 
-    if (info.role !== 'assistant') {
-      return [];
+    // Extract input fields (input is always present on all ToolState variants)
+    const input = state.input as Record<string, unknown>;
+    const prompt = (input.prompt ?? input.description ?? '') as string;
+    const subagentType = input.subagent_type as string | undefined;
+    const description = input.description as string | undefined;
+
+    // Get metadata (only on running/completed/error states)
+    const metadata = state.status !== 'pending'
+      ? (state.metadata as Record<string, unknown> | undefined)
+      : undefined;
+    const agentId = metadata?.sessionId as string | undefined;
+
+    // Emit subagent:spawned
+    events.push(
+      createSessionEvent(
+        'subagent:spawned',
+        {
+          toolUseId,
+          agentId,
+          prompt,
+          subagentType,
+          description,
+        },
+        { conversationId, source: 'runner' }
+      )
+    );
+
+    // Check if subagent completed - emit subagent:completed
+    if (state.status === 'completed') {
+      events.push(
+        createSessionEvent(
+          'subagent:completed',
+          {
+            toolUseId,
+            agentId: (state.metadata as Record<string, unknown>)?.sessionId as string | undefined,
+            status: 'completed',
+            output: state.output,
+            durationMs: state.time.end - state.time.start,
+          },
+          { conversationId, source: 'runner' }
+        )
+      );
+    } else if (state.status === 'error') {
+      events.push(
+        createSessionEvent(
+          'subagent:completed',
+          {
+            toolUseId,
+            agentId: (state.metadata as Record<string, unknown> | undefined)?.sessionId as string | undefined,
+            status: 'failed',
+            output: state.error,
+            durationMs: state.time.end - state.time.start,
+          },
+          { conversationId, source: 'runner' }
+        )
+      );
     }
 
-    const assistantInfo = info as any;
-    const conversationId = info.sessionID === mainSessionId ? 'main' : info.sessionID;
+    return events;
+  }
 
-    if (!assistantInfo.tokens && assistantInfo.cost === undefined) {
-      return [];
+  /**
+   * Handle step/retry log events
+   */
+  function handleLogPart(part: StepStartPart | StepFinishPart | RetryPart): AnySessionEvent[] {
+    let message: string;
+    let level: 'info' | 'warn' = 'info';
+
+    switch (part.type) {
+      case 'step-start':
+        message = 'Step started';
+        break;
+      case 'step-finish':
+        message = `Step finished: ${part.reason || 'unknown'}`;
+        break;
+      case 'retry':
+        level = 'warn';
+        message = `Retry attempt ${part.attempt}: ${part.error.data?.message || 'Unknown error'}`;
+        break;
     }
 
     return [
       createSessionEvent(
-        'metadata:update',
+        'log',
         {
-          metadata: {
-            usage: assistantInfo.tokens ? {
-              inputTokens: assistantInfo.tokens.input || 0,
-              outputTokens: assistantInfo.tokens.output || 0,
-              thinkingTokens: assistantInfo.tokens.reasoning || 0,
-              cacheReadTokens: assistantInfo.tokens.cache?.read || 0,
-              cacheWriteTokens: assistantInfo.tokens.cache?.write || 0,
-              totalTokens: (assistantInfo.tokens.input || 0) + (assistantInfo.tokens.output || 0),
-            } : undefined,
-            costUSD: assistantInfo.cost,
-            model: assistantInfo.modelID,
+          level,
+          message,
+          data: {
+            partType: part.type,
+            partId: part.id,
           },
         },
+        { source: 'runner' }
+      ),
+    ];
+  }
+
+  /**
+   * Handle message.part.updated event
+   */
+  function handlePartUpdated(event: EventMessagePartUpdated): AnySessionEvent[] {
+    const { part, delta } = event.properties;
+    const conversationId = part.sessionID === mainSessionId ? 'main' : part.sessionID;
+    const role = getMessageRole(part.messageID);
+
+    switch (part.type) {
+      case 'text':
+        return handleTextPart(part, delta, conversationId, role);
+
+      case 'reasoning':
+        return handleReasoningPart(part, delta, conversationId);
+
+      case 'tool':
+        if (isTaskTool(part)) {
+          return handleSubagentPart(part, conversationId);
+        }
+        return handleToolPart(part, conversationId);
+
+      case 'step-start':
+      case 'step-finish':
+      case 'retry':
+        return handleLogPart(part);
+
+      // Skip these part types (not displayed in conversation)
+      case 'file':
+      case 'snapshot':
+      case 'patch':
+      case 'compaction':
+      case 'agent':
+      case 'subtask':
+        return [];
+
+      default:
+        logger.debug({ partType: (part as Part).type }, 'Unknown OpenCode part type, skipping');
+        return [];
+    }
+  }
+
+  /**
+   * Handle session.idle event
+   */
+  function handleSessionIdle(event: EventSessionIdle): AnySessionEvent[] {
+    const { sessionID } = event.properties;
+    const conversationId = sessionID === mainSessionId ? 'main' : sessionID;
+
+    // Clear seenParts for next turn (messages persist across turns)
+    state.seenParts.clear();
+
+    return [
+      createSessionEvent(
+        'session:idle',
+        { sessionId: sessionID },
         { conversationId, source: 'runner' }
       ),
     ];
   }
 
   /**
-   * Parse a session.idle event (session completed)
+   * Handle session.error event
    */
-  function parseSessionIdleEvent(event: EventSessionIdle): AnySessionEvent[] {
-    const { sessionID } = event.properties;
-    const events: AnySessionEvent[] = [];
+  function handleSessionError(event: EventSessionError): AnySessionEvent[] {
+    const { sessionID, error } = event.properties;
+    // Extract error message from the error union type (message is in data.message)
+    const errorMessage = error?.data?.message;
+    const message = typeof errorMessage === 'string' ? errorMessage : 'Session error';
 
-    // Complete all active text/reasoning blocks
-    for (const [blockId, state] of activeBlocks) {
-      if (state.block.type === 'assistant_text' || state.block.type === 'thinking') {
-        events.push(
-          createSessionEvent(
-            'block:complete',
-            {
-              blockId,
-              block: {
-                ...state.block,
-                content: state.accumulatedContent,
-              } as ConversationBlock,
-            },
-            { conversationId: state.conversationId, source: 'runner' }
-          )
-        );
-      }
-    }
-
-    activeBlocks.clear();
-
-    events.push(
+    return [
       createSessionEvent(
-        'log',
+        'error',
         {
-          message: 'Session completed',
-          data: { sessionId: sessionID },
+          message,
+          data: { sessionID, error },
         },
         { source: 'runner' }
-      )
-    );
-
-    return events;
+      ),
+    ];
   }
 
   /**
-   * Parse an OpenCode SDK Event into SessionEvents
+   * Parse an OpenCode SDK event into SessionEvents
    */
   function parseEvent(event: Event): AnySessionEvent[] {
     try {
       switch (event.type) {
-        case 'message.part.updated':
-          return parsePartUpdatedEvent(event);
-
         case 'message.updated':
-          return parseMessageUpdatedEvent(event);
+          return handleMessageUpdated(event);
+
+        case 'message.part.updated':
+          return handlePartUpdated(event);
 
         case 'session.idle':
-          return parseSessionIdleEvent(event);
+          return handleSessionIdle(event);
 
-        case 'session.error': {
-          const e = event as any;
-          return [
-            createSessionEvent(
-              'error',
-              {
-                message: e.properties?.message || 'Session error',
-                data: e.properties,
-              },
-              { source: 'runner' }
-            ),
-          ];
-        }
+        case 'session.error':
+          return handleSessionError(event);
 
-        // Events we don't need to convert to session events
-        case 'message.removed':
-        case 'message.part.removed':
+        // Events we don't need to convert
         case 'session.created':
         case 'session.updated':
         case 'session.deleted':
         case 'session.status':
         case 'session.compacted':
         case 'session.diff':
+        case 'message.removed':
+        case 'message.part.removed':
         case 'file.edited':
         case 'file.watcher.updated':
         case 'vcs.branch.updated':
@@ -517,51 +636,15 @@ export function createStreamEventParser(mainSessionId: string, options: ConvertO
   }
 
   /**
-   * Reset the block trackers
+   * Reset converter state (call between sessions)
    */
   function reset(): void {
-    activeBlocks.clear();
+    state.messageRoles.clear();
+    state.seenParts.clear();
   }
 
   return {
     parseEvent,
     reset,
   };
-}
-
-// ============================================================================
-// Convenience Functions
-// ============================================================================
-
-/**
- * Convert an OpenCode SDK Event to SessionEvents.
- *
- * NOTE: This creates a new parser for each call, which means state is not
- * preserved between calls. For proper streaming, use createStreamEventParser()
- * to maintain a single parser instance per session.
- *
- * @param event - OpenCode SDK Event (from SSE stream)
- * @param mainSessionId - The main session ID for routing
- * @param options - Optional configuration including logger
- * @returns Array of session events to be processed by the reducer
- */
-export function opencodeEventToSessionEvents(
-  event: Event,
-  mainSessionId: string,
-  options: ConvertOptions = {}
-): AnySessionEvent[] {
-  const parser = createStreamEventParser(mainSessionId, options);
-  return parser.parseEvent(event);
-}
-
-/**
- * @deprecated Use createStreamEventParser() for stateful parsing,
- * or opencodeEventToSessionEvents() for single-event conversion.
- */
-export function parseOpencodeStreamEvent(
-  event: Event,
-  mainSessionId: string,
-  options: ConvertOptions = {}
-): AnySessionEvent[] {
-  return opencodeEventToSessionEvents(event, mainSessionId, options);
 }

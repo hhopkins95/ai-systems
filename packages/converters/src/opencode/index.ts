@@ -12,25 +12,24 @@ export type { SessionConversationState } from '@ai-systems/shared-types';
 // Transcript parsing
 export {
   parseOpenCodeTranscriptFile,
-  type OpenCodeSessionTranscript,
+  parseCombinedOpenCodeTranscript,
 } from './transcript-parser.js';
+
+// Re-export transcript types from shared-types
+export type { OpenCodeSessionTranscript, CombinedOpenCodeTranscript } from '@ai-systems/shared-types';
 
 // Stream event conversion (primary API)
 export {
-  createStreamEventParser,
-  opencodeEventToSessionEvents,
-} from './block-converter.js';
-
-// Deprecated exports for backward compatibility
-export {
-  parseOpencodeStreamEvent,
+  createOpenCodeEventConverter,
+  type OpenCodeEventConverter,
 } from './block-converter.js';
 
 // Shared helpers (for advanced use cases)
 export {
-  mapToolStatus,
+  mapToBlockStatus,
   getPartTimestamp,
   isTaskTool,
+  extractSubagentSessionIds,
   extractSubagentBlock,
   extractSubagentFromTaskTool,
   partToBlocks,

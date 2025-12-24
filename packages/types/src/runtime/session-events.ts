@@ -15,7 +15,7 @@
  * - ClientHubEvents/ServerToClientEvents (client communication)
  */
 
-import type { ConversationBlock } from './blocks.js';
+import type { ConversationBlock, PartialConversationBlock } from './blocks.js';
 import type { AgentArchitectureSessionOptions } from './architecture.js';
 import type { WorkspaceFile, SessionRuntimeState } from './session.js';
 
@@ -122,35 +122,34 @@ export interface SessionEventPayloads {
   // ---------------------------------------------------------------------------
 
   /**
-   * New block started (may be incomplete, will receive deltas)
+   * Create or replace a block (upsert semantics).
+   *
+   * This is the primary block event - replaces block:start/block:complete.
+   * - If block doesn't exist: creates it with defaults for missing fields
+   * - If block exists: merges partial data into existing block
+   *
+   * Accepts partial blocks (id and type required, everything else optional):
+   * - On update: partial fields are merged with existing block
+   * - On create: missing required fields are filled with defaults + console.warn
+   *
+   * Block status indicates lifecycle:
+   * - status: 'pending' → block is being built (may receive deltas)
+   * - status: 'complete' → block is finalized
+   * - status: 'error' → block construction failed
    */
-  'block:start': {
-    block: ConversationBlock;
+  'block:upsert': {
+    block: PartialConversationBlock;
   };
 
   /**
-   * Text content streaming for a block
+   * Text content streaming for a block.
+   * Appends delta to block.content.
    */
   'block:delta': {
     blockId: string;
     delta: string;
   };
 
-  /**
-   * Block metadata/status updated (not text content)
-   */
-  'block:update': {
-    blockId: string;
-    updates: Partial<ConversationBlock>;
-  };
-
-  /**
-   * Block finalized - no more updates coming
-   */
-  'block:complete': {
-    blockId: string;
-    block: ConversationBlock;
-  };
 
   // ---------------------------------------------------------------------------
   // Metadata Events
@@ -226,6 +225,8 @@ export interface SessionEventPayloads {
   'subagent:spawned': {
     /** The tool_use_id of the Task tool - primary key during streaming */
     toolUseId: string;
+    /** The subagent's session ID - available once subagent starts running */
+    agentId?: string;
     /** The prompt/task given to the subagent */
     prompt: string;
     /** Type of subagent (e.g., "Explore", "Plan", "code-reviewer") */
@@ -296,6 +297,14 @@ export interface SessionEventPayloads {
     hasTranscript: boolean;
     workspaceFileCount: number;
     blockCount: number;
+  };
+
+  /**
+   * Session became idle (OpenCode: all streaming complete, ready for next query)
+   * Used to finalize streaming blocks.
+   */
+  'session:idle': {
+    sessionId: string;
   };
 
   // ---------------------------------------------------------------------------
@@ -523,10 +532,8 @@ export function isServerEvent(event: AnySessionEvent): boolean {
  * Block event types
  */
 export const BLOCK_EVENT_TYPES = [
-  'block:start',
+  'block:upsert',
   'block:delta',
-  'block:update',
-  'block:complete',
 ] as const satisfies readonly SessionEventType[];
 
 /**
@@ -568,11 +575,8 @@ export const QUERY_LIFECYCLE_EVENT_TYPES = [
  * All event types that should be broadcast to clients
  */
 export const CLIENT_BROADCAST_EVENT_TYPES = [
-  'block:start',
+  'block:upsert',
   'block:delta',
-  'block:update',
-  'block:complete',
-  'metadata:update',
   'status',
   'file:created',
   'file:modified',

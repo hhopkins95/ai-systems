@@ -366,12 +366,9 @@ export class AgentSession {
         source: 'server' as const,
       };
 
-      this.eventBus.emit('block:start', createSessionEvent('block:start', {
-        block: userBlock,
-      }, blockContext));
-      this.eventBus.emit('block:complete', createSessionEvent('block:complete', {
-        blockId: userBlockId,
-        block: userBlock,
+      // Emit user message block as a single upsert with complete status
+      this.eventBus.emit('block:upsert', createSessionEvent('block:upsert', {
+        block: { ...userBlock, status: 'complete' },
       }, blockContext));
 
       logger.info(

@@ -15,12 +15,11 @@ import type { SDKMessage } from '@anthropic-ai/claude-agent-sdk';
 import type {
   CombinedClaudeTranscript,
   SessionConversationState,
-  AnySessionEvent,
 } from '@ai-systems/shared-types';
 import { createInitialConversationState } from '@ai-systems/shared-types';
 import { noopLogger } from '../utils.js';
 import type { ParseTranscriptOptions } from '../types.js';
-import { sdkMessageToEvents } from './block-converter.js';
+import { createClaudeSdkEventConverter } from './block-converter.js';
 import { reduceSessionEvent } from '../session-state/reducer.js';
 
 /**
@@ -62,37 +61,13 @@ export function parseClaudeTranscriptFile(
 // =============================================================================
 
 /**
- * Convert SDK messages to session events with the given conversation ID
- */
-function messagesToEvents(
-  messages: SDKMessage[],
-  conversationId: string,
-  options: ParseTranscriptOptions = {}
-): AnySessionEvent[] {
-  const events: AnySessionEvent[] = [];
-
-  for (const msg of messages) {
-    const msgEvents = sdkMessageToEvents(msg, options);
-    // Set the conversationId on each event's context
-    for (const event of msgEvents) {
-      if (event.context) {
-        event.context.conversationId = conversationId;
-      }
-      events.push(event);
-    }
-  }
-
-  return events;
-}
-
-/**
  * Parse a combined Claude transcript (JSON wrapper format) into SessionConversationState.
  *
  * The combined format bundles the main transcript and all subagent transcripts
  * into a single JSON object for easier storage and transport.
  *
- * Uses the shared reducer to build state from events, ensuring consistency
- * with streaming state updates.
+ * Uses the stateful converter factory to ensure consistent ID generation
+ * between streaming and transcript loading paths.
  *
  * @param combinedTranscript - JSON string of the combined transcript
  * @param options - Optional configuration including logger
@@ -111,15 +86,23 @@ export function parseCombinedClaudeTranscript(
   try {
     const combined: CombinedClaudeTranscript = JSON.parse(combinedTranscript);
 
+    // Create converter (no initial state for fresh transcript parse)
+    const converter = createClaudeSdkEventConverter(undefined, options);
+
     // Start with initial state
     let state = createInitialConversationState();
 
-    // Convert main transcript messages to events and reduce
+    // Parse main transcript messages
     const mainMessages = parseClaudeTranscriptFile(combined.main, options);
-    const mainEvents = messagesToEvents(mainMessages, 'main', options);
-
-    for (const event of mainEvents) {
-      state = reduceSessionEvent(state, event);
+    for (const msg of mainMessages) {
+      const events = converter.parseEvent(msg);
+      for (const event of events) {
+        // Ensure conversationId is set for main conversation
+        if (event.context) {
+          event.context.conversationId = event.context.conversationId || 'main';
+        }
+        state = reduceSessionEvent(state, event);
+      }
     }
 
     // Process each subagent transcript
@@ -132,12 +115,13 @@ export function parseCombinedClaudeTranscript(
         continue;
       }
 
-      // Convert subagent messages to events and reduce
-      // Events are routed to the correct subagent by conversationId
-      const subagentEvents = messagesToEvents(subagentMessages, rawSubagent.id, options);
-
-      for (const event of subagentEvents) {
-        state = reduceSessionEvent(state, event);
+      // Parse subagent messages with explicit targetConversationId
+      // This ensures blocks are routed to the subagent's conversation, not main
+      for (const msg of subagentMessages) {
+        const events = converter.parseEvent(msg, rawSubagent.id);
+        for (const event of events) {
+          state = reduceSessionEvent(state, event);
+        }
       }
     }
 

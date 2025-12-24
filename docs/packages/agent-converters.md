@@ -1,11 +1,12 @@
 # agent-converters
 
-Pure transformation functions for parsing agent transcripts and converting to ConversationBlocks.
+Transformation functions for parsing agent transcripts and converting streaming SDK events to SessionEvents.
 
 ## What It Does
 
 - Parses raw transcripts from Claude SDK and OpenCode SDK
-- Converts SDK-specific formats to unified ConversationBlocks
+- Converts streaming SDK events to unified SessionEvents
+- Transforms SDK-specific formats to ConversationBlocks
 - Provides type guards for runtime type checking
 - Handles subagent transcript extraction
 
@@ -20,10 +21,13 @@ flowchart LR
     end
 
     RawTranscript[Raw Transcript] --> Main
+    StreamEvents[SDK Events] --> Main
     Main --> Claude
     Main --> OpenCode
     Claude --> Blocks[ConversationBlock[]]
+    Claude --> Events[SessionEvent[]]
     OpenCode --> Blocks
+    OpenCode --> Events
 ```
 
 ## Core Components
@@ -32,13 +36,16 @@ flowchart LR
 |-----------|------|---------|
 | Claude Parser | `src/claude-sdk/` | Parse Claude SDK transcripts |
 | OpenCode Parser | `src/opencode/` | Parse OpenCode transcripts |
+| OpenCode Converter | `src/opencode/block-converter.ts` | Convert streaming events |
+| Session Reducer | `src/session-state/` | Reduce events to state |
 | Type Guards | `src/index.ts` | Runtime type checking |
 | Utilities | `src/utils.ts` | ID generation, timestamps |
 
 ## Usage
 
+### Transcript Parsing (Loading Saved Sessions)
+
 ```typescript
-// Import from subpaths
 import { parseClaudeTranscriptFile } from '@hhopkins/agent-converters/claude-sdk';
 import { parseOpenCodeTranscriptFile } from '@hhopkins/agent-converters/opencode';
 
@@ -46,15 +53,68 @@ import { parseOpenCodeTranscriptFile } from '@hhopkins/agent-converters/opencode
 const blocks = parseClaudeTranscriptFile(rawTranscript);
 
 // Parse OpenCode transcript
-const { blocks, subagents } = parseOpenCodeTranscriptFile(rawTranscript);
+const state = parseOpenCodeTranscriptFile(rawTranscript);
+console.log(state.blocks, state.subagents);
+```
 
-// Use type guards
+### Streaming Event Conversion (Live Sessions)
+
+```typescript
+import { createOpenCodeEventConverter } from '@hhopkins/agent-converters/opencode';
+import { reduceSessionEvent, createInitialConversationState } from '@hhopkins/agent-converters';
+
+// Create stateful converter for a session
+const converter = createOpenCodeEventConverter(mainSessionId);
+let state = createInitialConversationState();
+
+// Process streaming events from OpenCode SDK
+for await (const event of opencodeSseStream) {
+  const sessionEvents = converter.parseEvent(event);
+
+  for (const sessionEvent of sessionEvents) {
+    state = reduceSessionEvent(state, sessionEvent);
+  }
+}
+
+// Reset converter between sessions
+converter.reset();
+```
+
+### Type Guards
+
+```typescript
 import { isAssistantTextBlock, isToolUseBlock } from '@hhopkins/agent-converters';
 
 if (isAssistantTextBlock(block)) {
   console.log(block.content);
 }
 ```
+
+## OpenCode Event Converter
+
+The `createOpenCodeEventConverter()` factory creates a stateful converter that:
+
+1. **Correlates message roles with parts** - Tracks `messageId → role` to correctly identify user vs assistant content
+2. **Emits efficient events** - Only `block:upsert` once per part, then `block:delta` for streaming updates
+3. **Manages lifecycle** - Clears part tracking on `session.idle`, preserves message roles across turns
+
+```typescript
+interface OpenCodeEventConverter {
+  parseEvent(event: Event): AnySessionEvent[];
+  reset(): void;
+}
+```
+
+### Event Mapping
+
+| OpenCode Event | SessionEvent Output |
+|----------------|---------------------|
+| `message.updated` | Stores role, emits `metadata:update` if tokens/cost |
+| `message.part.updated` (text, user) | `block:upsert` → `user_message` |
+| `message.part.updated` (text, assistant) | `block:upsert` + `block:delta` → `assistant_text` |
+| `message.part.updated` (tool) | `block:upsert` → `tool_use` + `tool_result` |
+| `message.part.updated` (task) | `subagent:spawned` / `subagent:completed` |
+| `session.idle` | `session:idle` (finalizes pending blocks) |
 
 ## Key Types
 
@@ -69,26 +129,29 @@ type ConversationBlock =
   | SystemBlock
   | SubagentBlock;
 
-// Parsing functions
+// Transcript parsing
 function parseClaudeTranscriptFile(content: string): ConversationBlock[];
-function parseOpenCodeTranscriptFile(content: string): {
-  blocks: ConversationBlock[];
-  subagents: SubagentInfo[];
-};
+function parseOpenCodeTranscriptFile(content: string): SessionConversationState;
+
+// Streaming conversion (stateful)
+function createOpenCodeEventConverter(
+  mainSessionId: string,
+  options?: ConvertOptions
+): OpenCodeEventConverter;
 ```
 
 ## How It Connects
 
 | Direction | Package | Relationship |
 |-----------|---------|--------------|
-| Depends on | shared-types | Block definitions |
+| Depends on | shared-types | Block/event definitions |
 | Peer dep | @anthropic-ai/claude-agent-sdk | Optional |
 | Peer dep | @opencode-ai/sdk | Optional |
-| Used by | agent-runner | Transcript parsing |
+| Used by | agent-runner | Transcript parsing, streaming |
 | Used by | agent-server | Block conversion |
 
 ## Related
 
-- [Streaming and Events](../system/streaming-and-events.md) - Event and block types
+- [Session Events and State](../system/session-events-and-state/index.md) - Event types and reducer
 - [agent-runner](./agent-runner.md) - Uses converters
 - [shared-types](./shared-types.md) - Type definitions

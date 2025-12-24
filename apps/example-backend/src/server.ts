@@ -1,6 +1,17 @@
 import { createServer } from "http";
 import { createAgentRuntime, type PersistenceAdapter } from "@hhopkins/agent-server";
+import {
+  createOpenCodeEventConverter,
+  parseCombinedOpenCodeTranscript,
+} from "@hhopkins/agent-converters/opencode";
+import { createClaudeSdkEventConverter, parseCombinedClaudeTranscript } from "@hhopkins/agent-converters/claude-sdk";
+import {
+  reduceSessionEvent,
+  createInitialConversationState,
+  type AnySessionEvent,
+} from "@hhopkins/agent-converters";
 import dotenv from "dotenv";
+import fs from "fs/promises";
 import { InMemoryPersistenceAdapter, SqlitePersistenceAdapter } from "./persistence/index.js";
 import { config, validateConfig, createExampleAgentProfile } from "./config.js";
 import path from "path";
@@ -12,6 +23,29 @@ dotenv.config();
 
 const dirname = path.dirname(fileURLToPath(import.meta.url));
 const agentSessionsDirectoryPath = path.join(dirname, "../../../.agent-sessions");
+const openCodeFixturesDir = path.join(dirname, "../../../packages/converters/src/opencode/test");
+const claudeSdkFixturesDir = path.join(dirname, "../../../packages/converters/src/claude-sdk/test");
+
+/**
+ * Extract the main session ID from raw OpenCode events.
+ * Looks for the first event that contains a session ID.
+ */
+function extractSessionIdFromEvents(events: unknown[]): string | undefined {
+  for (const event of events) {
+    const e = event as Record<string, unknown>;
+    // Check message.updated events
+    if (e.type === 'message.updated') {
+      const info = (e.properties as Record<string, unknown>)?.info as Record<string, unknown>;
+      if (info?.sessionID) return info.sessionID as string;
+    }
+    // Check session.updated events
+    if (e.type === 'session.updated') {
+      const info = (e.properties as Record<string, unknown>)?.info as Record<string, unknown>;
+      if (info?.id) return info.id as string;
+    }
+  }
+  return undefined;
+}
 
 /**
  * Main server entry point
@@ -155,6 +189,205 @@ async function main() {
         return;
       }
 
+      // =======================================================================
+      // Converter Debug Endpoints
+      // =======================================================================
+
+      // GET /debug/fixtures - List available fixture files from both converters
+      if (req.url === '/debug/fixtures' && req.method === 'GET') {
+        res.setHeader('Content-Type', 'application/json');
+        res.setHeader('Access-Control-Allow-Origin', '*');
+
+        try {
+          // Load OpenCode fixtures
+          const openCodeFiles = await fs.readdir(openCodeFixturesDir);
+          const openCodeFixtures = await Promise.all(
+            openCodeFiles
+              .filter(f => f.endsWith('.json') || f.endsWith('.jsonl'))
+              .map(async (name) => {
+                const stat = await fs.stat(path.join(openCodeFixturesDir, name));
+                return {
+                  name,
+                  size: stat.size,
+                  fileType: name.endsWith('.jsonl') ? 'jsonl' as const : 'json' as const,
+                  converter: 'opencode' as const,
+                };
+              })
+          );
+
+          // Load Claude SDK fixtures
+          const claudeFiles = await fs.readdir(claudeSdkFixturesDir);
+          const claudeFixtures = await Promise.all(
+            claudeFiles
+              .filter(f => f.endsWith('.json') || f.endsWith('.jsonl'))
+              .map(async (name) => {
+                const stat = await fs.stat(path.join(claudeSdkFixturesDir, name));
+                return {
+                  name,
+                  size: stat.size,
+                  fileType: name.endsWith('.jsonl') ? 'jsonl' as const : 'json' as const,
+                  converter: 'claude-sdk' as const,
+                };
+              })
+          );
+
+          res.statusCode = 200;
+          res.end(JSON.stringify({
+            fixtures: [...openCodeFixtures, ...claudeFixtures],
+          }));
+        } catch (error) {
+          console.error('Failed to list fixtures:', error);
+          res.statusCode = 500;
+          res.end(JSON.stringify({ error: 'Failed to list fixtures' }));
+        }
+        return;
+      }
+
+      // GET /debug/fixtures/:converter/:filename - Get raw fixture content
+      const fixtureMatch = req.url?.match(/^\/debug\/fixtures\/(opencode|claude-sdk)\/(.+)$/);
+      if (fixtureMatch && req.method === 'GET') {
+        const converter = fixtureMatch[1] as 'opencode' | 'claude-sdk';
+        const filename = decodeURIComponent(fixtureMatch[2]);
+        res.setHeader('Access-Control-Allow-Origin', '*');
+
+        // Security: prevent path traversal
+        if (filename.includes('..') || filename.includes('/')) {
+          res.statusCode = 400;
+          res.end(JSON.stringify({ error: 'Invalid filename' }));
+          return;
+        }
+
+        const fixturesDir = converter === 'opencode' ? openCodeFixturesDir : claudeSdkFixturesDir;
+
+        try {
+          const filePath = path.join(fixturesDir, filename);
+          const content = await fs.readFile(filePath, 'utf-8');
+          res.setHeader('Content-Type', filename.endsWith('.jsonl') ? 'text/plain' : 'application/json');
+          res.statusCode = 200;
+          res.end(content);
+        } catch (error) {
+          console.error('Failed to read fixture:', error);
+          res.statusCode = 404;
+          res.end(JSON.stringify({ error: 'Fixture not found' }));
+        }
+        return;
+      }
+
+      // POST /debug/convert - Run conversion on fixture data
+      // Supports both OpenCode and Claude SDK converters
+      if (req.url === '/debug/convert' && req.method === 'POST') {
+        res.setHeader('Content-Type', 'application/json');
+        res.setHeader('Access-Control-Allow-Origin', '*');
+
+        try {
+          const body = await getRequestBody(req);
+          const { mode, content, mainSessionId, converter: converterType = 'opencode', filename } = JSON.parse(body);
+
+          // Auto-detect mode from filename extension if provided
+          const effectiveMode = filename?.endsWith('.json') ? 'transcript' : mode;
+
+          if (effectiveMode === 'streaming') {
+            // Streaming mode: convert raw events one at a time
+            const rawEvents: unknown[] = typeof content === 'string'
+              ? content.trim().split('\n').map((line: string) => JSON.parse(line))
+              : content;
+
+            let state = createInitialConversationState();
+            const sessionEventsByStep: AnySessionEvent[][] = [];
+            const allSessionEvents: AnySessionEvent[] = [];
+
+            if (converterType === 'opencode') {
+              // OpenCode: stateful converter - detect session ID from events if not provided
+              const detectedSessionId = mainSessionId || extractSessionIdFromEvents(rawEvents) || 'main-session';
+
+              const openCodeConverter = createOpenCodeEventConverter(detectedSessionId);
+
+              for (const event of rawEvents) {
+                // @ts-ignore
+                const converted = openCodeConverter.parseEvent(event);
+                sessionEventsByStep.push(converted);
+                for (const sessionEvent of converted) {
+                  allSessionEvents.push(sessionEvent);
+                  state = reduceSessionEvent(state, sessionEvent);
+                }
+              }
+            } else if (converterType === 'claude-sdk') {
+              // Claude SDK: stateful converter for deterministic block IDs
+              const claudeConverter = createClaudeSdkEventConverter();
+
+              for (const event of rawEvents) {
+                const converted = claudeConverter.parseEvent(event as any);
+                sessionEventsByStep.push(converted);
+                for (const sessionEvent of converted) {
+                  allSessionEvents.push(sessionEvent);
+                  state = reduceSessionEvent(state, sessionEvent);
+                }
+              }
+            } else {
+              res.statusCode = 400;
+              res.end(JSON.stringify({ error: 'Invalid converter. Use "opencode" or "claude-sdk"' }));
+              return;
+            }
+
+            res.statusCode = 200;
+            res.end(JSON.stringify({
+              rawEvents,
+              sessionEventsByStep,
+              sessionEvents: allSessionEvents,
+              finalState: state,
+              stats: {
+                rawEventCount: rawEvents.length,
+                sessionEventCount: allSessionEvents.length,
+                blockCount: state.blocks.length,
+                subagentCount: state.subagents.length,
+              },
+            }));
+          } else if (effectiveMode === 'transcript') {
+            // Transcript mode: parse complete transcript
+            const transcriptContent = typeof content === 'string' ? content : JSON.stringify(content);
+
+            let state;
+            if (converterType === 'claude-sdk') {
+              state = parseCombinedClaudeTranscript(transcriptContent);
+            } else {
+              state = parseCombinedOpenCodeTranscript(transcriptContent);
+            }
+
+            res.statusCode = 200;
+            res.end(JSON.stringify({
+              rawEvents: [],
+              sessionEventsByStep: [],
+              sessionEvents: [],
+              finalState: state,
+              stats: {
+                rawEventCount: 0,
+                sessionEventCount: 0,
+                blockCount: state.blocks.length,
+                subagentCount: state.subagents.length,
+              },
+            }));
+          } else {
+            res.statusCode = 400;
+            res.end(JSON.stringify({ error: 'Invalid mode. Use "streaming" or "transcript"' }));
+          }
+        } catch (error) {
+          console.error('Conversion failed:', error);
+          res.statusCode = 500;
+          res.end(JSON.stringify({ error: 'Conversion failed', details: String(error) }));
+        }
+        return;
+      }
+
+      // Handle CORS preflight for debug endpoints
+      if (req.url?.startsWith('/debug/') && req.method === 'OPTIONS') {
+        res.setHeader('Access-Control-Allow-Origin', '*');
+        res.setHeader('Access-Control-Allow-Methods', 'GET, POST, OPTIONS');
+        res.setHeader('Access-Control-Allow-Headers', 'Content-Type');
+        res.statusCode = 204;
+        res.end();
+        return;
+      }
+
       // Use Hono's fetch handler
       const response = await restApp.fetch(
         new Request(`http://${req.headers.host}${req.url}`, {
@@ -201,7 +434,10 @@ async function main() {
       console.log(`  GET    /agent-profiles`);
       console.log(`  GET    /health`);
       console.log(`  GET    /debug (raw server state)`);
-      console.log(`  GET    /persistence/:id (raw SQLite data)\n`);
+      console.log(`  GET    /persistence/:id (raw SQLite data)`);
+      console.log(`  GET    /debug/fixtures (list test fixtures)`);
+      console.log(`  GET    /debug/fixtures/:name (get fixture content)`);
+      console.log(`  POST   /debug/convert (run converter)\n`);
     });
 
     // Graceful shutdown

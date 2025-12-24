@@ -9,7 +9,7 @@ import * as path from 'path';
 import os from 'os';
 import { exec } from 'child_process';
 import { promisify } from 'util';
-import { createStreamEventParser } from '@hhopkins/agent-converters/opencode';
+import { createOpenCodeEventConverter } from '@hhopkins/agent-converters/opencode';
 import type { AnySessionEvent, UserMessageBlock } from '@ai-systems/shared-types';
 import { createIsolatedServer } from '../clients/opencode.js';
 import { emptyAsyncIterable, createMessageChannel } from '../clients/channel.js';
@@ -122,7 +122,7 @@ export async function* executeOpencodeQuery(
     }
 
     // Create stateful parser for this session (still uses old StreamEvent format)
-    const parser = createStreamEventParser(input.sessionId);
+    const parser = createOpenCodeEventConverter(input.sessionId);
 
     // Create channel for real-time event streaming
     const eventChannel = createMessageChannel<AnySessionEvent>();

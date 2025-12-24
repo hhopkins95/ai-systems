@@ -17,6 +17,9 @@ importers:
 
   apps/example-backend:
     dependencies:
+      '@hhopkins/agent-converters':
+        specifier: workspace:*
+        version: link:../../packages/converters
       '@hhopkins/agent-server':
         specifier: workspace:*
         version: link:../../runtime/server
@@ -272,6 +275,9 @@ importers:
       '@anthropic-ai/claude-agent-sdk':
         specifier: ^0.1.61
         version: 0.1.61(zod@4.1.8)
+      '@opencode-ai/sdk':
+        specifier: '>=1.0.0'
+        version: 1.0.163
       typescript:
         specifier: ^5.7.2
         version: 5.9.3
@@ -281,6 +287,9 @@ importers:
       '@ai-systems/shared-types':
         specifier: workspace:*
         version: link:../../packages/types
+      '@hhopkins/agent-converters':
+        specifier: workspace:*
+        version: link:../../packages/converters
       '@hhopkins/agent-server':
         specifier: workspace:*
         version: link:../server

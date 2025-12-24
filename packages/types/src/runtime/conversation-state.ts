@@ -2,10 +2,15 @@
  * Session Conversation State Types
  *
  * Types for the shared session state reducer. This reducer handles
- * conversation blocks, subagent state, and streaming content.
+ * conversation blocks and subagent state.
  *
  * Used by both server (SessionState) and client (React reducer) to ensure
  * consistent state management across the system.
+ *
+ * Key design principles:
+ * - Single source of truth: block content lives in the block, not separate streaming state
+ * - Immutable updates: reducer returns new state, never mutates
+ * - Block status tracks lifecycle: pending → complete (or error)
  */
 
 import type { ConversationBlock, SubagentStatus } from './blocks.js';
@@ -19,29 +24,27 @@ import type { ConversationBlock, SubagentStatus } from './blocks.js';
  * Managed by the shared reducer, used by server and client.
  */
 export interface SessionConversationState {
-  /** Finalized conversation blocks in the main conversation */
+  /** Conversation blocks in the main conversation */
   blocks: ConversationBlock[];
 
-  /** Subagent conversations, keyed by toolUseId during streaming */
+  /** Subagent conversations (nested threads) */
   subagents: SubagentState[];
-
-  /** Active streaming state for text deltas */
-  streaming: StreamingState;
 }
 
 /**
  * State for a single subagent conversation
+ *
+ * Identification:
+ * - toolUseId: Available immediately when Task tool starts (primary key during streaming)
+ * - agentId: Available after completion or from transcript
+ * - Lookup functions check both
  */
 export interface SubagentState {
   /**
-   * Primary key for this subagent.
-   * During streaming: uses toolUseId
-   * From transcript: may use agentId or toolUseId depending on source
+   * Tool use ID from Task tool invocation.
+   * Primary key - always available, used for routing during streaming.
    */
-  id: string;
-
-  /** Tool use ID from Task tool (available immediately during streaming) */
-  toolUseId?: string;
+  toolUseId: string;
 
   /** SDK agent ID (available after completion or from transcript) */
   agentId?: string;
@@ -62,34 +65,6 @@ export interface SubagentState {
   durationMs?: number;
 }
 
-/**
- * Streaming state for in-flight text content
- */
-export interface StreamingState {
-  /**
-   * Active streaming content keyed by conversationId.
-   * 'main' for main conversation, or subagent ID for subagent conversations.
-   */
-  byConversation: Map<string, StreamingContent>;
-}
-
-/**
- * Content being streamed for a single conversation
- */
-export interface StreamingContent {
-  /** Which conversation this belongs to ('main' or subagentId) */
-  conversationId: string;
-
-  /** The block ID being streamed */
-  blockId: string;
-
-  /** Accumulated text content from deltas */
-  content: string;
-
-  /** When streaming started (ms timestamp) */
-  startedAt: number;
-}
-
 // ============================================================================
 // Factory Functions
 // ============================================================================
@@ -101,7 +76,6 @@ export function createInitialConversationState(): SessionConversationState {
   return {
     blocks: [],
     subagents: [],
-    streaming: { byConversation: new Map() },
   };
 }
 
@@ -109,11 +83,11 @@ export function createInitialConversationState(): SessionConversationState {
  * Create initial subagent state
  */
 export function createSubagentState(
-  id: string,
-  options: Partial<Omit<SubagentState, 'id'>> = {}
+  toolUseId: string,
+  options: Partial<Omit<SubagentState, 'toolUseId'>> = {}
 ): SubagentState {
   return {
-    id,
+    toolUseId,
     blocks: [],
     status: 'pending',
     ...options,
@@ -125,25 +99,32 @@ export function createSubagentState(
 // ============================================================================
 
 /**
- * Find a subagent by any of its identifiers (id, toolUseId, or agentId)
+ * Find a subagent by toolUseId or agentId.
+ * Checks toolUseId first (primary key during streaming).
  */
 export function findSubagent(
   state: SessionConversationState,
   ref: string
 ): SubagentState | undefined {
-  return state.subagents.find(
-    (s) => s.id === ref || s.toolUseId === ref || s.agentId === ref
+  // Check toolUseId first (primary key)
+  return (
+    state.subagents.find((s) => s.toolUseId === ref) ??
+    state.subagents.find((s) => s.agentId === ref)
   );
 }
 
 /**
- * Find the index of a subagent by any of its identifiers
+ * Find the index of a subagent by toolUseId or agentId.
+ * Checks toolUseId first (primary key during streaming).
  */
 export function findSubagentIndex(
   state: SessionConversationState,
   ref: string
 ): number {
-  return state.subagents.findIndex(
-    (s) => s.id === ref || s.toolUseId === ref || s.agentId === ref
-  );
+  // Check toolUseId first (primary key)
+  let idx = state.subagents.findIndex((s) => s.toolUseId === ref);
+  if (idx < 0) {
+    idx = state.subagents.findIndex((s) => s.agentId === ref);
+  }
+  return idx;
 }

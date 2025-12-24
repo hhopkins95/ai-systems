@@ -25,6 +25,7 @@ export type {
   SubagentBlock,
   ErrorBlock,
   BaseBlock,
+  BlockLifecycleStatus,
   TextContent,
   ImageContent,
   ContentPart,
@@ -41,8 +42,6 @@ export type {
   // Conversation state types
   SessionConversationState,
   SubagentState,
-  StreamingState,
-  StreamingContent,
 } from '@ai-systems/shared-types';
 
 // Re-export type guards and helpers from shared-types
@@ -85,6 +84,9 @@ export * from './types.js';
 // Session state reducer (shared between server and client)
 export * from './session-state/index.js';
 
+// OpenCode helpers
+export { extractSubagentSessionIds } from './opencode/index.js';
+
 // =============================================================================
 // Unified Transcript Parsing
 // =============================================================================
@@ -92,17 +94,17 @@ export * from './session-state/index.js';
 import type { AgentArchitecture, SessionConversationState } from '@ai-systems/shared-types';
 import { createInitialConversationState } from '@ai-systems/shared-types';
 import { parseCombinedClaudeTranscript } from './claude-sdk/index.js';
-import { parseOpenCodeTranscriptFile } from './opencode/index.js';
+import { parseCombinedOpenCodeTranscript } from './opencode/index.js';
 
 /**
  * Parse a transcript based on the agent architecture type.
  *
- * For Claude SDK: expects combined JSON format { main: string, subagents: [...] }
- * For OpenCode: expects native JSON format from `opencode export`
+ * Both architectures expect combined JSON format { main: string, subagents: [...] }
+ * containing the main transcript and all subagent transcripts bundled together.
  *
  * @param architecture - The agent architecture type
  * @param rawTranscript - The raw transcript string
- * @returns SessionConversationState with blocks, subagents, and streaming state
+ * @returns SessionConversationState with blocks and subagents
  */
 export function parseTranscript(
   architecture: AgentArchitecture,
@@ -116,7 +118,7 @@ export function parseTranscript(
     case 'claude-sdk':
       return parseCombinedClaudeTranscript(rawTranscript);
     case 'opencode':
-      return parseOpenCodeTranscriptFile(rawTranscript);
+      return parseCombinedOpenCodeTranscript(rawTranscript);
     default:
       return createInitialConversationState();
   }

@@ -4,9 +4,11 @@
  * A shared, immutable reducer for session conversation state.
  * Used by both server (SessionState) and client (React reducer).
  *
- * Handles:
- * - Block events: start, delta, update, complete
- * - Subagent events: spawned, completed
+ * Key events:
+ * - block:upsert - Create or update a block (merge semantics for existing, create with defaults for new)
+ * - block:delta - Append content to a block
+ * - subagent:spawned/completed - Subagent lifecycle
+ * - session:idle - Finalize pending blocks
  *
  * Returns new state objects (never mutates).
  */
@@ -14,10 +16,9 @@
 import type { AnySessionEvent } from '@ai-systems/shared-types';
 import type { SessionConversationState } from './types.js';
 import {
-  handleBlockStart,
-  handleBlockComplete,
-  handleBlockUpdate,
+  handleBlockUpsert,
   handleBlockDelta,
+  handleSessionIdle,
 } from './handlers/block-handlers.js';
 import {
   handleSubagentSpawned,
@@ -49,15 +50,9 @@ export function reduceSessionEvent(
   event: AnySessionEvent
 ): SessionConversationState {
   switch (event.type) {
-    // Block events
-    case 'block:start':
-      return handleBlockStart(state, event);
-
-    case 'block:complete':
-      return handleBlockComplete(state, event);
-
-    case 'block:update':
-      return handleBlockUpdate(state, event);
+    // Primary block event
+    case 'block:upsert':
+      return handleBlockUpsert(state, event);
 
     case 'block:delta':
       return handleBlockDelta(state, event);
@@ -68,6 +63,12 @@ export function reduceSessionEvent(
 
     case 'subagent:completed':
       return handleSubagentCompleted(state, event);
+
+    // Session lifecycle
+    case 'session:idle': {
+      const conversationId = event.context.conversationId ?? 'main';
+      return handleSessionIdle(state, conversationId);
+    }
 
     // All other events don't affect conversation state
     default:
@@ -80,11 +81,10 @@ export function reduceSessionEvent(
  */
 export function isConversationEvent(event: AnySessionEvent): boolean {
   return [
-    'block:start',
-    'block:complete',
-    'block:update',
+    'block:upsert',
     'block:delta',
     'subagent:spawned',
     'subagent:completed',
+    'session:idle',
   ].includes(event.type);
 }

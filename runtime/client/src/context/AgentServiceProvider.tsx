@@ -98,150 +98,39 @@ export function AgentServiceProvider({
 
     // =========================================================================
     // Unified Session Event Handler
+    // Most events dispatch SESSION_EVENT to the reducer, which uses the shared
+    // reducer for conversation state. Special cases have dedicated handling.
     // =========================================================================
 
     wsManager.on('session:event', (event: AnySessionEvent) => {
       const { type, payload, context } = event;
       const sessionId = context.sessionId;
-      const conversationId = context.conversationId ?? 'main';
 
-      // Log the event
+      // Log all events for debugging
       logEvent(type, event);
       dispatch({ type: 'EVENT_LOGGED', eventName: `session:${type}`, payload: event });
 
-      // Handle each event type
+      // Handle special cases that need different action types
       switch (type) {
-        // Block Streaming Events
-        case 'block:start':
-          dispatch({
-            type: 'STREAM_STARTED',
-            sessionId,
-            conversationId,
-            block: payload.block,
-          });
-          break;
-
-        case 'block:delta':
-          dispatch({
-            type: 'STREAM_DELTA',
-            sessionId,
-            conversationId,
-            blockId: payload.blockId,
-            delta: payload.delta,
-          });
-          break;
-
-        case 'block:update':
-          dispatch({
-            type: 'BLOCK_UPDATED',
-            sessionId,
-            conversationId,
-            blockId: payload.blockId,
-            updates: payload.updates,
-          });
-          break;
-
-        case 'block:complete':
-          // Handle user_message blocks specially - replace optimistic message
-          if (payload.block.type === 'user_message') {
-            dispatch({
-              type: 'REPLACE_OPTIMISTIC_USER_MESSAGE',
-              sessionId,
-              block: payload.block,
-            });
-          } else {
-            dispatch({
-              type: 'STREAM_COMPLETED',
-              sessionId,
-              conversationId,
-              blockId: payload.blockId,
-              block: payload.block,
-            });
-          }
-          break;
-
-        // Metadata Events
-        case 'metadata:update':
-          dispatch({
-            type: 'METADATA_UPDATED',
-            sessionId,
-            conversationId,
-            metadata: payload.metadata,
-          });
-          break;
-
-        // Status Events
+        // Status events update runtime state (not conversation state)
         case 'status':
           dispatch({
             type: 'SESSION_RUNTIME_UPDATED',
             sessionId,
             runtime: payload.runtime,
           });
-          break;
+          return;
 
-        // File Events
-        case 'file:created':
+        // Options events update session options (not conversation state)
+        case 'options:update':
           dispatch({
-            type: 'FILE_CREATED',
+            type: 'SESSION_OPTIONS_UPDATED',
             sessionId,
-            file: payload.file,
+            sessionOptions: payload.options,
           });
-          break;
+          return;
 
-        case 'file:modified':
-          dispatch({
-            type: 'FILE_MODIFIED',
-            sessionId,
-            file: payload.file,
-          });
-          break;
-
-        case 'file:deleted':
-          dispatch({
-            type: 'FILE_DELETED',
-            sessionId,
-            path: payload.path,
-          });
-          break;
-
-        // Subagent Events
-        case 'subagent:spawned':
-          dispatch({
-            type: 'SUBAGENT_SPAWNED',
-            sessionId,
-            toolUseId: payload.toolUseId,
-            prompt: payload.prompt,
-            subagentType: payload.subagentType,
-            description: payload.description,
-          });
-          break;
-
-        case 'subagent:completed':
-          dispatch({
-            type: 'SUBAGENT_COMPLETED',
-            sessionId,
-            toolUseId: payload.toolUseId,
-            agentId: payload.agentId,
-            status: payload.status,
-            output: payload.output,
-            durationMs: payload.durationMs,
-          });
-          break;
-
-        // Log Events
-        case 'log':
-          dispatch({
-            type: 'SESSION_LOG_RECEIVED',
-            sessionId,
-            log: {
-              level: payload.level,
-              message: payload.message,
-              data: payload.data,
-            },
-          });
-          break;
-
-        // Error Events
+        // Error events add error blocks to conversation (special handling)
         case 'error':
           dispatch({
             type: 'ERROR_BLOCK_ADDED',
@@ -251,69 +140,44 @@ export function AgentServiceProvider({
               code: payload.code,
             },
           });
+          return;
+
+        // block:complete with user_message replaces optimistic message
+        case 'block:upsert':
+          if (payload.block.type === 'user_message') {
+            dispatch({
+              type: 'REPLACE_OPTIMISTIC_USER_MESSAGE',
+              sessionId,
+              block: payload.block,
+            });
+            return;
+          }
+          // Fall through to SESSION_EVENT for non-user_message blocks
           break;
 
-        // Options Events
-        case 'options:update':
-          dispatch({
-            type: 'SESSION_OPTIONS_UPDATED',
-            sessionId,
-            sessionOptions: payload.options,
-          });
-          break;
-
-        // Transcript Events (internal, not typically needed by UI)
+        // Transcript events are server-side only
         case 'transcript:changed':
         case 'transcript:written':
-          // Transcript events are handled server-side for persistence
-          // Client typically doesn't need to handle these
-          break;
+          return;
 
-        // Session Lifecycle Events
+        // Session initialized is informational
         case 'session:initialized':
-          // Informational - session was restored or created
-          // Could dispatch an action if we want to track initialization state
-          break;
+          return;
 
-        // Execution Environment Lifecycle Events
-        case 'ee:creating':
-          dispatch({
-            type: 'EE_STATUS_CHANGED',
-            sessionId,
-            status: 'creating',
-          });
-          break;
-
-        case 'ee:ready':
-          dispatch({
-            type: 'EE_STATUS_CHANGED',
-            sessionId,
-            status: 'ready',
-          });
-          break;
-
-        case 'ee:terminated':
-          dispatch({
-            type: 'EE_STATUS_CHANGED',
-            sessionId,
-            status: 'terminated',
-          });
-          break;
-
-        // Query Lifecycle Events
+        // Query lifecycle is informational (runtime status tracks query state)
         case 'query:started':
         case 'query:completed':
         case 'query:failed':
-          // Query events are informational for now
-          // Runtime status already tracks query state via 'status' events
-          break;
-
-        default: {
-          // TypeScript exhaustiveness check
-          const _exhaustive: never = type;
-          console.warn('[AgentService] Unhandled event type:', _exhaustive);
-        }
+          return;
       }
+
+      // All other events go through SESSION_EVENT, which uses the shared reducer
+      // for conversation events (blocks, subagents) and handles file/log/EE events
+      dispatch({
+        type: 'SESSION_EVENT',
+        sessionId,
+        event,
+      });
     });
 
     // =========================================================================

@@ -62,6 +62,23 @@ export interface ToolIO {
 }
 
 // ============================================================================
+// Block Lifecycle Status
+// ============================================================================
+
+/**
+ * Lifecycle status for block construction.
+ * Tracks whether a block is still being built or is finalized.
+ *
+ * Note: This is separate from execution status (ToolExecutionStatus, SubagentStatus)
+ * which track the progress of operations. BlockLifecycleStatus tracks whether
+ * the block data itself is complete.
+ */
+export type BlockLifecycleStatus =
+  | 'pending'   // Block is being built (receiving deltas)
+  | 'complete'  // Block is finalized
+  | 'error';    // Block construction failed
+
+// ============================================================================
 // Base Block Interface
 // ============================================================================
 
@@ -78,6 +95,21 @@ export interface BaseBlock {
    * ISO timestamp when this block was created
    */
   timestamp: string;
+
+  /**
+   * Block lifecycle status.
+   * - pending: Block is being built (receiving deltas)
+   * - complete: Block is finalized
+   * - error: Block construction failed
+   *
+   * Optional for backwards compatibility - defaults to 'complete' if not set.
+   */
+  status?: BlockLifecycleStatus;
+
+  /**
+   * Additional structured metadata
+   */
+  metadata?: Record<string, unknown>;
 }
 
 // ============================================================================
@@ -130,10 +162,6 @@ export interface ToolUseBlock extends BaseBlock {
    */
   input: Record<string, unknown>;
 
-  /**
-   * Current execution status
-   */
-  status: ToolExecutionStatus;
 
   /**
    * Display name for the tool (if different from toolName)
@@ -221,10 +249,7 @@ export interface SystemBlock extends BaseBlock {
    */
   message: string;
 
-  /**
-   * Additional structured metadata
-   */
-  metadata?: Record<string, unknown>;
+  
 }
 
 /**
@@ -277,9 +302,10 @@ export interface SubagentBlock extends BaseBlock {
   input: string;
 
   /**
-   * Current execution status
+   * The description of the subagent's task
    */
-  status: SubagentStatus;
+  description?: string;
+
 
   /**
    * Final output from the subagent (once completed)
@@ -347,6 +373,35 @@ export type ConversationBlock =
   | SubagentBlock
   | ErrorBlock
   | SkillLoadBlock;
+
+// ============================================================================
+// Partial Block Types (for incremental updates)
+// ============================================================================
+
+/**
+ * Helper type to create a partial version of a block that requires id and type.
+ * Used for incremental block updates via block:upsert.
+ */
+export type PartialBlock<T extends ConversationBlock> = Pick<T, 'id' | 'type'> &
+  Partial<Omit<T, 'id' | 'type'>>;
+
+/**
+ * Partial conversation block - requires id and type, everything else optional.
+ * Used for block:upsert events to enable incremental updates.
+ *
+ * On update: partial fields are merged with existing block
+ * On create: missing required fields are filled with defaults
+ */
+export type PartialConversationBlock =
+  | PartialBlock<UserMessageBlock>
+  | PartialBlock<AssistantTextBlock>
+  | PartialBlock<ToolUseBlock>
+  | PartialBlock<ToolResultBlock>
+  | PartialBlock<ThinkingBlock>
+  | PartialBlock<SystemBlock>
+  | PartialBlock<SubagentBlock>
+  | PartialBlock<ErrorBlock>
+  | PartialBlock<SkillLoadBlock>;
 
 // ============================================================================
 // Type Guards
