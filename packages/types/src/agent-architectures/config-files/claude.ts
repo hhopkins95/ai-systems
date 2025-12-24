@@ -3,7 +3,7 @@
  */
 
 import { McpServerConfig } from "@anthropic-ai/claude-agent-sdk";
-import type { HookEvent, HookMatcher } from "../entities/hook.js";
+import type { HookEvent, HookMatcher } from "../../agents/entities/hook";
 
 /**
  * Permission rules for tool access

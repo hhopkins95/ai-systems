@@ -6,26 +6,24 @@
  */
 
 // Source tracking
-export * from "./sources.js";
+export * from "./agents/sources.js";
 
 // Plugin types
-export * from "./plugin.js";
+export * from "./agents/plugin.js";
 
 // MCP types
-export * from "./entities/mcp.js";
+export * from "./agents/entities/mcp.js";
 
 // Entity types
-export * from "./entities/index.js";
+export * from "./agents/entities/index.js";
 
 // Agent context (composed type)
-export * from "./agent-context.js";
+export * from "./agents/agent-context.js";
 
-// Runtime types (blocks, stream events)
-export * from "./runtime/index.js";
 
 // Transcript types (for converter packages)
-export * from "./transcript.js";
+export * from "./agent-architectures/transcript.js";
 
 // Config files
-export * from "./config-files/claude.js";
-export * from "./config-files/opencode.js";
+export * from "./agent-architectures/config-files/claude.js";
+export * from "./agent-architectures/config-files/opencode.js";

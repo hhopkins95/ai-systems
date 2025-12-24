@@ -1,5 +1,5 @@
-import { AgentArchitecture, AgentArchitectureSessionOptions } from "./architecture.js";
-import type { SessionConversationState } from "./conversation-state.js";
+import { AgentArchitecture, AgentArchitectureSessionOptions } from "../agent-architectures/architecture.js";
+import type { SessionConversationState } from "./state/conversation-state.js";
 
 /**
  * Execution environment status values.
@@ -169,27 +169,5 @@ export interface CreateSessionArgs {
     command? : string,
     defaultWorkspaceFiles? : WorkspaceFile[]
     sessionOptions? : AgentArchitectureSessionOptions
-}
-
-// =============================================================================
-// Factory Functions
-// =============================================================================
-
-/**
- * Create initial execution environment state.
- */
-export function createInitialExecutionEnvironmentState(): ExecutionEnvironmentState {
-  return { status: 'inactive' };
-}
-
-/**
- * Create initial session runtime state.
- */
-export function createInitialRuntimeState(): SessionRuntimeState {
-  return {
-    isLoaded: false,
-    executionEnvironment: null,
-    activeQuery: undefined,
-  };
 }
 

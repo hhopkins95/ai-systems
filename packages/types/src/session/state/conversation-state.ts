@@ -13,7 +13,7 @@
  * - Block status tracks lifecycle: pending → complete (or error)
  */
 
-import type { ConversationBlock, SubagentStatus } from './blocks.js';
+import type { ConversationBlock, SubagentStatus } from '../conversation-blocks.js';
 
 // ============================================================================
 // State Types

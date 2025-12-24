@@ -6,7 +6,7 @@
 import type { Agent, AgentWithSource, Command, CommandWithSource, HookWithSource, Rule, RuleWithSource, Skill, SkillWithSource } from "./entities/index.js";
 import type { McpServer, McpServerWithSource } from "./entities/mcp.js";
 import { ClaudePluginInstallSource } from "./plugin.js";
-import { WorkspaceFile } from "./runtime/session.js";
+import { WorkspaceFile } from "../session/session.js";
 
 /**
  * Sources that contributed to an AgentContext

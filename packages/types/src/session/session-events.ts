@@ -15,8 +15,8 @@
  * - ClientHubEvents/ServerToClientEvents (client communication)
  */
 
-import type { ConversationBlock, PartialConversationBlock } from './blocks.js';
-import type { AgentArchitectureSessionOptions } from './architecture.js';
+import type { ConversationBlock, PartialConversationBlock } from './conversation-blocks.js';
+import type { AgentArchitectureSessionOptions } from '../agent-architectures/architecture.js';
 import type { WorkspaceFile, SessionRuntimeState } from './session.js';
 
 // ============================================================================
