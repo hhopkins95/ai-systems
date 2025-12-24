@@ -15,28 +15,20 @@
 import type {
   AnySessionEvent,
   SessionConversationState,
-  SessionRuntimeState,
+  SessionState,
 } from '@ai-systems/shared-types';
 import { reduceSessionEvent as reduceConversationEvent } from './conversation/reducer.js';
 import { reduceRuntimeEvent } from './runtime/reducer.js';
 import { createInitialConversationState } from './conversation/types.js';
 import { createInitialRuntimeState } from './runtime/types.js';
-
-/**
- * Combined session state managed by the root reducer.
- */
-export interface SessionState {
-  /** Conversation state: blocks, subagents */
-  conversation: SessionConversationState;
-  /** Runtime state: loaded status, active query, execution environment */
-  runtime: SessionRuntimeState;
-}
+import { reduceExecutionEnvironmentEvent } from './execution-environment/reducer.js';
 
 /**
  * Create initial combined session state.
  */
 export function createInitialSessionState(): SessionState {
   return {
+    executionEnvironment: { status: 'inactive' },
     conversation: createInitialConversationState(),
     runtime: createInitialRuntimeState(),
   };
@@ -68,7 +60,7 @@ export function reduceSessionState(
 ): SessionState {
   const newConversation = reduceConversationEvent(state.conversation, event);
   const newRuntime = reduceRuntimeEvent(state.runtime, event);
-
+  const newExecutionEnvironment = reduceExecutionEnvironmentEvent(state.executionEnvironment, event);
   // Optimization: return same reference if nothing changed
   if (
     newConversation === state.conversation &&
@@ -79,6 +71,7 @@ export function reduceSessionState(
 
   return {
     conversation: newConversation,
+    executionEnvironment: newExecutionEnvironment ?? state.executionEnvironment,
     runtime: newRuntime,
   };
 }

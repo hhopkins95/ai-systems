@@ -5,3 +5,6 @@
  */
 
 export * from "./conversation-state.js";
+export * from "./execution-environment.js";
+export * from "./runtime.js";
+export * from "./root.js";
