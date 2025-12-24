@@ -332,6 +332,21 @@ export interface SessionEventPayloads {
     reason: 'manual' | 'unhealthy' | 'idle';
   };
 
+  /**
+   * Execution environment encountered an error
+   */
+  'ee:error': {
+    message: string;
+    code?: string;
+  };
+
+  /**
+   * Execution environment health check received
+   */
+  'ee:health_check': {
+    timestamp: number;
+  };
+
   // ---------------------------------------------------------------------------
   // Query Lifecycle Events
   // ---------------------------------------------------------------------------
@@ -560,6 +575,8 @@ export const EE_LIFECYCLE_EVENT_TYPES = [
   'ee:creating',
   'ee:ready',
   'ee:terminated',
+  'ee:error',
+  'ee:health_check',
 ] as const satisfies readonly SessionEventType[];
 
 /**
@@ -591,6 +608,8 @@ export const CLIENT_BROADCAST_EVENT_TYPES = [
   'ee:creating',
   'ee:ready',
   'ee:terminated',
+  'ee:error',
+  'ee:health_check',
   'query:started',
   'query:completed',
   'query:failed',

@@ -6,7 +6,7 @@
  */
 
 // Re-export shared types
-export type { ConvertOptions, ParseTranscriptOptions } from '../types.js';
+export type { ConvertOptions, ParseTranscriptOptions } from '../../types.js';
 export type { SessionConversationState } from '@ai-systems/shared-types';
 
 // Transcript parsing

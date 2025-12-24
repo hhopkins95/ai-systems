@@ -14,9 +14,9 @@ import type {
 } from '@ai-systems/shared-types';
 import { createInitialConversationState, createSessionEvent } from '@ai-systems/shared-types';
 import type { AssistantMessage, Part } from "@opencode-ai/sdk";
-import { reduceSessionEvent } from '../session-state/reducer.js';
-import type { ParseTranscriptOptions } from '../types.js';
-import { noopLogger, toISOTimestamp } from '../utils.js';
+import { reduceSessionEvent } from '../../reducers/conversation/reducer.js';
+import type { ParseTranscriptOptions } from '../../types.js';
+import { noopLogger, toISOTimestamp } from '../../utils.js';
 import {
   isTaskTool,
   partToEvents,

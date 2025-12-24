@@ -42,6 +42,12 @@ export type {
   // Conversation state types
   SessionConversationState,
   SubagentState,
+  // Runtime state types
+  SessionRuntimeState,
+  ActiveQueryState,
+  ExecutionEnvironmentState,
+  ExecutionEnvironmentStatus,
+  ExecutionEnvironmentError,
 } from '@ai-systems/shared-types';
 
 // Re-export type guards and helpers from shared-types
@@ -67,6 +73,9 @@ export {
   createSubagentState,
   findSubagent,
   findSubagentIndex,
+  // Runtime state helpers
+  createInitialRuntimeState,
+  createInitialExecutionEnvironmentState,
 } from '@ai-systems/shared-types';
 
 // Utilities
@@ -81,8 +90,11 @@ export {
 // Internal converter types
 export * from './types.js';
 
-// Session state reducer (shared between server and client)
+// Session state reducers (shared between server and client)
 export * from './reducers/conversation/index.js';
+export * from './reducers/execution-environment/index.js';
+export * from './reducers/runtime/index.js';
+export * from './reducers/root.js';
 
 // OpenCode helpers
 export { extractSubagentSessionIds } from './converters/opencode/index.js';

@@ -15,7 +15,7 @@ import type {
   OpenCodeSessionTranscript,
 } from '@ai-systems/shared-types';
 import { createSessionEvent } from '@ai-systems/shared-types';
-import { generateId, toISOTimestamp, noopLogger, type Logger } from '../utils.js';
+import { generateId, toISOTimestamp, noopLogger, type Logger } from '../../utils.js';
 
 // ============================================================================
 // Status and Timestamp Helpers

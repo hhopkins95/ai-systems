@@ -40,8 +40,8 @@ import type {
   SessionConversationState,
 } from '@ai-systems/shared-types';
 import { createSessionEvent } from '@ai-systems/shared-types';
-import { generateId, noopLogger } from '../utils.js';
-import type { ConvertOptions } from '../types.js';
+import { generateId, noopLogger } from '../../utils.js';
+import type { ConvertOptions } from '../../types.js';
 
 // ============================================================================
 // Type Helpers for SDK Message Handling

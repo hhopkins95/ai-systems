@@ -17,10 +17,10 @@ import type {
   SessionConversationState,
 } from '@ai-systems/shared-types';
 import { createInitialConversationState } from '@ai-systems/shared-types';
-import { noopLogger } from '../utils.js';
-import type { ParseTranscriptOptions } from '../types.js';
+import { noopLogger } from '../../utils.js';
+import type { ParseTranscriptOptions } from '../../types.js';
 import { createClaudeSdkEventConverter } from './block-converter.js';
-import { reduceSessionEvent } from '../session-state/reducer.js';
+import { reduceSessionEvent } from '../../reducers/conversation/reducer.js';
 
 /**
  * Parse JSONL transcript file content into array of SDK messages

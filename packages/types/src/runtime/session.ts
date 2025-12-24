@@ -162,12 +162,34 @@ export interface RuntimeSessionData extends SessionListItem {
 
 
 
-// Create Session Args 
-export interface CreateSessionArgs { 
-    agentProfileRef : string, 
+// Create Session Args
+export interface CreateSessionArgs {
+    agentProfileRef : string,
     architecture : AgentArchitecture,
     command? : string,
     defaultWorkspaceFiles? : WorkspaceFile[]
     sessionOptions? : AgentArchitectureSessionOptions
+}
+
+// =============================================================================
+// Factory Functions
+// =============================================================================
+
+/**
+ * Create initial execution environment state.
+ */
+export function createInitialExecutionEnvironmentState(): ExecutionEnvironmentState {
+  return { status: 'inactive' };
+}
+
+/**
+ * Create initial session runtime state.
+ */
+export function createInitialRuntimeState(): SessionRuntimeState {
+  return {
+    isLoaded: false,
+    executionEnvironment: null,
+    activeQuery: undefined,
+  };
 }
 
