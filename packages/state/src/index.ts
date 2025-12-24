@@ -82,10 +82,10 @@ export {
 export * from './types.js';
 
 // Session state reducer (shared between server and client)
-export * from './session-state/index.js';
+export * from './reducers/conversation-state/index.js';
 
 // OpenCode helpers
-export { extractSubagentSessionIds } from './opencode/index.js';
+export { extractSubagentSessionIds } from './converters/opencode/index.js';
 
 // =============================================================================
 // Unified Transcript Parsing
@@ -93,8 +93,8 @@ export { extractSubagentSessionIds } from './opencode/index.js';
 
 import type { AgentArchitecture, SessionConversationState } from '@ai-systems/shared-types';
 import { createInitialConversationState } from '@ai-systems/shared-types';
-import { parseCombinedClaudeTranscript } from './claude-sdk/index.js';
-import { parseCombinedOpenCodeTranscript } from './opencode/index.js';
+import { parseCombinedClaudeTranscript } from './converters/claude-sdk/index.js';
+import { parseCombinedOpenCodeTranscript } from './converters/opencode/index.js';
 
 /**
  * Parse a transcript based on the agent architecture type.

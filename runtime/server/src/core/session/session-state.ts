@@ -45,7 +45,7 @@ import {
   createInitialState,
   isConversationEvent,
   type SessionConversationState,
-} from '../../../../../packages/state/dist/index.js';
+} from '@ai-systems/state';
 import type { SessionEventBus } from './session-event-bus.js';
 
 // ============================================================================

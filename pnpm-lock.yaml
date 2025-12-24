@@ -19,7 +19,7 @@ importers:
     dependencies:
       '@ai-systems/state':
         specifier: workspace:*
-        version: link:../../packages/converters
+        version: link:../../packages/state
       '@hhopkins/agent-server':
         specifier: workspace:*
         version: link:../../runtime/server
@@ -174,7 +174,7 @@ importers:
         version: link:../types
       '@ai-systems/state':
         specifier: workspace:*
-        version: link:../converters
+        version: link:../state
       fast-glob:
         specifier: ^3.3.2
         version: 3.3.3
@@ -194,25 +194,6 @@ importers:
       typescript:
         specifier: ^5.7.2
         version: 5.9.3
-
-  packages/converters:
-    dependencies:
-      '@ai-systems/shared-types':
-        specifier: workspace:*
-        version: link:../types
-    devDependencies:
-      '@anthropic-ai/claude-agent-sdk':
-        specifier: ^0.1.18
-        version: 0.1.60(zod@4.1.8)
-      '@opencode-ai/sdk':
-        specifier: ^1.0.163
-        version: 1.0.163
-      typescript:
-        specifier: ^5.7.2
-        version: 5.9.3
-      vitest:
-        specifier: ^2.1.0
-        version: 2.1.9(@types/node@24.10.1)
 
   packages/opencode-claude-adapter:
     dependencies:
@@ -270,6 +251,25 @@ importers:
         specifier: ^5.7.2
         version: 5.9.3
 
+  packages/state:
+    dependencies:
+      '@ai-systems/shared-types':
+        specifier: workspace:*
+        version: link:../types
+    devDependencies:
+      '@anthropic-ai/claude-agent-sdk':
+        specifier: ^0.1.18
+        version: 0.1.61(zod@4.1.8)
+      '@opencode-ai/sdk':
+        specifier: ^1.0.163
+        version: 1.0.163
+      typescript:
+        specifier: ^5.7.2
+        version: 5.9.3
+      vitest:
+        specifier: ^2.1.0
+        version: 2.1.9(@types/node@24.10.1)
+
   packages/types:
     devDependencies:
       '@anthropic-ai/claude-agent-sdk':
@@ -289,7 +289,7 @@ importers:
         version: link:../../packages/types
       '@ai-systems/state':
         specifier: workspace:*
-        version: link:../../packages/converters
+        version: link:../../packages/state
       '@hhopkins/agent-server':
         specifier: workspace:*
         version: link:../server
@@ -318,12 +318,12 @@ importers:
       '@ai-systems/shared-types':
         specifier: workspace:*
         version: link:../../packages/types
+      '@ai-systems/state':
+        specifier: workspace:*
+        version: link:../../packages/state
       '@anthropic-ai/claude-agent-sdk':
         specifier: ^0.1.18
         version: 0.1.61(zod@3.25.76)
-      '@ai-systems/state':
-        specifier: workspace:*
-        version: link:../../packages/converters
       '@hhopkins/claude-entity-manager':
         specifier: workspace:*
         version: link:../../packages/claude-entity-manager
@@ -361,12 +361,12 @@ importers:
       '@ai-systems/shared-types':
         specifier: workspace:*
         version: link:../../packages/types
+      '@ai-systems/state':
+        specifier: workspace:*
+        version: link:../../packages/state
       '@anthropic-ai/claude-agent-sdk':
         specifier: ^0.1.54
         version: 0.1.60(zod@3.25.76)
-      '@ai-systems/state':
-        specifier: workspace:*
-        version: link:../../packages/converters
       '@hhopkins/agent-runner':
         specifier: workspace:*
         version: link:../runner
@@ -5831,19 +5831,6 @@ snapshots:
   '@anthropic-ai/claude-agent-sdk@0.1.60(zod@3.25.76)':
     dependencies:
       zod: 3.25.76
-    optionalDependencies:
-      '@img/sharp-darwin-arm64': 0.33.5
-      '@img/sharp-darwin-x64': 0.33.5
-      '@img/sharp-linux-arm': 0.33.5
-      '@img/sharp-linux-arm64': 0.33.5
-      '@img/sharp-linux-x64': 0.33.5
-      '@img/sharp-linuxmusl-arm64': 0.33.5
-      '@img/sharp-linuxmusl-x64': 0.33.5
-      '@img/sharp-win32-x64': 0.33.5
-
-  '@anthropic-ai/claude-agent-sdk@0.1.60(zod@4.1.8)':
-    dependencies:
-      zod: 4.1.8
     optionalDependencies:
       '@img/sharp-darwin-arm64': 0.33.5
       '@img/sharp-darwin-x64': 0.33.5
