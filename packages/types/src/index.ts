@@ -5,25 +5,11 @@
  * Used across the ai-systems monorepo for consistent type definitions.
  */
 
-// Source tracking
-export * from "./agents/sources.js";
+// Agent types (entities, plugins, sources, context)
+export * from "./agents/index.js";
 
-// Plugin types
-export * from "./agents/plugin.js";
+// Agent architecture types (architectures, transcripts, config files)
+export * from "./agent-architectures/index.js";
 
-// MCP types
-export * from "./agents/entities/mcp.js";
-
-// Entity types
-export * from "./agents/entities/index.js";
-
-// Agent context (composed type)
-export * from "./agents/agent-context.js";
-
-
-// Transcript types (for converter packages)
-export * from "./agent-architectures/transcript.js";
-
-// Config files
-export * from "./agent-architectures/config-files/claude.js";
-export * from "./agent-architectures/config-files/opencode.js";
+// Session types (sessions, blocks, events, state)
+export * from "./session/index.js";
