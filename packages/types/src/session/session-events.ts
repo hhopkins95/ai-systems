@@ -18,7 +18,8 @@
 import type { ConversationBlock, PartialConversationBlock } from './conversation-blocks.js';
 import type { AgentArchitectureSessionOptions } from '../agent-architectures/architecture.js';
 import type { WorkspaceFile } from './data.js';
-import type { RuntimeState } from './state/runtime.js';
+import type { RuntimeState, ActiveQueryState } from './state/runtime.js';
+import type { ExecutionEnvironmentState } from './state/execution-environment.js';
 
 // ============================================================================
 // Event Context
@@ -171,7 +172,11 @@ export interface SessionEventPayloads {
    * Session runtime state changed
    */
   'status': {
-    runtime: RuntimeState;
+    runtime: {
+      isLoaded: boolean;
+      executionEnvironment: Partial<ExecutionEnvironmentState> | null;
+      activeQuery?: ActiveQueryState;
+    };
   };
 
   // ---------------------------------------------------------------------------

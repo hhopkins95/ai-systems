@@ -55,7 +55,6 @@ export type {
   // Adapter interfaces
   PersistenceAdapter,
 
-  RuntimeSessionData,
   WorkspaceFile,
   AgentArchitecture,
 
