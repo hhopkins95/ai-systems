@@ -43,9 +43,13 @@ export type {
   SessionConversationState,
   SubagentState,
   // Runtime state types
+  RuntimeState,
+  ActiveQueryState,
   ExecutionEnvironmentState,
   ExecutionEnvironmentStatus,
   ExecutionEnvironmentError,
+  // Root state type
+  SessionState,
 } from '@ai-systems/shared-types';
 
 // Re-export type guards and helpers from shared-types
@@ -71,6 +75,8 @@ export {
   createSubagentState,
   findSubagent,
   findSubagentIndex,
+  // Runtime state helpers
+  createInitialRuntimeState,
 } from '@ai-systems/shared-types';
 
 // Utilities

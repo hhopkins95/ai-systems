@@ -5,7 +5,7 @@
  */
 
 export {
-  type SessionRuntimeState,
+  type RuntimeState,
   type ActiveQueryState,
   createInitialRuntimeState,
 } from '@ai-systems/shared-types';

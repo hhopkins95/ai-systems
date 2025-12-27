@@ -70,6 +70,13 @@ export interface SubagentState {
 // ============================================================================
 
 /**
+ * Create initial conversation state
+ */
+export function createInitialConversationState(): SessionConversationState {
+  return { blocks: [], subagents: [] };
+}
+
+/**
  * Create initial subagent state
  */
 export function createSubagentState(

@@ -17,11 +17,9 @@ export { reduceSessionEvent, isConversationEvent } from './reducer.js';
 export {
   type SessionConversationState,
   type SubagentState,
-  createInitialState,  // Alias for backward compatibility
   createSubagentState,
   findSubagent,
   findSubagentIndex,
+  createInitialConversationState,
 } from './types.js';
 
-// Also export the canonical name
-export { createInitialConversationState } from '@ai-systems/shared-types';
