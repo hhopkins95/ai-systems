@@ -15,7 +15,6 @@
  */
 
 import type { AnySessionEvent, ExecutionEnvironmentState } from '@ai-systems/shared-types';
-import { createInitialExecutionEnvironmentState } from './types.js';
 
 /**
  * Reduce a session event into new execution environment state.
@@ -31,7 +30,7 @@ export function reduceExecutionEnvironmentEvent(
   switch (event.type) {
     case 'ee:creating':
       return {
-        ...createInitialExecutionEnvironmentState(),
+        ...state,
         status: 'starting',
         statusMessage: event.payload.statusMessage,
       };

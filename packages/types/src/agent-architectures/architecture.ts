@@ -65,24 +65,3 @@ type OpenCodeSessionOptions = {
 }
 
 export type AgentArchitectureSessionOptions = ClaudeSDKSessionOptions | OpenCodeSessionOptions;
-
-/**
- * Get architecture info by ID
- */
-export function getArchitectureInfo(architecture: AgentArchitecture): ArchitectureInfo {
-  return ARCHITECTURES[architecture];
-}
-
-/**
- * Check if an architecture supports subagents
- */
-export function supportsSubagents(architecture: AgentArchitecture): boolean {
-  return ARCHITECTURES[architecture].supportsSubagents;
-}
-
-/**
- * Get the transcript format for an architecture
- */
-export function getTranscriptFormat(architecture: AgentArchitecture): TranscriptFormat {
-  return ARCHITECTURES[architecture].transcriptFormat;
-}

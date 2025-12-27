@@ -14,5 +14,3 @@ export {
   findSubagentIndex,
 } from '@ai-systems/shared-types';
 
-// Alias for backward compatibility
-export { createInitialConversationState as createInitialState } from '@ai-systems/shared-types';

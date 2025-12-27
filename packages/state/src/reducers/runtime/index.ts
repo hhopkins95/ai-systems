@@ -4,5 +4,5 @@
  * Exports the runtime reducer and related types.
  */
 
-export { reduceRuntimeEvent, isRuntimeEvent } from './reducer.js';
-export * from './types.js';
+export { reduceRuntimeEvent, isRuntimeEvent } from './reducer';
+export * from './types';

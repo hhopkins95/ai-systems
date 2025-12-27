@@ -15,10 +15,9 @@
  * Returns new state objects (never mutates).
  */
 
-import type { AnySessionEvent, SessionRuntimeState } from '@ai-systems/shared-types';
+import type { AnySessionEvent, RuntimeState } from '@ai-systems/shared-types';
 import {
-  reduceExecutionEnvironmentEvent,
-  isExecutionEnvironmentEvent,
+  isExecutionEnvironmentEvent
 } from '../execution-environment/reducer.js';
 
 /**
@@ -29,24 +28,9 @@ import {
  * @returns New runtime state (or same state if event is unhandled)
  */
 export function reduceRuntimeEvent(
-  state: SessionRuntimeState,
+  state: RuntimeState,
   event: AnySessionEvent
-): SessionRuntimeState {
-  // Delegate EE events to the EE reducer
-  if (isExecutionEnvironmentEvent(event)) {
-    const newEEState = reduceExecutionEnvironmentEvent(
-      state.executionEnvironment,
-      event
-    );
-    if (newEEState === state.executionEnvironment) {
-      return state;
-    }
-    return {
-      ...state,
-      executionEnvironment: newEEState,
-    };
-  }
-
+): RuntimeState {
   switch (event.type) {
     case 'session:initialized':
       return {

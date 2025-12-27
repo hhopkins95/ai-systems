@@ -8,5 +8,4 @@ export {
   type ExecutionEnvironmentState,
   type ExecutionEnvironmentStatus,
   type ExecutionEnvironmentError,
-  createInitialExecutionEnvironmentState,
 } from '@ai-systems/shared-types';

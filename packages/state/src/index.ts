@@ -43,8 +43,6 @@ export type {
   SessionConversationState,
   SubagentState,
   // Runtime state types
-  SessionRuntimeState,
-  ActiveQueryState,
   ExecutionEnvironmentState,
   ExecutionEnvironmentStatus,
   ExecutionEnvironmentError,
@@ -73,9 +71,6 @@ export {
   createSubagentState,
   findSubagent,
   findSubagentIndex,
-  // Runtime state helpers
-  createInitialRuntimeState,
-  createInitialExecutionEnvironmentState,
 } from '@ai-systems/shared-types';
 
 // Utilities

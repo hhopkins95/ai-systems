@@ -6,7 +6,7 @@
   "description": "Monorepo for AI systems - agent runtime, entity management, and tooling",
   "scripts": {
     "build": "turbo run build",
-    "dev": "turbo run dev",
+    "dev": "turbo watch dev --continue",
     "check": "turbo run check",
     "clean": "turbo run clean && rm -rf node_modules .turbo",
     "docs": "node apps/smart-docs/bin/cli.mjs docs",
