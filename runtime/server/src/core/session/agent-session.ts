@@ -141,7 +141,7 @@ export class AgentSession {
         isNew: false,
         hasTranscript: !!sessionData.rawTranscript,
         workspaceFileCount: sessionData.workspaceFiles?.length ?? 0,
-        blockCount: state.blocks.length,
+        blockCount: state.getConversationState().blocks.length,
       }, {
         sessionId: sessionData.sessionId,
         source: 'server',
@@ -286,7 +286,7 @@ export class AgentSession {
     }, context));
     this.emitRuntimeStatus();
 
-    logger.info({ sessionId: this.sessionId, sandboxId: this.state.eeId }, 'Execution environment activated');
+    logger.info({ sessionId: this.sessionId, sandboxId: this.state.getExecutionEnvironmentState().id }, 'Execution environment activated');
   }
 
   /**
@@ -313,22 +313,22 @@ export class AgentSession {
    * Emit the current runtime status to event bus
    */
   private emitRuntimeStatus(): void {
+    const ee = this.state.getExecutionEnvironmentState();
+    const runtime = this.state.getRuntimeState();
     this.eventBus.emit('status', createSessionEvent('status', {
       runtime: {
         isLoaded: true,
-        executionEnvironment: this.state.hasExecutionEnvironment()
+        executionEnvironment: ee.status !== 'inactive'
           ? {
-              id: this.state.eeId,
-              status: this.state.eeStatus!,
-              statusMessage: this.state.statusMessage,
-              restartCount: this.state.eeRestartCount,
-              lastHealthCheck: this.state.lastHealthCheck,
-              lastError: this.state.lastError,
+              id: ee.id,
+              status: ee.status,
+              statusMessage: ee.statusMessage,
+              restartCount: ee.restartCount,
+              lastHealthCheck: ee.lastHealthCheck,
+              lastError: ee.lastError,
             }
           : null,
-        activeQuery: this.state.activeQueryStartedAt
-          ? { startedAt: this.state.activeQueryStartedAt }
-          : undefined,
+        activeQuery: runtime.activeQuery,
       },
     }, {
       sessionId: this.sessionId,
@@ -534,10 +534,7 @@ export class AgentSession {
       lastActivity: this.state.lastActivity,
       sessionOptions: this.state.sessionOptions,
       runtime: this.getRuntimeState(),
-      conversationState: {
-        blocks: this.state.blocks,
-        subagents: this.state.subagents,
-      },
+      conversationState: this.state.getConversationState(),
       workspaceFiles: this.state.workspaceFiles,
     };
   }
@@ -560,21 +557,20 @@ export class AgentSession {
    * Get runtime state (isLoaded, sandbox info)
    */
   getRuntimeState() {
+    const ee = this.state.getExecutionEnvironmentState();
     return {
       isLoaded: true,
-      executionEnvironment: this.state.hasExecutionEnvironment()
+      executionEnvironment: ee.status !== 'inactive'
         ? {
-            id: this.state.eeId,
-            status: this.state.eeStatus!,
-            statusMessage: this.state.statusMessage,
-            restartCount: this.state.eeRestartCount,
-            lastHealthCheck: this.state.lastHealthCheck,
-            lastError: this.state.lastError,
+            id: ee.id,
+            status: ee.status,
+            statusMessage: ee.statusMessage,
+            restartCount: ee.restartCount,
+            lastHealthCheck: ee.lastHealthCheck,
+            lastError: ee.lastError,
           }
         : null,
-      activeQuery: this.state.activeQueryStartedAt
-        ? { startedAt: this.state.activeQueryStartedAt }
-        : undefined,
+      activeQuery: this.state.getRuntimeState().activeQuery,
     };
   }
 
@@ -623,7 +619,7 @@ export class AgentSession {
       } else {
         // Execution environment is healthy
         // If status was not ready (e.g., recovering from error), emit ee:ready
-        if (this.state.eeStatus !== 'ready') {
+        if (this.state.getExecutionEnvironmentState().status !== 'ready') {
           this.eventBus.emit('ee:ready', createSessionEvent('ee:ready', {
             eeId: this.executionEnvironment.getId(),
           }, context));
