@@ -5,7 +5,7 @@
  * - AgentSession: Session coordinator (orchestrates all components)
  * - ExecutionEnvironment: Agent code execution abstraction
  * - SessionEventBus: Per-session typed event emitter
- * - SessionState: Serializable state container with snapshot/restore
+ * - SessionState: Event-driven state container using shared reducers
  * - PersistenceListener: Handles storage sync via events
  * - ClientBroadcastListener: Bridges SessionEventBus to ClientHub
  *
@@ -26,7 +26,7 @@ export { SessionEventBus } from './session-event-bus.js';
 
 // State management
 export { SessionState } from './session-state.js';
-export type { SessionStateSnapshot } from './session-state.js';
+export type { SessionStateInit } from './session-state.js';
 
 // Event listeners
 export { PersistenceListener } from './persistence-listener.js';

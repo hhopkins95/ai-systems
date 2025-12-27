@@ -139,23 +139,18 @@ export class PersistenceListener {
    * Used for periodic sync and before session termination
    */
   async syncFullState(state: SessionState): Promise<void> {
-    const snapshot = state.toSnapshot();
-
     this.logger.debug('Starting full state sync');
 
     try {
       // Save transcript if present
-      if (snapshot.rawTranscript !== undefined) {
-        await this.persistence.saveTranscript(
-          this.sessionId,
-          snapshot.rawTranscript
-        );
+      if (state.rawTranscript !== undefined) {
+        await this.persistence.saveTranscript(this.sessionId, state.rawTranscript);
       }
 
       // Save all workspace files in parallel
-      if (snapshot.workspaceFiles.length > 0) {
+      if (state.workspaceFiles.length > 0) {
         await Promise.all(
-          snapshot.workspaceFiles.map((file) =>
+          state.workspaceFiles.map((file) =>
             this.persistence.saveWorkspaceFile(this.sessionId, file)
           )
         );
@@ -163,13 +158,13 @@ export class PersistenceListener {
 
       // Update session record with latest activity
       await this.persistence.updateSessionRecord(this.sessionId, {
-        lastActivity: snapshot.lastActivity,
+        lastActivity: state.lastActivity,
       });
 
       this.logger.debug(
         {
-          fileCount: snapshot.workspaceFiles.length,
-          hasTranscript: !!snapshot.rawTranscript,
+          fileCount: state.workspaceFiles.length,
+          hasTranscript: !!state.rawTranscript,
         },
         'Full state sync complete'
       );

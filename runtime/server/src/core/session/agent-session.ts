@@ -21,10 +21,7 @@ import type { PersistenceAdapter } from '../../types/persistence-adapter.js';
 import type { AgentProfile } from '@ai-systems/shared-types';
 import {
   createSessionEvent,
-  type RuntimeSessionData,
-  type PersistedSessionListData,
   type AgentArchitecture,
-  type SessionRuntimeState,
   type CreateSessionArgs,
   type AgentArchitectureSessionOptions,
 } from '@ai-systems/shared-types';
@@ -317,7 +314,22 @@ export class AgentSession {
    */
   private emitRuntimeStatus(): void {
     this.eventBus.emit('status', createSessionEvent('status', {
-      runtime: this.state.getRuntimeState(),
+      runtime: {
+        isLoaded: true,
+        executionEnvironment: this.state.hasExecutionEnvironment()
+          ? {
+              id: this.state.eeId,
+              status: this.state.eeStatus!,
+              statusMessage: this.state.statusMessage,
+              restartCount: this.state.eeRestartCount,
+              lastHealthCheck: this.state.lastHealthCheck,
+              lastError: this.state.lastError,
+            }
+          : null,
+        activeQuery: this.state.activeQueryStartedAt
+          ? { startedAt: this.state.activeQueryStartedAt }
+          : undefined,
+      },
     }, {
       sessionId: this.sessionId,
       source: 'server',
@@ -513,22 +525,57 @@ export class AgentSession {
   /**
    * Get full session state for clients
    */
-  getState(): RuntimeSessionData {
-    return this.state.toRuntimeSessionData();
+  getState() {
+    return {
+      sessionId: this.state.sessionId,
+      agentProfileReference: this.state.agentProfileId,
+      type: this.state.architecture,
+      createdAt: this.state.createdAt,
+      lastActivity: this.state.lastActivity,
+      sessionOptions: this.state.sessionOptions,
+      runtime: this.getRuntimeState(),
+      conversationState: {
+        blocks: this.state.blocks,
+        subagents: this.state.subagents,
+      },
+      workspaceFiles: this.state.workspaceFiles,
+    };
   }
 
   /**
    * Get minimal session data for persistence
    */
-  getPersistedListData(): PersistedSessionListData {
-    return this.state.toPersistedListData();
+  getPersistedListData() {
+    return {
+      sessionId: this.state.sessionId,
+      type: this.state.architecture,
+      agentProfileReference: this.state.agentProfileId,
+      sessionOptions: this.state.sessionOptions,
+      lastActivity: this.state.lastActivity,
+      createdAt: this.state.createdAt,
+    };
   }
 
   /**
    * Get runtime state (isLoaded, sandbox info)
    */
-  getRuntimeState(): SessionRuntimeState {
-    return this.state.getRuntimeState();
+  getRuntimeState() {
+    return {
+      isLoaded: true,
+      executionEnvironment: this.state.hasExecutionEnvironment()
+        ? {
+            id: this.state.eeId,
+            status: this.state.eeStatus!,
+            statusMessage: this.state.statusMessage,
+            restartCount: this.state.eeRestartCount,
+            lastHealthCheck: this.state.lastHealthCheck,
+            lastError: this.state.lastError,
+          }
+        : null,
+      activeQuery: this.state.activeQueryStartedAt
+        ? { startedAt: this.state.activeQueryStartedAt }
+        : undefined,
+    };
   }
 
   private startPeriodicSync(): void {
